@@ -1,0 +1,179 @@
+{
+  "events": [
+    {
+      "type": "ai_suggestion",
+      "message": "AI comparison/integration project that has researched multiple AI models (Claude, Grok, Gemini, ChatGPT, Perplexity) with initial vision and categories defined.",
+      "data": {
+        "phase": {
+          "phase": "PLAN",
+          "step": "BRAINLIFT"
+        }
+      },
+      "id": "1768772376159-cirrz4",
+      "timestamp": "2026-01-18T21:39:36.159Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Create a brainlift.md file that synthesizes the research findings. Extract key differences between t",
+      "id": "1768772775896-rxti69",
+      "timestamp": "2026-01-18T21:46:15.896Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a project to create a comprehensive testing categories framework that identifies edge cases, security vulnerabilities, and failure modes in software development.",
+      "data": {
+        "phase": {
+          "phase": "PLAN",
+          "step": "PRD"
+        }
+      },
+      "id": "1768773069616-f4lu9a",
+      "timestamp": "2026-01-18T21:51:09.616Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Create a PRD for Pinata testing framework. Define the problem (teams missing critical test categorie",
+      "id": "1768773421024-vvzgwl",
+      "timestamp": "2026-01-18T21:57:01.024Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata - a comprehensive testing framework that helps engineering teams identify critical test categories beyond happy-path scenarios, covering edge cases, security vulnerabilities, and failure modes.",
+      "data": {
+        "phase": {
+          "phase": "PLAN",
+          "step": "PRD"
+        }
+      },
+      "id": "1768773680343-hhui22",
+      "timestamp": "2026-01-18T22:01:20.343Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Complete the PRD for Pinata. Add sections for: 1) Complete the Success Metrics (adoption, quality, b",
+      "id": "1768773786013-txfrs2",
+      "timestamp": "2026-01-18T22:03:06.013Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a comprehensive test category taxonomy tool that helps engineering teams identify and test critical edge cases, security vulnerabilities, and failure modes that typically go untested until production incidents.",
+      "data": {
+        "phase": {
+          "phase": "PLAN",
+          "step": "PRD"
+        }
+      },
+      "id": "1768773808481-34ae31",
+      "timestamp": "2026-01-18T22:03:28.481Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata - A comprehensive testing framework that helps engineering teams identify and test critical edge cases, security vulnerabilities, and failure modes often missed in typical test suites.",
+      "data": {
+        "phase": {
+          "phase": "PLAN",
+          "step": "GAMEPLAN"
+        }
+      },
+      "id": "1768774162369-k7lk0f",
+      "timestamp": "2026-01-18T22:09:22.369Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Create a GAMEPLAN for Pinata. Break down the implementation into phases: 1) Core taxonomy engine wit",
+      "id": "1768774673672-lp82qo",
+      "timestamp": "2026-01-18T22:17:53.672Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a test coverage analysis tool that helps teams identify missing test categories across security, edge cases, and distributed systems.",
+      "data": {
+        "phase": {
+          "phase": "BUILD",
+          "step": "RULES"
+        }
+      },
+      "id": "1768774951965-d1cxqe",
+      "timestamp": "2026-01-18T22:22:31.965Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Create a .cursorrules file for Pinata. Use TypeScript with strict mode, ESLint, and Prettier. Set up",
+      "id": "1768776228384-qrw0fs",
+      "timestamp": "2026-01-18T22:43:48.384Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a comprehensive test coverage analysis tool that identifies blind spots in test suites across security, edge cases, and distributed systems.",
+      "data": {
+        "phase": {
+          "phase": "BUILD",
+          "step": "RULES"
+        }
+      },
+      "id": "1768776478376-izlh41",
+      "timestamp": "2026-01-18T22:47:58.376Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata: A comprehensive test coverage analysis and generation tool that helps engineering teams identify blind spots in their test suites.",
+      "data": {
+        "phase": {
+          "phase": "BUILD",
+          "step": "RULES"
+        }
+      },
+      "id": "1768776691908-tjv86t",
+      "timestamp": "2026-01-18T22:51:31.908Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Suggestion declined",
+      "data": {
+        "reason": "[2 tools called]"
+      },
+      "id": "1768776892254-kcgw75",
+      "timestamp": "2026-01-18T22:54:52.254Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a comprehensive test coverage analysis tool that helps teams identify missing test categories across security, distributed systems, and edge cases.",
+      "data": {
+        "phase": {
+          "phase": "BUILD",
+          "step": "RULES"
+        }
+      },
+      "id": "1768776919149-3w35u8",
+      "timestamp": "2026-01-18T22:55:19.149Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Suggestion declined",
+      "data": {
+        "reason": "already did that"
+      },
+      "id": "1768776984975-im8awn",
+      "timestamp": "2026-01-18T22:56:24.975Z"
+    },
+    {
+      "type": "ai_suggestion",
+      "message": "Pinata is a comprehensive test coverage analysis tool that identifies blind spots in test suites across security, distributed systems, and edge cases.",
+      "data": {
+        "phase": {
+          "phase": "BUILD",
+          "step": "INDEX"
+        }
+      },
+      "id": "1768777008558-3jv9tb",
+      "timestamp": "2026-01-18T22:56:48.558Z"
+    },
+    {
+      "type": "prompt_copied",
+      "message": "Create the initial TypeScript project structure for Pinata with src/, tests/, and types/ directories",
+      "id": "1768777015357-d4ixgd",
+      "timestamp": "2026-01-18T22:56:55.357Z"
+    }
+  ],
+  "lastUpdated": "2026-01-18T22:56:55.357Z"
+}

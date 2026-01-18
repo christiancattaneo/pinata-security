@@ -1,0 +1,79 @@
+[
+  {
+    "timestamp": "2026-01-18T21:39:36.138Z",
+    "provider": "anthropic",
+    "inputTokens": 1222,
+    "outputTokens": 593,
+    "estimatedCost": 6.28
+  },
+  {
+    "timestamp": "2026-01-18T21:51:09.596Z",
+    "provider": "anthropic",
+    "inputTokens": 1748,
+    "outputTokens": 633,
+    "estimatedCost": 7.37
+  },
+  {
+    "timestamp": "2026-01-18T22:01:20.324Z",
+    "provider": "anthropic",
+    "inputTokens": 2172,
+    "outputTokens": 704,
+    "estimatedCost": 8.54
+  },
+  {
+    "timestamp": "2026-01-18T22:03:28.460Z",
+    "provider": "anthropic",
+    "inputTokens": 2172,
+    "outputTokens": 719,
+    "estimatedCost": 8.65
+  },
+  {
+    "timestamp": "2026-01-18T22:09:22.349Z",
+    "provider": "anthropic",
+    "inputTokens": 2171,
+    "outputTokens": 639,
+    "estimatedCost": 8.05
+  },
+  {
+    "timestamp": "2026-01-18T22:22:31.943Z",
+    "provider": "anthropic",
+    "inputTokens": 2924,
+    "outputTokens": 814,
+    "estimatedCost": 10.49
+  },
+  {
+    "timestamp": "2026-01-18T22:47:58.358Z",
+    "provider": "anthropic",
+    "inputTokens": 2843,
+    "outputTokens": 509,
+    "estimatedCost": 8.08
+  },
+  {
+    "timestamp": "2026-01-18T22:51:00.873Z",
+    "provider": "anthropic",
+    "inputTokens": 2828,
+    "outputTokens": 0,
+    "estimatedCost": 4.24
+  },
+  {
+    "timestamp": "2026-01-18T22:51:31.883Z",
+    "provider": "anthropic",
+    "inputTokens": 2828,
+    "outputTokens": 593,
+    "estimatedCost": 8.69
+  },
+  {
+    "timestamp": "2026-01-18T22:55:19.124Z",
+    "provider": "anthropic",
+    "inputTokens": 2872,
+    "outputTokens": 769,
+    "estimatedCost": 10.08
+  },
+  {
+    "timestamp": "2026-01-18T22:56:48.537Z",
+    "provider": "anthropic",
+    "inputTokens": 2898,
+    "outputTokens": 720,
+    "estimatedCost": 9.75
+  }
+]

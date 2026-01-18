@@ -1,0 +1,611 @@
+# Pinata Cursor Rules
+
+## Project Overview
+
+Pinata is a CLI tool and web dashboard for comprehensive test coverage analysis. It ingests codebases, identifies gaps in test coverage across risk domains (security, data integrity, concurrency, etc.), and generates tests using AI-powered templates.
+
+## Tech Stack
+
+- **Language**: TypeScript 5.x with strict mode
+- **Runtime**: Node.js 20+
+- **CLI Framework**: Commander.js
+- **Schema Validation**: Zod
+- **Testing**: Vitest
+- **Linting**: ESLint with typescript-eslint
+- **Formatting**: Prettier
+- **Build**: tsup (for CLI) / Next.js (for dashboard)
+- **Package Manager**: pnpm
+
+## File Organization
+
+```
+pinata/
+├── src/
+│   ├── categories/           # Category definitions and store
+│   │   ├── schema/           # Zod schemas for categories
+│   │   ├── store/            # CategoryStore implementation
+│   │   ├── definitions/      # YAML category files
+│   │   │   ├── security/
+│   │   │   ├── data/
+│   │   │   ├── concurrency/
+│   │   │   └── ...
+│   │   └── index.ts
+│   │
+│   ├── core/                 # Core analysis engine
+│   │   ├── ingestion/        # Code parsing and AST
+│   │   ├── detection/        # Pattern matching
+│   │   ├── scoring/          # Gap analysis and scoring
+│   │   ├── generation/       # Test generation
+│   │   └── index.ts
+│   │
+│   ├── cli/                  # CLI implementation
+│   │   ├── commands/         # Command handlers
+│   │   ├── output/           # Formatters (terminal, json, sarif)
+│   │   ├── config/           # Config file parsing
+│   │   └── index.ts
+│   │
+│   ├── lib/                  # Shared utilities
+│   │   ├── errors.ts         # Error classes
+│   │   ├── logger.ts         # Logging
+│   │   ├── fs.ts             # File system helpers
+│   │   └── types.ts          # Shared types
+│   │
+│   └── index.ts              # Main entry point
+│
+├── tests/                    # Test files mirror src structure
+│   ├── categories/
+│   ├── core/
+│   ├── cli/
+│   └── fixtures/             # Test fixtures and mocks
+│
+├── apps/                     # Applications (future)
+│   ├── web/                  # Next.js dashboard
+│   └── api/                  # API server
+│
+└── scripts/                  # Build and utility scripts
+```
+
+## TypeScript Configuration
+
+Use strict TypeScript configuration:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "moduleResolution": "bundler",
+    "module": "ESNext",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  }
+}
+```
+
+## Schema Definitions (Zod)
+
+All data structures must be defined with Zod schemas first, then infer TypeScript types.
+
+### Category Schema
+
+```typescript
+// src/categories/schema/category.schema.ts
+import { z } from "zod";
+
+export const RiskDomainSchema = z.enum([
+  "security",
+  "data",
+  "concurrency",
+  "input",
+  "resource",
+  "reliability",
+  "performance",
+  "platform",
+  "business",
+  "compliance",
+]);
+
+export const TestLevelSchema = z.enum([
+  "unit",
+  "integration",
+  "system",
+  "chaos",
+]);
+
+export const PrioritySchema = z.enum(["P0", "P1", "P2"]);
+
+export const SeveritySchema = z.enum(["critical", "high", "medium", "low"]);
+
+export const ConfidenceSchema = z.enum(["high", "medium", "low"]);
+
+export const LanguageSchema = z.enum([
+  "python",
+  "typescript",
+  "javascript",
+  "go",
+  "java",
+  "rust",
+]);
+
+export const CategorySchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  version: z.number().int().positive(),
+  name: z.string().min(1).max(100),
+  description: z.string().min(10).max(2000),
+  domain: RiskDomainSchema,
+  level: TestLevelSchema,
+  priority: PrioritySchema,
+  severity: SeveritySchema,
+  applicableLanguages: z.array(LanguageSchema).min(1),
+  detectionPatterns: z.array(z.lazy(() => DetectionPatternSchema)).min(1),
+  testTemplates: z.array(z.lazy(() => TestTemplateSchema)).min(1),
+  examples: z.array(z.lazy(() => ExampleSchema)).min(1),
+  cves: z.array(z.string()).optional(),
+  references: z.array(z.string().url()).optional(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type Category = z.infer<typeof CategorySchema>;
+export type RiskDomain = z.infer<typeof RiskDomainSchema>;
+export type TestLevel = z.infer<typeof TestLevelSchema>;
+```
+
+### Detection Pattern Schema
+
+```typescript
+// src/categories/schema/pattern.schema.ts
+import { z } from "zod";
+import { ConfidenceSchema, LanguageSchema } from "./category.schema";
+
+export const PatternTypeSchema = z.enum(["ast", "regex", "semantic"]);
+
+export const DetectionPatternSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  type: PatternTypeSchema,
+  language: LanguageSchema,
+  pattern: z.string().min(1),
+  confidence: ConfidenceSchema,
+  description: z.string().min(10),
+  negativePattern: z.string().optional(), // Pattern that indicates NOT vulnerable
+});
+
+export type DetectionPattern = z.infer<typeof DetectionPatternSchema>;
+export type PatternType = z.infer<typeof PatternTypeSchema>;
+```
+
+### Test Template Schema
+
+```typescript
+// src/categories/schema/template.schema.ts
+import { z } from "zod";
+import { LanguageSchema } from "./category.schema";
+
+export const TestFrameworkSchema = z.enum([
+  "pytest",
+  "unittest",
+  "jest",
+  "vitest",
+  "mocha",
+  "go-test",
+  "junit",
+]);
+
+export const TemplateVariableSchema = z.object({
+  name: z.string().regex(/^[a-z][a-zA-Z0-9_]*$/),
+  type: z.enum(["string", "number", "boolean", "array"]),
+  description: z.string(),
+  required: z.boolean().default(true),
+  defaultValue: z.unknown().optional(),
+});
+
+export const TestTemplateSchema = z.object({
+  id: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  language: LanguageSchema,
+  framework: TestFrameworkSchema,
+  template: z.string().min(50),
+  variables: z.array(TemplateVariableSchema),
+  imports: z.array(z.string()).optional(),
+  fixtures: z.array(z.string()).optional(),
+});
+
+export type TestTemplate = z.infer<typeof TestTemplateSchema>;
+export type TestFramework = z.infer<typeof TestFrameworkSchema>;
+export type TemplateVariable = z.infer<typeof TemplateVariableSchema>;
+```
+
+### Example Schema
+
+```typescript
+// src/categories/schema/example.schema.ts
+import { z } from "zod";
+import { SeveritySchema, LanguageSchema } from "./category.schema";
+
+export const ExampleSchema = z.object({
+  name: z.string().regex(/^[a-z][a-z0-9-]*$/),
+  concept: z.string().min(20),
+  vulnerableCode: z.string().min(10),
+  testCode: z.string().min(50),
+  language: LanguageSchema,
+  severity: SeveritySchema,
+  cve: z.string().optional(),
+});
+
+export type Example = z.infer<typeof ExampleSchema>;
+```
+
+## Naming Conventions
+
+### Files and Directories
+
+- **Directories**: kebab-case (`detection-patterns/`)
+- **TypeScript files**: kebab-case (`category-store.ts`)
+- **Schema files**: `*.schema.ts` suffix
+- **Test files**: `*.test.ts` suffix
+- **Type-only files**: `*.types.ts` suffix
+- **Constants files**: `*.constants.ts` suffix
+
+### Code
+
+- **Types/Interfaces**: PascalCase (`Category`, `DetectionPattern`)
+- **Zod Schemas**: PascalCase with Schema suffix (`CategorySchema`)
+- **Functions**: camelCase (`loadCategory`, `detectPatterns`)
+- **Constants**: SCREAMING_SNAKE_CASE (`MAX_FILE_SIZE`, `DEFAULT_TIMEOUT`)
+- **Enums**: PascalCase for enum, PascalCase for values (`RiskDomain.Security`)
+
+### Category IDs
+
+Category, pattern, template, and example IDs must:
+- Start with lowercase letter
+- Contain only lowercase letters, numbers, and hyphens
+- Be unique within their scope
+- Be descriptive: `sql-injection`, `race-condition-db`, `missing-timeout`
+
+## Error Handling
+
+### Custom Error Classes
+
+```typescript
+// src/lib/errors.ts
+export class PinataError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string,
+    public readonly context?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = "PinataError";
+  }
+}
+
+export class ValidationError extends PinataError {
+  constructor(message: string, context?: Record<string, unknown>) {
+    super(message, "VALIDATION_ERROR", context);
+    this.name = "ValidationError";
+  }
+}
+
+export class ParseError extends PinataError {
+  constructor(
+    message: string,
+    public readonly filePath: string,
+    public readonly line?: number,
+    context?: Record<string, unknown>
+  ) {
+    super(message, "PARSE_ERROR", { ...context, filePath, line });
+    this.name = "ParseError";
+  }
+}
+
+export class ConfigError extends PinataError {
+  constructor(message: string, context?: Record<string, unknown>) {
+    super(message, "CONFIG_ERROR", context);
+    this.name = "ConfigError";
+  }
+}
+
+export class AnalysisError extends PinataError {
+  constructor(message: string, context?: Record<string, unknown>) {
+    super(message, "ANALYSIS_ERROR", context);
+    this.name = "AnalysisError";
+  }
+}
+```
+
+### Error Handling Patterns
+
+```typescript
+// Use Result type for operations that can fail
+import { z } from "zod";
+
+type Result<T, E = Error> =
+  | { success: true; data: T }
+  | { success: false; error: E };
+
+// Example usage
+function parseCategory(yaml: string): Result<Category, ValidationError> {
+  try {
+    const parsed = YAML.parse(yaml);
+    const validated = CategorySchema.safeParse(parsed);
+    
+    if (!validated.success) {
+      return {
+        success: false,
+        error: new ValidationError("Invalid category", {
+          issues: validated.error.issues,
+        }),
+      };
+    }
+    
+    return { success: true, data: validated.data };
+  } catch (err) {
+    return {
+      success: false,
+      error: new ValidationError("Failed to parse YAML", { cause: err }),
+    };
+  }
+}
+
+// Never throw in async functions without handling
+// Always use try-catch or Result types
+async function loadCategories(): Promise<Result<Category[]>> {
+  // ...
+}
+
+// In CLI, catch at command level and format for user
+async function analyzeCommand(options: AnalyzeOptions): Promise<void> {
+  const result = await analyze(options);
+  
+  if (!result.success) {
+    logger.error(result.error.message);
+    if (options.verbose) {
+      logger.debug(JSON.stringify(result.error.context, null, 2));
+    }
+    process.exit(1);
+  }
+  
+  // Handle success...
+}
+```
+
+## Testing Conventions (Vitest)
+
+### Test File Structure
+
+```typescript
+// tests/categories/store/category-store.test.ts
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { CategoryStore } from "@/categories/store/category-store";
+import { createTestCategory } from "@tests/fixtures/categories";
+
+describe("CategoryStore", () => {
+  let store: CategoryStore;
+
+  beforeEach(() => {
+    store = new CategoryStore();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("load", () => {
+    it("loads valid category from YAML", async () => {
+      const category = createTestCategory({ id: "test-category" });
+      const result = await store.load(category);
+      
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.id).toBe("test-category");
+      }
+    });
+
+    it("rejects category with invalid ID format", async () => {
+      const category = createTestCategory({ id: "Invalid_ID" });
+      const result = await store.load(category);
+      
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.code).toBe("VALIDATION_ERROR");
+      }
+    });
+
+    it("rejects duplicate category IDs", async () => {
+      // Test duplicate handling...
+    });
+  });
+
+  describe("search", () => {
+    // Search tests...
+  });
+});
+```
+
+### Test Naming
+
+- Describe blocks: noun (what is being tested)
+- It blocks: verb phrase (what behavior is expected)
+- Use present tense: "loads", "rejects", "returns"
+- Be specific about conditions: "when input is empty", "with invalid credentials"
+
+### Test Fixtures
+
+```typescript
+// tests/fixtures/categories.ts
+import { Category, DetectionPattern, TestTemplate } from "@/categories/schema";
+
+export function createTestCategory(overrides?: Partial<Category>): Category {
+  return {
+    id: "test-sql-injection",
+    version: 1,
+    name: "Test SQL Injection",
+    description: "Test category for SQL injection vulnerabilities",
+    domain: "security",
+    level: "integration",
+    priority: "P0",
+    severity: "critical",
+    applicableLanguages: ["python", "typescript"],
+    detectionPatterns: [createTestPattern()],
+    testTemplates: [createTestTemplate()],
+    examples: [createTestExample()],
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
+    ...overrides,
+  };
+}
+
+export function createTestPattern(
+  overrides?: Partial<DetectionPattern>
+): DetectionPattern {
+  return {
+    id: "test-pattern",
+    type: "regex",
+    language: "python",
+    pattern: "execute\\s*\\(",
+    confidence: "high",
+    description: "Test pattern for SQL execution",
+    ...overrides,
+  };
+}
+```
+
+## Documentation
+
+### JSDoc for Public APIs
+
+```typescript
+/**
+ * Loads and validates a category from a YAML file.
+ *
+ * @param filePath - Absolute path to the YAML file
+ * @returns Result containing the parsed Category or a ValidationError
+ *
+ * @example
+ * ```typescript
+ * const result = await loadCategory("/path/to/sql-injection.yml");
+ * if (result.success) {
+ *   console.log(result.data.name);
+ * }
+ * ```
+ */
+export async function loadCategory(
+  filePath: string
+): Promise<Result<Category, ValidationError>> {
+  // Implementation...
+}
+```
+
+### README in Each Directory
+
+Each major directory should have a README.md explaining:
+- Purpose of the directory
+- Key files and their roles
+- How to add new items (categories, patterns, etc.)
+- Links to related documentation
+
+## Code Style Rules
+
+### Imports
+
+```typescript
+// Order: external packages, then internal modules, then types
+// Separate groups with blank line
+
+import { z } from "zod";
+import { Command } from "commander";
+import YAML from "yaml";
+
+import { CategoryStore } from "@/categories/store";
+import { logger } from "@/lib/logger";
+import { ValidationError } from "@/lib/errors";
+
+import type { Category, DetectionPattern } from "@/categories/schema";
+```
+
+### Function Style
+
+```typescript
+// Prefer named function declarations for top-level functions
+export function analyzeCodebase(path: string): Promise<AnalysisResult> {
+  // ...
+}
+
+// Use arrow functions for callbacks and inline functions
+const categories = allCategories.filter((c) => c.domain === "security");
+
+// Use async/await over .then()
+// GOOD
+const result = await fetchData();
+const processed = await processData(result);
+
+// AVOID
+fetchData().then((result) => processData(result)).then((processed) => {});
+```
+
+### Avoid
+
+- `any` type (use `unknown` and narrow)
+- Non-null assertions `!` (use proper null checks)
+- `as` type assertions (use type guards or Zod parsing)
+- Mutable global state
+- Console.log in production code (use logger)
+- Default exports (use named exports)
+
+### Prefer
+
+- Explicit return types on public functions
+- `const` over `let` where possible
+- Destructuring for object access
+- Optional chaining `?.` and nullish coalescing `??`
+- Template literals over string concatenation
+- `Map` and `Set` over plain objects for collections
+
+## CLI Output Guidelines
+
+### Colors (use chalk)
+
+- **Red**: Errors, critical gaps
+- **Yellow**: Warnings, high-severity gaps
+- **Green**: Success, covered categories
+- **Blue**: Info, links
+- **Gray**: Secondary info, file paths
+
+### Verbosity Levels
+
+- **Default**: Essential output only
+- **--verbose, -v**: Include file paths, timing, debug info
+- **--quiet, -q**: Errors only, machine-readable
+
+### Progress Indicators
+
+- Use ora for spinners during long operations
+- Show progress for multi-file operations
+- Always provide estimated time for operations > 5 seconds
+
+## Performance Guidelines
+
+- Lazy load categories (only load what's needed)
+- Use streaming for large file processing
+- Cache AST parsing results
+- Limit concurrent file operations (use p-limit)
+- Profile before optimizing (use --debug-timing flag)
+
+## Security Rules
+
+- Never log secrets or API keys
+- Validate all external input with Zod
+- Use parameterized queries (practice what we preach)
+- Sanitize file paths (prevent traversal)
+- Store API keys in OS keychain, never in files

@@ -1,0 +1,50 @@
+{
+  "totalSessions": 2,
+  "totalToolCalls": 0,
+  "totalTornadoCycles": 0,
+  "totalJournalsSaved": 0,
+  "phaseHistory": [
+    {
+      "phase": "PLAN:BRAINLIFT",
+      "enteredAt": "2026-01-18T21:39:36.152Z",
+      "duration": 43
+    },
+    {
+      "phase": "BUILD:RULES",
+      "enteredAt": "2026-01-18T22:22:31.958Z"
+    }
+  ],
+  "sessions": [
+    {
+      "sessionId": "1768772354711-6gvv",
+      "startTime": "2026-01-18T21:39:14.711Z",
+      "startPhase": {
+        "phase": "IDLE"
+      },
+      "toolCalls": 0,
+      "tornadoCycles": 0,
+      "journalsSaved": 0,
+      "promptsCopied": 5,
+      "endTime": "2026-01-18T22:51:07.499Z",
+      "endPhase": {
+        "phase": "BUILD",
+        "step": "RULES"
+      }
+    },
+    {
+      "sessionId": "1768776670562-vnpz",
+      "startTime": "2026-01-18T22:51:10.562Z",
+      "startPhase": {
+        "phase": "BUILD",
+        "step": "RULES"
+      },
+      "toolCalls": 0,
+      "tornadoCycles": 0,
+      "journalsSaved": 0,
+      "promptsCopied": 1
+    }
+  ],
+  "averageSessionMinutes": 72,
+  "currentStreak": 1,
+  "lastSessionDate": "2026-01-18"
+}
