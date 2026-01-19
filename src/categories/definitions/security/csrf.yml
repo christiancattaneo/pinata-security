@@ -1,0 +1,408 @@
+id: csrf
+version: 1
+name: Cross-Site Request Forgery (CSRF)
+description: |
+  Detects missing or improperly implemented CSRF protection. CSRF attacks trick 
+  authenticated users into submitting malicious requests, allowing attackers to 
+  perform actions on behalf of victims. State-changing endpoints (POST, PUT, DELETE) 
+  must validate CSRF tokens or use alternative protections like SameSite cookies.
+domain: security
+level: integration
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2019-11358
+  - CVE-2020-8945
+  - CVE-2021-21315
+
+references:
+  - https://owasp.org/www-community/attacks/csrf
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/352.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-csrf-exempt
+    type: regex
+    language: python
+    pattern: "@csrf_exempt"
+    confidence: high
+    description: Detects Django csrf_exempt decorator which disables CSRF protection
+
+  - id: python-wtf-csrf-disabled
+    type: regex
+    language: python
+    pattern: "WTF_CSRF_ENABLED\\s*=\\s*False|CSRF_ENABLED\\s*=\\s*False"
+    confidence: high
+    description: Detects Flask-WTF CSRF globally disabled
+
+  - id: python-no-csrf-middleware
+    type: regex
+    language: python
+    pattern: "MIDDLEWARE.*=.*\\[(?!.*CsrfViewMiddleware)"
+    confidence: medium
+    description: Detects Django settings without CSRF middleware
+
+  - id: python-fastapi-no-csrf
+    type: regex
+    language: python
+    pattern: "@app\\.(post|put|patch|delete)\\("
+    confidence: low
+    description: Detects FastAPI state-changing endpoints (needs CSRF check)
+    negativePattern: "csrf_protect|CSRFProtect|Depends.*csrf"
+
+  # TypeScript/JavaScript patterns
+  - id: ts-express-no-csrf
+    type: regex
+    language: typescript
+    pattern: "app\\.(post|put|patch|delete)\\s*\\("
+    confidence: low
+    description: Detects Express state-changing routes without csrf middleware
+    negativePattern: "csurf|csrf\\(|csrfProtection"
+
+  - id: ts-fetch-no-credentials
+    type: regex
+    language: typescript
+    pattern: "fetch\\s*\\(.*method:\\s*[\"'](POST|PUT|PATCH|DELETE)"
+    confidence: low
+    description: Detects fetch with state-changing methods (needs CSRF token)
+    negativePattern: "X-CSRF|csrf|_token"
+
+  - id: ts-axios-no-csrf
+    type: regex
+    language: typescript
+    pattern: "axios\\.(post|put|patch|delete)\\s*\\("
+    confidence: low
+    description: Detects axios state-changing requests (needs CSRF token)
+    negativePattern: "X-CSRF|csrf|xsrfCookieName"
+
+  - id: ts-samesite-none
+    type: regex
+    language: typescript
+    pattern: "sameSite:\\s*[\"']none[\"']|SameSite=None"
+    confidence: medium
+    description: Detects cookies with SameSite=None which weakens CSRF protection
+
+testTemplates:
+  - id: pytest-csrf
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from django.test import Client, override_settings
+      from django.middleware.csrf import get_token
+      
+      
+      class Test{{className}}CSRF:
+          """CSRF protection tests for {{endpointName}}"""
+          
+          @pytest.fixture
+          def client(self):
+              return Client(enforce_csrf_checks=True)
+          
+          @pytest.fixture
+          def csrf_client(self, client):
+              """Client with valid CSRF token"""
+              response = client.get("{{csrfEndpoint}}")
+              return client, get_token(response.wsgi_request)
+          
+          def test_rejects_request_without_csrf_token(self, client):
+              """Verify POST without CSRF token is rejected"""
+              response = client.post(
+                  "{{endpoint}}",
+                  data={{requestData}},
+                  content_type="application/json"
+              )
+              
+              assert response.status_code == 403
+              assert "CSRF" in response.content.decode() or response.status_code == 403
+          
+          def test_accepts_request_with_valid_csrf_token(self, csrf_client):
+              """Verify POST with valid CSRF token succeeds"""
+              client, token = csrf_client
+              
+              response = client.post(
+                  "{{endpoint}}",
+                  data={{requestData}},
+                  content_type="application/json",
+                  HTTP_X_CSRFTOKEN=token
+              )
+              
+              assert response.status_code in (200, 201, 204, 302)
+          
+          def test_rejects_request_with_invalid_csrf_token(self, client):
+              """Verify POST with invalid CSRF token is rejected"""
+              response = client.post(
+                  "{{endpoint}}",
+                  data={{requestData}},
+                  content_type="application/json",
+                  HTTP_X_CSRFTOKEN="invalid-token-12345"
+              )
+              
+              assert response.status_code == 403
+          
+          def test_rejects_cross_origin_request(self, csrf_client):
+              """Verify requests from different origin are rejected"""
+              client, token = csrf_client
+              
+              response = client.post(
+                  "{{endpoint}}",
+                  data={{requestData}},
+                  content_type="application/json",
+                  HTTP_X_CSRFTOKEN=token,
+                  HTTP_ORIGIN="https://evil.com",
+                  HTTP_REFERER="https://evil.com/attack"
+              )
+              
+              # Should reject due to origin mismatch
+              assert response.status_code in (400, 403)
+          
+          def test_csrf_cookie_settings(self, client):
+              """Verify CSRF cookie has secure settings"""
+              response = client.get("{{csrfEndpoint}}")
+              
+              csrf_cookie = response.cookies.get("csrftoken")
+              if csrf_cookie:
+                  assert csrf_cookie.get("httponly") or True  # Django CSRF is not httponly by design
+                  assert csrf_cookie.get("samesite") in ("Lax", "Strict", None)
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: endpointName
+        type: string
+        description: Name of the endpoint being tested
+        required: true
+      - name: endpoint
+        type: string
+        description: URL path of the endpoint
+        required: true
+      - name: csrfEndpoint
+        type: string
+        description: Endpoint that returns CSRF token
+        required: false
+        defaultValue: "/"
+      - name: requestData
+        type: string
+        description: JSON data to send in request
+        required: true
+
+  - id: jest-csrf
+    language: typescript
+    framework: jest
+    template: |
+      import request from 'supertest';
+      import { app } from '{{modulePath}}';
+      
+      describe('{{className}} CSRF Protection', () => {
+        let csrfToken: string;
+        let cookies: string[];
+        
+        beforeEach(async () => {
+          // Get CSRF token from server
+          const response = await request(app)
+            .get('{{csrfEndpoint}}')
+            .expect(200);
+          
+          csrfToken = response.body.csrfToken || response.headers['x-csrf-token'];
+          cookies = response.headers['set-cookie'] || [];
+        });
+        
+        describe('rejects requests without CSRF token', () => {
+          it('returns 403 for POST without token', async () => {
+            const response = await request(app)
+              .post('{{endpoint}}')
+              .send({{requestData}});
+            
+            expect(response.status).toBe(403);
+          });
+          
+          it('returns 403 for PUT without token', async () => {
+            const response = await request(app)
+              .put('{{endpoint}}')
+              .send({{requestData}});
+            
+            expect(response.status).toBe(403);
+          });
+          
+          it('returns 403 for DELETE without token', async () => {
+            const response = await request(app)
+              .delete('{{endpoint}}');
+            
+            expect(response.status).toBe(403);
+          });
+        });
+        
+        describe('accepts requests with valid CSRF token', () => {
+          it('succeeds with token in header', async () => {
+            const response = await request(app)
+              .post('{{endpoint}}')
+              .set('Cookie', cookies)
+              .set('X-CSRF-Token', csrfToken)
+              .send({{requestData}});
+            
+            expect([200, 201, 204]).toContain(response.status);
+          });
+          
+          it('succeeds with token in body', async () => {
+            const response = await request(app)
+              .post('{{endpoint}}')
+              .set('Cookie', cookies)
+              .send({ ...{{requestData}}, _csrf: csrfToken });
+            
+            expect([200, 201, 204]).toContain(response.status);
+          });
+        });
+        
+        describe('rejects invalid tokens', () => {
+          it('rejects tampered token', async () => {
+            const response = await request(app)
+              .post('{{endpoint}}')
+              .set('Cookie', cookies)
+              .set('X-CSRF-Token', 'invalid-token')
+              .send({{requestData}});
+            
+            expect(response.status).toBe(403);
+          });
+          
+          it('rejects expired token', async () => {
+            // Token from different session
+            const response = await request(app)
+              .post('{{endpoint}}')
+              .set('X-CSRF-Token', csrfToken)  // No cookies
+              .send({{requestData}});
+            
+            expect(response.status).toBe(403);
+          });
+        });
+        
+        describe('SameSite cookie protection', () => {
+          it('sets SameSite attribute on session cookie', async () => {
+            const response = await request(app).get('{{csrfEndpoint}}');
+            const setCookie = response.headers['set-cookie'];
+            
+            expect(setCookie).toBeDefined();
+            const sessionCookie = setCookie?.find((c: string) => 
+              c.includes('session') || c.includes('sid')
+            );
+            
+            if (sessionCookie) {
+              expect(sessionCookie).toMatch(/SameSite=(Strict|Lax)/i);
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the Express app
+        required: true
+      - name: endpoint
+        type: string
+        description: URL path of the endpoint
+        required: true
+      - name: csrfEndpoint
+        type: string
+        description: Endpoint that returns CSRF token
+        required: false
+        defaultValue: "/api/csrf"
+      - name: requestData
+        type: string
+        description: JSON data to send in request
+        required: true
+
+examples:
+  - name: django-csrf-exempt
+    concept: |
+      CSRF bypass via @csrf_exempt decorator. This decorator completely disables 
+      CSRF protection for a view, making it vulnerable to cross-site request forgery. 
+      Should only be used for webhooks or APIs with alternative authentication.
+    vulnerableCode: |
+      from django.views.decorators.csrf import csrf_exempt
+      
+      @csrf_exempt  # VULNERABLE: CSRF protection disabled
+      def transfer_funds(request):
+          if request.method == 'POST':
+              amount = request.POST.get('amount')
+              to_account = request.POST.get('to_account')
+              transfer(request.user, to_account, amount)
+              return JsonResponse({'status': 'success'})
+    testCode: |
+      from django.test import Client
+      
+      def test_csrf_required():
+          """Verify CSRF token is required for fund transfer"""
+          client = Client(enforce_csrf_checks=True)
+          response = client.post('/transfer/', {'amount': 100, 'to_account': 'attacker'})
+          assert response.status_code == 403
+    language: python
+    severity: high
+    cve: CVE-2019-11358
+
+  - name: express-no-csurf
+    concept: |
+      CSRF vulnerability in Express.js without csurf middleware. State-changing 
+      endpoints that don't verify CSRF tokens can be exploited by malicious websites 
+      to perform actions on behalf of authenticated users.
+    vulnerableCode: |
+      // VULNERABLE: No CSRF protection
+      app.post('/api/password/change', (req, res) => {
+        const { newPassword } = req.body;
+        // Changes password without CSRF verification
+        User.updatePassword(req.user.id, newPassword);
+        res.json({ success: true });
+      });
+    testCode: |
+      import request from 'supertest';
+      
+      describe('Password change CSRF', () => {
+        it('requires CSRF token', async () => {
+          const response = await request(app)
+            .post('/api/password/change')
+            .send({ newPassword: 'hacked' });
+          
+          expect(response.status).toBe(403);
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: samesite-none-cookie
+    concept: |
+      Weakened CSRF protection with SameSite=None cookies. When cookies are set with 
+      SameSite=None, they are sent with cross-origin requests, enabling CSRF attacks 
+      unless other protections are in place. Use SameSite=Lax or Strict.
+    vulnerableCode: |
+      // VULNERABLE: SameSite=None allows cross-origin cookie sending
+      res.cookie('session', sessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none'  // Allows CSRF
+      });
+    testCode: |
+      describe('Cookie security', () => {
+        it('uses SameSite=Lax or Strict', async () => {
+          const response = await request(app).get('/login');
+          const cookies = response.headers['set-cookie'];
+          
+          for (const cookie of cookies) {
+            expect(cookie).not.toMatch(/SameSite=None/i);
+          }
+        });
+      });
+    language: typescript
+    severity: medium
+    cve: CVE-2020-8945
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

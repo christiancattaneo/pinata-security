@@ -32,9 +32,25 @@ describe("Security Category Definitions", () => {
       expect(store.has("path-traversal")).toBe(true);
     });
 
-    it("loads exactly 3 security categories", () => {
+    it("loads csrf category", () => {
+      expect(store.has("csrf")).toBe(true);
+    });
+
+    it("loads xxe category", () => {
+      expect(store.has("xxe")).toBe(true);
+    });
+
+    it("loads command-injection category", () => {
+      expect(store.has("command-injection")).toBe(true);
+    });
+
+    it("loads deserialization category", () => {
+      expect(store.has("deserialization")).toBe(true);
+    });
+
+    it("loads exactly 7 security categories", () => {
       const securityCategories = store.byDomain("security");
-      expect(securityCategories).toHaveLength(3);
+      expect(securityCategories).toHaveLength(7);
     });
   });
 
@@ -153,6 +169,99 @@ describe("Security Category Definitions", () => {
     });
   });
 
+  describe("csrf category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("csrf");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("CSRF");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("high");
+      }
+    });
+
+    it("has detection patterns for CSRF exempt decorators", () => {
+      const result = store.get("csrf");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("csrf-exempt"))).toBe(true);
+      }
+    });
+  });
+
+  describe("xxe category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("xxe");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("XXE");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for XML parsing", () => {
+      const result = store.get("xxe");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("etree") || p.pattern.includes("xml"))).toBe(true);
+      }
+    });
+  });
+
+  describe("command-injection category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("command-injection");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("Command Injection");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for os.system and subprocess", () => {
+      const result = store.get("command-injection");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("os\\.system") || p.pattern.includes("subprocess"))).toBe(true);
+      }
+    });
+  });
+
+  describe("deserialization category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("deserialization");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("Deserialization");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for pickle and yaml", () => {
+      const result = store.get("deserialization");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("pickle"))).toBe(true);
+        expect(patterns.some((p) => p.pattern.includes("yaml"))).toBe(true);
+      }
+    });
+  });
+
   describe("search functionality", () => {
     it("finds sql-injection by searching 'sql'", () => {
       const results = store.search({ query: "sql" });
@@ -167,6 +276,26 @@ describe("Security Category Definitions", () => {
     it("finds path-traversal by searching 'directory'", () => {
       const results = store.search({ query: "directory" });
       expect(results.some((r) => r.category.id === "path-traversal")).toBe(true);
+    });
+
+    it("finds csrf by searching 'token'", () => {
+      const results = store.search({ query: "token" });
+      expect(results.some((r) => r.category.id === "csrf")).toBe(true);
+    });
+
+    it("finds xxe by searching 'xml'", () => {
+      const results = store.search({ query: "xml" });
+      expect(results.some((r) => r.category.id === "xxe")).toBe(true);
+    });
+
+    it("finds command-injection by searching 'shell'", () => {
+      const results = store.search({ query: "shell" });
+      expect(results.some((r) => r.category.id === "command-injection")).toBe(true);
+    });
+
+    it("finds deserialization by searching 'pickle'", () => {
+      const results = store.search({ query: "pickle" });
+      expect(results.some((r) => r.category.id === "deserialization")).toBe(true);
     });
   });
 });

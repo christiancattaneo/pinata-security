@@ -1,31 +1,48 @@
 {
-  "lastUpdated": "2026-01-19T03:17:42.135Z",
+  "lastUpdated": "2026-01-19T03:54:32.625Z",
   "recentFiles": [
     {
-      "path": "src/categories/definitions/security/xss.yml",
-      "lastModified": 1768792652237.9788
-    },
-    {
-      "path": "src/categories/definitions/security/sql-injection.yml",
-      "lastModified": 1768792622657.7117
-    },
-    {
-      "path": "src/categories/definitions/security/path-traversal.yml",
-      "lastModified": 1768792597886.0984
+      "path": "src/categories/definitions/security/command-injection.yml",
+      "lastModified": 1768794864544.94
     },
     {
       "path": "tests/categories/definitions/security.test.ts",
-      "lastModified": 1768792558469.856
+      "lastModified": 1768794759472.9873
+    },
+    {
+      "path": "src/categories/definitions/security/deserialization.yml",
+      "lastModified": 1768794730594.2642
+    },
+    {
+      "path": "src/categories/definitions/security/xxe.yml",
+      "lastModified": 1768794602007.675
+    },
+    {
+      "path": "src/categories/definitions/security/csrf.yml",
+      "lastModified": 1768794539992.3733
+    },
+    {
+      "path": "src/categories/definitions/security/path-traversal.yml",
+      "lastModified": 1768792683152.6416
+    },
+    {
+      "path": "src/categories/definitions/security/xss.yml",
+      "lastModified": 1768792683152.2231
+    },
+    {
+      "path": "src/categories/definitions/security/sql-injection.yml",
+      "lastModified": 1768792683152.2097
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "99dae00f7de9ef772e8ab9575445175074b326ad",
-    "lastCommitMessage": "Implement CategoryStore with CRUD, indexing, and search",
-    "lastCommitTime": 1768787987000,
-    "uncommittedChanges": 7,
+    "lastCommit": "241c9ef0240e1a6d0001cbe4843319001de36edf",
+    "lastCommitMessage": "Add first 3 security categories: sql-injection, xss, path-traversal",
+    "lastCommitTime": 1768792666000,
+    "uncommittedChanges": 10,
     "recentCommits": [
+      "Add first 3 security categories: sql-injection, xss, path-traversal",
       "Implement CategoryStore with CRUD, indexing, and search",
       "Initial TypeScript project structure with Zod schemas"
     ]
@@ -50,6 +67,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768793522717,
+      "suggestion": "Create the next batch of security categories: csrf, xxe, command-injection, and deserialization. Each should have detection patterns for Python/TypeScript, test templates for pytest/jest, and 3 real-world examples with CVE references where applicable.",
+      "accepted": false
+    },
     {
       "timestamp": 1768792197712,
       "suggestion": "Create the data/categories directory structure and implement the first 3 security categories as YAML files: sql-injection, xss, and path-traversal. Each should have detection patterns for Python/TypeScript, test templates for pytest/jest, and real-world vulnerable code examples.",
@@ -124,7 +146,7 @@
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768792197697,
+  "lastAnalysis": 1768793522703,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

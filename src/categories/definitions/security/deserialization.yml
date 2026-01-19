@@ -1,0 +1,419 @@
+id: deserialization
+version: 1
+name: Insecure Deserialization
+description: |
+  Detects insecure deserialization vulnerabilities where untrusted data is 
+  deserialized without validation. Attackers can craft malicious payloads that 
+  execute arbitrary code during deserialization. This affects pickle, yaml.load, 
+  JSON with custom revivers, and other serialization formats.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2017-18342
+  - CVE-2020-36242
+  - CVE-2022-42889
+
+references:
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/15-Testing_for_HTTP_Incoming_Requests
+  - https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/502.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-pickle-load
+    type: regex
+    language: python
+    pattern: "pickle\\.(load|loads)\\s*\\("
+    confidence: high
+    description: Detects pickle.load/loads which can execute arbitrary code
+
+  - id: python-cpickle
+    type: regex
+    language: python
+    pattern: "cPickle\\.(load|loads)\\s*\\("
+    confidence: high
+    description: Detects cPickle.load/loads (Python 2 pickle)
+
+  - id: python-yaml-load
+    type: regex
+    language: python
+    pattern: "yaml\\.load\\s*\\("
+    confidence: high
+    description: Detects yaml.load without safe_load
+    negativePattern: "Loader\\s*=\\s*yaml\\.SafeLoader|safe_load"
+
+  - id: python-marshal-load
+    type: regex
+    language: python
+    pattern: "marshal\\.(load|loads)\\s*\\("
+    confidence: high
+    description: Detects marshal.load/loads which can execute code
+
+  - id: python-shelve-open
+    type: regex
+    language: python
+    pattern: "shelve\\.open\\s*\\("
+    confidence: medium
+    description: Detects shelve.open which uses pickle internally
+
+  - id: python-dill
+    type: regex
+    language: python
+    pattern: "dill\\.(load|loads)\\s*\\("
+    confidence: high
+    description: Detects dill.load/loads (extended pickle)
+
+  - id: python-jsonpickle
+    type: regex
+    language: python
+    pattern: "jsonpickle\\.(decode|loads)\\s*\\("
+    confidence: high
+    description: Detects jsonpickle deserialization
+
+  # TypeScript/JavaScript patterns
+  - id: ts-serialize-javascript
+    type: regex
+    language: typescript
+    pattern: "serialize-javascript|js-yaml\\.load\\("
+    confidence: medium
+    description: Detects serialization libraries that may allow code execution
+
+  - id: ts-eval-json
+    type: regex
+    language: typescript
+    pattern: "eval\\s*\\(.*JSON|Function\\s*\\([\"']return[\"']\\s*\\+"
+    confidence: high
+    description: Detects eval-based JSON parsing which allows code execution
+
+  - id: ts-node-serialize
+    type: regex
+    language: typescript
+    pattern: "node-serialize|serialize-to-js"
+    confidence: high
+    description: Detects node-serialize which is vulnerable to RCE
+
+  - id: ts-vm-runinnewcontext
+    type: regex
+    language: typescript
+    pattern: "vm\\.runInNewContext\\s*\\(|vm\\.runInThisContext\\s*\\("
+    confidence: high
+    description: Detects Node.js vm module with potential untrusted code
+
+  - id: ts-unserialize
+    type: regex
+    language: typescript
+    pattern: "unserialize\\s*\\(|phpUnserialize"
+    confidence: high
+    description: Detects PHP-style unserialize in JavaScript
+
+testTemplates:
+  - id: pytest-deserialization
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import pickle
+      import base64
+      
+      
+      class Test{{className}}Deserialization:
+          """Insecure deserialization tests for {{functionName}}"""
+          
+          def _create_pickle_exploit(self, command):
+              """Create a malicious pickle payload"""
+              class Exploit:
+                  def __reduce__(self):
+                      import os
+                      return (os.system, (command,))
+              
+              return base64.b64encode(pickle.dumps(Exploit())).decode()
+          
+          def test_rejects_pickle_data(self, {{fixtures}}):
+              """Verify {{functionName}} does not deserialize pickle data"""
+              # Malicious pickle that would execute 'id' command
+              malicious = self._create_pickle_exploit("id")
+              
+              with pytest.raises((ValueError, TypeError, {{exceptionClass}})):
+                  {{functionCall}}(base64.b64decode(malicious))
+          
+          def test_uses_safe_yaml_loader(self, {{fixtures}}):
+              """Verify YAML uses SafeLoader"""
+              yaml_with_python = """
+              !!python/object/apply:os.system
+              args: ['id']
+              """
+              
+              with pytest.raises((yaml.YAMLError, ValueError)):
+                  {{functionCall}}(yaml_with_python)
+          
+          def test_json_only_accepts_json_types(self, {{fixtures}}):
+              """Verify JSON deserialization only creates safe types"""
+              result = {{functionCall}}('{"key": "value", "number": 42}')
+              
+              # Result should only contain basic JSON types
+              assert isinstance(result, (dict, list, str, int, float, bool, type(None)))
+          
+          def test_no_arbitrary_class_instantiation(self, {{fixtures}}):
+              """Verify deserialization cannot instantiate arbitrary classes"""
+              payloads = [
+                  '{"__class__": "os.system", "args": ["id"]}',
+                  '{"$type": "System.Diagnostics.Process", "cmd": "id"}',
+                  '{"@type": "java.lang.Runtime"}',
+              ]
+              
+              for payload in payloads:
+                  result = {{functionCall}}(payload)
+                  # Should be parsed as plain dict, not execute anything
+                  assert isinstance(result, dict)
+          
+          def test_validates_input_type(self, {{fixtures}}):
+              """Verify input is validated before deserialization"""
+              with pytest.raises((TypeError, ValueError)):
+                  {{functionCall}}(b'\x80\x03}')  # Random bytes that look like pickle
+          
+          def test_no_pickle_in_source(self):
+              """Verify pickle is not used in the implementation"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              dangerous_modules = ["pickle", "cPickle", "marshal", "shelve", "dill"]
+              for module in dangerous_modules:
+                  assert module not in source, f"Dangerous module {module} found in source"
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ""
+      - name: exceptionClass
+        type: string
+        description: Custom exception class
+        required: false
+        defaultValue: Exception
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+
+  - id: jest-deserialization
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Deserialization Tests', () => {
+        describe('rejects dangerous serialization formats', () => {
+          it('does not use eval for JSON parsing', async () => {
+            const jsonSpy = jest.spyOn(JSON, 'parse');
+            const evalSpy = jest.spyOn(global, 'eval');
+            
+            await {{functionCall}}('{"test": "value"}');
+            
+            expect(jsonSpy).toHaveBeenCalled();
+            expect(evalSpy).not.toHaveBeenCalled();
+            
+            jsonSpy.mockRestore();
+            evalSpy.mockRestore();
+          });
+          
+          it('rejects node-serialize payloads', async () => {
+            // Malicious node-serialize payload
+            const malicious = {
+              rce: {
+                '_$$ND_FUNC$$_': 'function(){require("child_process").exec("id")}()'
+              }
+            };
+            
+            await expect(
+              {{functionCall}}(JSON.stringify(malicious))
+            ).resolves.toEqual(malicious);  // Should parse as plain object
+          });
+        });
+        
+        describe('safe JSON parsing', () => {
+          it('only creates basic JSON types', async () => {
+            const result = await {{functionCall}}('{"key": "value", "number": 42}');
+            
+            expect(typeof result).toBe('object');
+            expect(result.key).toBe('value');
+            expect(result.number).toBe(42);
+          });
+          
+          it('ignores __proto__ in JSON', async () => {
+            const protoPayload = '{"__proto__": {"polluted": true}}';
+            const result = await {{functionCall}}(protoPayload);
+            
+            // Should not pollute Object prototype
+            expect(({} as any).polluted).toBeUndefined();
+          });
+          
+          it('ignores constructor in JSON', async () => {
+            const constructorPayload = '{"constructor": {"prototype": {"pwned": true}}}';
+            const result = await {{functionCall}}(constructorPayload);
+            
+            // Should not modify constructors
+            expect(({} as any).pwned).toBeUndefined();
+          });
+        });
+        
+        describe('custom reviver safety', () => {
+          it('does not execute functions from JSON', async () => {
+            const withFunction = '{"func": "function() { return 1; }"}';
+            const result = await {{functionCall}}(withFunction);
+            
+            // Function should remain as string, not be evaluated
+            expect(typeof result.func).toBe('string');
+          });
+          
+          it('validates date parsing', async () => {
+            const withDate = '{"date": "2024-01-01T00:00:00.000Z"}';
+            const result = await {{functionCall}}(withDate);
+            
+            // Date should be string or Date, not arbitrary object
+            expect(
+              typeof result.date === 'string' || result.date instanceof Date
+            ).toBe(true);
+          });
+        });
+        
+        describe('input validation', () => {
+          it('rejects binary data', async () => {
+            const binaryData = Buffer.from([0x80, 0x03, 0x7d]).toString('base64');
+            
+            await expect({{functionCall}}(binaryData)).rejects.toThrow();
+          });
+          
+          it('has size limits', async () => {
+            const hugePayload = '{"data": "' + 'x'.repeat(10_000_000) + '"}';
+            
+            await expect({{functionCall}}(hugePayload)).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+
+examples:
+  - name: python-pickle-rce
+    concept: |
+      Remote code execution via Python pickle. The pickle module can execute 
+      arbitrary code during deserialization via __reduce__. Never unpickle 
+      untrusted data. Use JSON or other safe formats instead.
+    vulnerableCode: |
+      import pickle
+      
+      def load_user_data(data):
+          # VULNERABLE: Deserializes untrusted pickle data
+          return pickle.loads(data)
+    testCode: |
+      import pytest
+      import pickle
+      
+      def test_rejects_pickle():
+          """Verify user data loading doesn't use pickle"""
+          class Exploit:
+              def __reduce__(self):
+                  return (eval, ("print('pwned')",))
+          
+          malicious = pickle.dumps(Exploit())
+          
+          with pytest.raises((ValueError, TypeError)):
+              load_user_data(malicious)
+    language: python
+    severity: critical
+    cve: CVE-2017-18342
+
+  - name: python-yaml-load-unsafe
+    concept: |
+      Code execution via yaml.load() without SafeLoader. PyYAML's load() function 
+      can instantiate arbitrary Python objects, leading to code execution. Always 
+      use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader).
+    vulnerableCode: |
+      import yaml
+      
+      def parse_config(yaml_content):
+          # VULNERABLE: yaml.load allows arbitrary object instantiation
+          return yaml.load(yaml_content)
+    testCode: |
+      import pytest
+      import yaml
+      
+      def test_yaml_uses_safe_loader():
+          """Verify YAML parsing uses SafeLoader"""
+          malicious_yaml = """
+          !!python/object/apply:os.system
+          args: ['echo pwned']
+          """
+          
+          with pytest.raises(yaml.YAMLError):
+              parse_config(malicious_yaml)
+    language: python
+    severity: critical
+    cve: CVE-2020-36242
+
+  - name: nodejs-serialize-rce
+    concept: |
+      Remote code execution via node-serialize. The node-serialize library can 
+      execute functions stored in serialized data using the _$$ND_FUNC$$_ syntax. 
+      This module should never be used with untrusted input.
+    vulnerableCode: |
+      const serialize = require('node-serialize');
+      
+      app.post('/api/data', (req, res) => {
+        // VULNERABLE: Deserializes untrusted data
+        const data = serialize.unserialize(req.body.data);
+        res.json(data);
+      });
+    testCode: |
+      describe('Data API', () => {
+        it('does not use node-serialize', async () => {
+          const malicious = '{"rce":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id\")}()"}';
+          
+          const response = await request(app)
+            .post('/api/data')
+            .send({ data: malicious });
+          
+          // Should not execute the function
+          expect(response.status).toBe(400);
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2017-5941
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
