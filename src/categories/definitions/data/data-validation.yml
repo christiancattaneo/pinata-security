@@ -1,0 +1,279 @@
+id: data-validation
+version: 1
+name: Data Validation
+description: |
+  Detects data validation issues including ReDoS vulnerabilities in regex, 
+  missing constraint validation, type coercion errors, and input length limits. 
+  Proper validation prevents both security issues and data integrity problems.
+domain: data
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-28469
+  - CVE-2021-3749
+
+references:
+  - https://cwe.mitre.org/data/definitions/20.html
+  - https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS
+
+detectionPatterns:
+  - id: python-redos-pattern
+    type: regex
+    language: python
+    pattern: "\\(\\[.*\\]\\+\\)\\+|\\(.*\\*\\)\\*|\\(.*\\+\\)\\+|\\(\\.\\*\\)\\+"
+    confidence: high
+    description: Detects ReDoS-vulnerable regex patterns
+
+  - id: python-no-max-length
+    type: regex
+    language: python
+    pattern: "StringField\\((?!.*max_length)|CharField\\((?!.*max_length)"
+    confidence: medium
+    description: Detects string fields without max length
+
+  - id: python-eval-input
+    type: regex
+    language: python
+    pattern: "eval\\s*\\(.*input|eval\\s*\\(.*request"
+    confidence: high
+    description: Detects eval on user input
+
+  - id: ts-redos-pattern
+    type: regex
+    language: typescript
+    pattern: "new RegExp\\(.*\\+\\)\\+|/\\(.*\\*\\)\\*/"
+    confidence: high
+    description: Detects ReDoS-vulnerable regex
+
+  - id: ts-no-schema-validation
+    type: regex
+    language: typescript
+    pattern: "req\\.body\\.|req\\.query\\."
+    confidence: low
+    description: Detects request data access (verify validation)
+    negativePattern: "zod|yup|joi|validate|schema"
+
+  - id: ts-type-coercion
+    type: regex
+    language: typescript
+    pattern: "Number\\(req\\.|parseInt\\(req\\.|\\+req\\."
+    confidence: medium
+    description: Detects type coercion on user input
+
+testTemplates:
+  - id: pytest-data-validation
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import re
+      import time
+      
+      class Test{{className}}DataValidation:
+          """Data validation tests for {{functionName}}"""
+          
+          def test_redos_resistance(self, {{fixtures}}):
+              """Verify regex doesn't cause ReDoS"""
+              evil_input = "a" * 30 + "!"
+              
+              start = time.time()
+              try:
+                  {{validateCall}}(evil_input)
+              except Exception:
+                  pass
+              elapsed = time.time() - start
+              
+              assert elapsed < 1.0, f"ReDoS: took {elapsed:.2f}s"
+          
+          def test_max_length_enforced(self, {{fixtures}}):
+              """Verify max length is enforced"""
+              long_input = "x" * 100000
+              
+              with pytest.raises(ValueError):
+                  {{validateCall}}(long_input)
+          
+          def test_type_validation(self, {{fixtures}}):
+              """Verify type validation"""
+              invalid_types = ["not_a_number", [], {}, None]
+              
+              for invalid in invalid_types:
+                  with pytest.raises((TypeError, ValueError)):
+                      {{validateIntCall}}(invalid)
+          
+          def test_constraint_validation(self, {{fixtures}}):
+              """Verify constraints are checked"""
+              with pytest.raises(ValueError):
+                  {{validateCall}}("invalid@@@email")
+          
+          def test_sql_chars_escaped(self, {{fixtures}}):
+              """Verify SQL special chars are handled"""
+              dangerous = "'; DROP TABLE users; --"
+              
+              result = {{validateCall}}(dangerous)
+              # Should either reject or escape
+              assert "DROP" not in result or "\\'" in result
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: validateCall
+        type: string
+        description: Validate function
+        required: true
+      - name: validateIntCall
+        type: string
+        description: Validate int function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-data-validation
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Data Validation', () => {
+        describe('ReDoS protection', () => {
+          it('handles evil regex input quickly', async () => {
+            const evil = 'a'.repeat(30) + '!';
+            
+            const start = Date.now();
+            try {
+              await {{validateCall}}(evil);
+            } catch {}
+            const elapsed = Date.now() - start;
+            
+            expect(elapsed).toBeLessThan(1000);
+          });
+        });
+        
+        describe('length limits', () => {
+          it('rejects oversized input', async () => {
+            const huge = 'x'.repeat(100000);
+            await expect({{validateCall}}(huge)).rejects.toThrow();
+          });
+        });
+        
+        describe('type validation', () => {
+          it('rejects invalid types', async () => {
+            const invalids = ['not_number', [], {}, null];
+            
+            for (const invalid of invalids) {
+              await expect({{validateIntCall}}(invalid)).rejects.toThrow();
+            }
+          });
+        });
+        
+        describe('constraint validation', () => {
+          it('validates email format', async () => {
+            await expect({{validateCall}}('invalid@@email'))
+              .rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: validateCall
+        type: string
+        description: Validate function
+        required: true
+      - name: validateIntCall
+        type: string
+        description: Validate int function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-redos
+    concept: |
+      ReDoS via catastrophic backtracking. Regex patterns with nested quantifiers 
+      like (a+)+ cause exponential backtracking on certain inputs. Use atomic 
+      groups, possessive quantifiers, or limit input length.
+    vulnerableCode: |
+      import re
+      
+      def validate_email(email):
+          # VULNERABLE: ReDoS on (a+)+
+          pattern = r'^([a-zA-Z0-9]+)+@example\.com$'
+          return re.match(pattern, email) is not None
+    testCode: |
+      import pytest
+      import time
+      
+      def test_redos_resistance():
+          evil = 'a' * 30 + '@x'
+          
+          start = time.time()
+          validate_email(evil)
+          elapsed = time.time() - start
+          
+          assert elapsed < 0.1
+    language: python
+    severity: high
+    cve: CVE-2020-28469
+
+  - name: missing-length-validation
+    concept: |
+      Missing input length validation. Without length limits, attackers can submit 
+      huge inputs causing memory exhaustion or database errors. Always validate 
+      length before processing.
+    vulnerableCode: |
+      def save_comment(comment):
+          # VULNERABLE: No length check
+          return Comment.create(text=comment)
+    testCode: |
+      def test_comment_length_limit():
+          huge = 'x' * 1000000
+          
+          with pytest.raises(ValueError):
+              save_comment(huge)
+    language: python
+    severity: medium
+
+  - name: type-coercion-error
+    concept: |
+      Unsafe type coercion. Using Number() or parseInt() on user input without 
+      validation can produce NaN or unexpected values. Validate and handle 
+      conversion errors explicitly.
+    vulnerableCode: |
+      app.get('/user/:id', (req, res) => {
+        // VULNERABLE: NaN if id is not numeric
+        const userId = Number(req.params.id);
+        return User.findById(userId);
+      });
+    testCode: |
+      it('validates numeric id', async () => {
+        const response = await request(app).get('/user/abc');
+        expect(response.status).toBe(400);
+      });
+    language: typescript
+    severity: medium
+    cve: CVE-2021-3749
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

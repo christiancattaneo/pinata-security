@@ -1,0 +1,489 @@
+id: data-race
+version: 1
+name: Data Race
+description: |
+  Detects data race conditions where concurrent access to shared data causes 
+  corruption. Includes read-modify-write races, lost updates, check-then-act 
+  races, and non-atomic operations. Proper locking, transactions, or atomic 
+  operations are required for concurrent access.
+domain: data
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/362.html
+  - https://cwe.mitre.org/data/definitions/367.html
+  - https://en.wikipedia.org/wiki/Race_condition
+
+detectionPatterns:
+  - id: python-global-mutable
+    type: regex
+    language: python
+    pattern: "^[A-Z_]+\\s*=\\s*\\[\\]|^[A-Z_]+\\s*=\\s*\\{\\}"
+    confidence: medium
+    description: Detects mutable global state
+
+  - id: python-read-modify-write
+    type: regex
+    language: python
+    pattern: "\\w+\\s*\\+=|\\w+\\s*-=|\\w+\\s*=\\s*\\w+\\s*\\+\\s*1"
+    confidence: low
+    description: Detects increment/decrement (may need locking)
+
+  - id: python-no-lock
+    type: regex
+    language: python
+    pattern: "threading\\.Thread|multiprocessing\\.Process"
+    confidence: low
+    description: Detects threading (verify locking)
+    negativePattern: "Lock\\(|RLock\\(|Semaphore\\("
+
+  - id: python-check-then-act
+    type: regex
+    language: python
+    pattern: "if\\s+\\w+\\.exists\\(|if\\s+os\\.path\\.exists"
+    confidence: medium
+    description: Detects check-then-act pattern (TOCTOU)
+
+  - id: ts-shared-variable
+    type: regex
+    language: typescript
+    pattern: "let\\s+\\w+\\s*=|var\\s+\\w+\\s*="
+    confidence: low
+    description: Detects mutable shared state (verify thread safety)
+
+  - id: ts-async-race
+    type: regex
+    language: typescript
+    pattern: "Promise\\.all.*\\w+\\s*\\+=|await.*\\w+\\s*\\+="
+    confidence: high
+    description: Detects concurrent modification in async code
+
+  - id: ts-non-atomic-update
+    type: regex
+    language: typescript
+    pattern: "\\w+\\s*=\\s*\\w+\\s*\\+\\s*1|\\w+\\+\\+"
+    confidence: low
+    description: Detects non-atomic increment
+
+  - id: ts-database-upsert
+    type: regex
+    language: typescript
+    pattern: "\\.findOne.*\\.save\\(|\\.find.*\\.update\\("
+    confidence: medium
+    description: Detects read-then-write database pattern
+
+testTemplates:
+  - id: pytest-data-race
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      import time
+      from concurrent.futures import ThreadPoolExecutor
+      
+      
+      class Test{{className}}DataRace:
+          """Data race tests for {{functionName}}"""
+          
+          def test_concurrent_increment(self, {{fixtures}}):
+              """Test concurrent increments don't lose updates"""
+              initial_value = {{getValueCall}}()
+              num_threads = 10
+              increments_per_thread = 100
+              
+              def increment():
+                  for _ in range(increments_per_thread):
+                      {{incrementCall}}()
+              
+              threads = [threading.Thread(target=increment) for _ in range(num_threads)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              final_value = {{getValueCall}}()
+              expected = initial_value + (num_threads * increments_per_thread)
+              
+              assert final_value == expected, \
+                  f"Lost {expected - final_value} updates due to race condition"
+          
+          def test_read_modify_write_atomicity(self, {{fixtures}}):
+              """Test read-modify-write is atomic"""
+              errors = []
+              
+              def update_with_check():
+                  for _ in range(50):
+                      old_value = {{getValueCall}}()
+                      {{incrementCall}}()
+                      new_value = {{getValueCall}}()
+                      
+                      # In a race, new_value might not be old_value + 1
+                      if new_value < old_value:
+                          errors.append(f"Value went backwards: {old_value} -> {new_value}")
+              
+              with ThreadPoolExecutor(max_workers=5) as executor:
+                  futures = [executor.submit(update_with_check) for _ in range(5)]
+                  for f in futures:
+                      f.result()
+              
+              assert len(errors) == 0, f"Race conditions detected: {errors[:5]}"
+          
+          def test_check_then_act_race(self, {{fixtures}}):
+              """Test check-then-act pattern for TOCTOU"""
+              # Simulate file creation race
+              results = []
+              
+              def create_if_not_exists():
+                  if not {{existsCall}}("test_resource"):
+                      time.sleep(0.001)  # Increase race window
+                      result = {{createCall}}("test_resource")
+                      results.append(result)
+              
+              threads = [threading.Thread(target=create_if_not_exists) for _ in range(10)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # Only one should succeed, others should fail gracefully
+              successes = [r for r in results if r is not None]
+              assert len(successes) <= 1, \
+                  f"Multiple creates succeeded: TOCTOU vulnerability"
+          
+          def test_database_upsert_race(self, {{fixtures}}):
+              """Test database upsert doesn't create duplicates"""
+              key = "unique_key_123"
+              
+              def upsert():
+                  return {{upsertCall}}(key, {"count": 1})
+              
+              with ThreadPoolExecutor(max_workers=5) as executor:
+                  futures = [executor.submit(upsert) for _ in range(5)]
+                  results = [f.result() for f in futures]
+              
+              # Should have exactly one record
+              count = {{countCall}}(key)
+              assert count == 1, f"Created {count} duplicates due to race"
+          
+          def test_lost_update(self, {{fixtures}}):
+              """Test updates aren't lost in concurrent access"""
+              {{setValueCall}}({"counter": 0})
+              
+              def increment_counter():
+                  for _ in range(100):
+                      data = {{getDataCall}}()
+                      data["counter"] += 1
+                      {{setDataCall}}(data)
+              
+              threads = [threading.Thread(target=increment_counter) for _ in range(5)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              final = {{getDataCall}}()
+              # Without proper locking, will be less than 500
+              assert final["counter"] == 500
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: getValueCall
+        type: string
+        description: Get value function
+        required: true
+      - name: incrementCall
+        type: string
+        description: Increment function
+        required: true
+      - name: existsCall
+        type: string
+        description: Exists check function
+        required: true
+      - name: createCall
+        type: string
+        description: Create function
+        required: true
+      - name: upsertCall
+        type: string
+        description: Upsert function
+        required: true
+      - name: countCall
+        type: string
+        description: Count function
+        required: true
+      - name: setValueCall
+        type: string
+        description: Set value function
+        required: true
+      - name: getDataCall
+        type: string
+        description: Get data function
+        required: true
+      - name: setDataCall
+        type: string
+        description: Set data function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: db_session
+
+  - id: jest-data-race
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Data Race Tests', () => {
+        describe('concurrent updates', () => {
+          it('handles concurrent increments correctly', async () => {
+            const initial = await {{getValueCall}}();
+            const numOperations = 100;
+            
+            // Concurrent increments
+            const promises = Array(numOperations)
+              .fill(null)
+              .map(() => {{incrementCall}}());
+            
+            await Promise.all(promises);
+            
+            const final = await {{getValueCall}}();
+            expect(final).toBe(initial + numOperations);
+          });
+          
+          it('prevents lost updates', async () => {
+            await {{setValueCall}}({ counter: 0 });
+            
+            const operations = Array(50)
+              .fill(null)
+              .map(async () => {
+                const data = await {{getDataCall}}();
+                data.counter += 1;
+                await {{setDataCall}}(data);
+              });
+            
+            await Promise.all(operations);
+            
+            const final = await {{getDataCall}}();
+            expect(final.counter).toBe(50);
+          });
+        });
+        
+        describe('check-then-act', () => {
+          it('uses atomic create-if-not-exists', async () => {
+            const key = 'unique_resource';
+            
+            const creates = Array(10)
+              .fill(null)
+              .map(() => {{createIfNotExistsCall}}(key));
+            
+            const results = await Promise.allSettled(creates);
+            const successes = results.filter(r => r.status === 'fulfilled');
+            
+            // Only one should succeed
+            expect(successes.length).toBe(1);
+          });
+        });
+        
+        describe('database operations', () => {
+          it('uses transactions for read-modify-write', async () => {
+            const id = 'test-record';
+            
+            // Concurrent modifications
+            const updates = Array(10)
+              .fill(null)
+              .map(() => {{transactionalUpdateCall}}(id));
+            
+            await Promise.all(updates);
+            
+            // Verify all updates were applied
+            const record = await {{getRecordCall}}(id);
+            expect(record.version).toBe(10);
+          });
+          
+          it('handles optimistic locking conflicts', async () => {
+            const id = 'optimistic-test';
+            await {{createRecordCall}}(id, { version: 1 });
+            
+            // Two concurrent updates with same version
+            const update1 = {{optimisticUpdateCall}}(id, 1);
+            const update2 = {{optimisticUpdateCall}}(id, 1);
+            
+            const results = await Promise.allSettled([update1, update2]);
+            
+            // One should fail with version conflict
+            const failures = results.filter(r => r.status === 'rejected');
+            expect(failures.length).toBe(1);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: getValueCall
+        type: string
+        description: Get value function
+        required: true
+      - name: incrementCall
+        type: string
+        description: Increment function
+        required: true
+      - name: setValueCall
+        type: string
+        description: Set value function
+        required: true
+      - name: getDataCall
+        type: string
+        description: Get data function
+        required: true
+      - name: setDataCall
+        type: string
+        description: Set data function
+        required: true
+      - name: createIfNotExistsCall
+        type: string
+        description: Atomic create function
+        required: true
+      - name: transactionalUpdateCall
+        type: string
+        description: Transactional update function
+        required: true
+      - name: getRecordCall
+        type: string
+        description: Get record function
+        required: true
+      - name: createRecordCall
+        type: string
+        description: Create record function
+        required: true
+      - name: optimisticUpdateCall
+        type: string
+        description: Optimistic update function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-lost-update
+    concept: |
+      Lost update in read-modify-write. When multiple threads read a value, 
+      modify it, and write it back, some updates are lost. Use atomic operations 
+      or proper locking.
+    vulnerableCode: |
+      counter = 0
+      
+      def increment():
+          global counter
+          # VULNERABLE: Non-atomic read-modify-write
+          counter = counter + 1
+    testCode: |
+      import pytest
+      import threading
+      
+      def test_concurrent_increment():
+          """Verify increments aren't lost"""
+          global counter
+          counter = 0
+          
+          threads = [threading.Thread(target=increment) for _ in range(100)]
+          for t in threads:
+              t.start()
+          for t in threads:
+              t.join()
+          
+          assert counter == 100  # Likely fails due to race
+    language: python
+    severity: critical
+
+  - name: javascript-async-race
+    concept: |
+      Race condition in async JavaScript. Even single-threaded JavaScript has 
+      race conditions with async code. Multiple async operations modifying 
+      shared state can interleave incorrectly.
+    vulnerableCode: |
+      let balance = 1000;
+      
+      async function withdraw(amount) {
+        // VULNERABLE: Check and update are not atomic
+        if (balance >= amount) {
+          await delay(10);  // Simulates async operation
+          balance -= amount;
+          return true;
+        }
+        return false;
+      }
+    testCode: |
+      describe('withdraw race', () => {
+        it('prevents overdraft', async () => {
+          balance = 100;
+          
+          // Two concurrent withdrawals of 100
+          const [result1, result2] = await Promise.all([
+            withdraw(100),
+            withdraw(100),
+          ]);
+          
+          // Only one should succeed
+          expect(result1 !== result2).toBe(true);
+          expect(balance).toBeGreaterThanOrEqual(0);
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: database-upsert-race
+    concept: |
+      Race condition in database upsert. The pattern find-then-insert creates 
+      duplicates when multiple requests check simultaneously. Use database-level 
+      upsert or unique constraints with conflict handling.
+    vulnerableCode: |
+      async function getOrCreate(email) {
+        // VULNERABLE: TOCTOU race
+        let user = await User.findOne({ email });
+        if (!user) {
+          user = await User.create({ email });
+        }
+        return user;
+      }
+    testCode: |
+      describe('getOrCreate', () => {
+        it('does not create duplicates', async () => {
+          const email = 'test@example.com';
+          
+          const promises = Array(5).fill(null).map(() => 
+            getOrCreate(email)
+          );
+          
+          await Promise.all(promises);
+          
+          const count = await User.count({ email });
+          expect(count).toBe(1);
+        });
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

@@ -1,31 +1,68 @@
 {
-  "lastUpdated": "2026-01-19T04:59:38.431Z",
+  "lastUpdated": "2026-01-19T05:27:25.532Z",
   "recentFiles": [
     {
+      "path": "tests/categories/definitions/data.test.ts",
+      "lastModified": 1768800399025.5247
+    },
+    {
+      "path": "src/categories/definitions/data/data-validation.yml",
+      "lastModified": 1768800369648.951
+    },
+    {
+      "path": "src/categories/definitions/data/bulk-operation.yml",
+      "lastModified": 1768800364934.0718
+    },
+    {
+      "path": "src/categories/definitions/data/schema-migration.yml",
+      "lastModified": 1768800263778.49
+    },
+    {
+      "path": "src/categories/definitions/data/data-race.yml",
+      "lastModified": 1768800194492.8674
+    },
+    {
+      "path": "src/categories/definitions/data/precision-loss.yml",
+      "lastModified": 1768800134188.679
+    },
+    {
+      "path": "src/categories/definitions/data/encoding-mismatch.yml",
+      "lastModified": 1768800078671.0083
+    },
+    {
+      "path": "src/categories/definitions/data/null-handling.yml",
+      "lastModified": 1768800018775.294
+    },
+    {
+      "path": "src/categories/definitions/data/data-truncation.yml",
+      "lastModified": 1768799962896.508
+    },
+    {
       "path": "tests/categories/definitions/security.test.ts",
-      "lastModified": 1768798770072.162
+      "lastModified": 1768798796858.4187
     },
     {
       "path": "src/categories/definitions/security/timing-attack.yml",
-      "lastModified": 1768798749600.1748
+      "lastModified": 1768798796853.2737
     },
     {
       "path": "src/categories/definitions/security/ssrf.yml",
-      "lastModified": 1768798679817.0566
+      "lastModified": 1768798796853.1042
     },
     {
       "path": "src/categories/definitions/security/ldap-injection.yml",
-      "lastModified": 1768798617666.5098
+      "lastModified": 1768798796853.029
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "4c5ced95c2267464e01ca904f88c9a617b9f352b",
-    "lastCommitMessage": "Add security categories: csrf, xxe, command-injection, deserialization",
-    "lastCommitTime": 1768794876000,
-    "uncommittedChanges": 9,
+    "lastCommit": "7fcc12500f0ecf00fa4b4a2f62768c4f097c24e8",
+    "lastCommitMessage": "Add security categories: ldap-injection, ssrf, timing-attack",
+    "lastCommitTime": 1768798781000,
+    "uncommittedChanges": 7,
     "recentCommits": [
+      "Add security categories: ldap-injection, ssrf, timing-attack",
       "Add security categories: csrf, xxe, command-injection, deserialization",
       "Add first 3 security categories: sql-injection, xss, path-traversal",
       "Implement CategoryStore with CRUD, indexing, and search",
@@ -52,6 +89,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768799018012,
+      "suggestion": "Create 8 data domain category definitions in src/categories/definitions/data/. Include: 1) data-truncation (varchar limits, integer overflow), 2) null-handling (null vs empty, null propagation), 3) encoding-mismatch (UTF-8 vs Latin1, emoji handling), 4) precision-loss (float arithmetic, currency rounding), 5) data-race (read-write conflicts, lost updates), 6) schema-migration (column drops, type changes), 7) bulk-operation (batch insert failures, partial commits), 8) data-validation (regex DoS, constraint violations). Each needs detection patterns for Python/TypeScript, test templates for pytest/jest, and 3+ real examples.",
+      "accepted": false
+    },
     {
       "timestamp": 1768798573424,
       "suggestion": "Run 'pnpm test' to see which tests are failing, then fix them. Start with any import/module resolution errors, then schema validation issues, and finally the security category tests. Make sure the YAML files match the expected schema structure.",
@@ -141,7 +183,7 @@
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768798573413,
+  "lastAnalysis": 1768799017994,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

@@ -1,0 +1,267 @@
+id: bulk-operation
+version: 1
+name: Bulk Operation
+description: |
+  Detects issues in bulk data operations including partial batch failures, 
+  transaction handling, memory exhaustion, and timeout issues. Large batch 
+  operations require proper chunking, error handling, and rollback strategies.
+domain: data
+level: integration
+priority: P1
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://docs.sqlalchemy.org/en/14/core/connections.html#using-server-side-cursors-a-k-a-stream-results
+
+detectionPatterns:
+  - id: python-bulk-insert-no-batch
+    type: regex
+    language: python
+    pattern: "session\\.add_all\\s*\\(|bulk_save_objects\\s*\\("
+    confidence: medium
+    description: Detects bulk insert (verify chunking)
+
+  - id: python-unbounded-query
+    type: regex
+    language: python
+    pattern: "\\.all\\(\\)(?!.*limit)"
+    confidence: medium
+    description: Detects unbounded query results
+
+  - id: python-no-transaction
+    type: regex
+    language: python
+    pattern: "for.*in.*\\w+:.*\\.commit\\(\\)"
+    confidence: high
+    description: Detects commit inside loop (should batch)
+
+  - id: ts-bulk-create
+    type: regex
+    language: typescript
+    pattern: "\\.createMany\\s*\\(|\\.insertMany\\s*\\("
+    confidence: low
+    description: Detects bulk create (verify error handling)
+
+  - id: ts-unbounded-find
+    type: regex
+    language: typescript
+    pattern: "\\.find\\(\\{\\}\\)|\\.findMany\\(\\)(?!.*take)"
+    confidence: medium
+    description: Detects unbounded find operations
+
+  - id: ts-promise-all-large
+    type: regex
+    language: typescript
+    pattern: "Promise\\.all\\s*\\(.*map\\s*\\("
+    confidence: low
+    description: Detects Promise.all with potentially large arrays
+
+testTemplates:
+  - id: pytest-bulk-operation
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      class Test{{className}}BulkOperation:
+          """Bulk operation tests for {{functionName}}"""
+          
+          def test_large_batch_chunked(self, {{fixtures}}):
+              """Verify large batches are processed in chunks"""
+              large_dataset = [{"id": i} for i in range(10000)]
+              
+              # Should not exhaust memory
+              result = {{bulkInsertCall}}(large_dataset)
+              assert result["inserted"] == 10000
+          
+          def test_partial_failure_handling(self, {{fixtures}}):
+              """Verify partial failures are handled correctly"""
+              data = [
+                  {"id": 1, "value": "valid"},
+                  {"id": 2, "value": None},  # May fail
+                  {"id": 3, "value": "valid"},
+              ]
+              
+              result = {{bulkInsertCall}}(data)
+              
+              # Should report what succeeded/failed
+              assert "failed" in result or "errors" in result
+          
+          def test_bulk_rollback_on_error(self, {{fixtures}}):
+              """Verify bulk operation rolls back on error"""
+              initial_count = {{countCall}}()
+              
+              data = [{"id": i} for i in range(100)]
+              data.append({"id": "invalid"})  # Trigger error
+              
+              with pytest.raises(Exception):
+                  {{bulkInsertCall}}(data, atomic=True)
+              
+              # Should have rolled back
+              assert {{countCall}}() == initial_count
+          
+          def test_timeout_handling(self, {{fixtures}}):
+              """Verify bulk operation has timeout"""
+              huge_dataset = [{"id": i} for i in range(1000000)]
+              
+              with pytest.raises(TimeoutError):
+                  {{bulkInsertCall}}(huge_dataset, timeout=5)
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: bulkInsertCall
+        type: string
+        description: Bulk insert function
+        required: true
+      - name: countCall
+        type: string
+        description: Count function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: db_session
+
+  - id: jest-bulk-operation
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Bulk Operation', () => {
+        it('processes large batches in chunks', async () => {
+          const data = Array(10000).fill(null).map((_, i) => ({ id: i }));
+          const result = await {{bulkInsertCall}}(data);
+          expect(result.inserted).toBe(10000);
+        });
+        
+        it('handles partial failures', async () => {
+          const data = [
+            { id: 1, valid: true },
+            { id: 2, valid: false },  // Will fail
+            { id: 3, valid: true },
+          ];
+          
+          const result = await {{bulkInsertCall}}(data);
+          expect(result.errors).toBeDefined();
+        });
+        
+        it('rolls back atomic operations on error', async () => {
+          const initial = await {{countCall}}();
+          const data = [{ id: 1 }, { id: 'invalid' }];
+          
+          await expect({{bulkInsertCall}}(data, { atomic: true }))
+            .rejects.toThrow();
+          
+          expect(await {{countCall}}()).toBe(initial);
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: bulkInsertCall
+        type: string
+        description: Bulk insert function
+        required: true
+      - name: countCall
+        type: string
+        description: Count function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-unbounded-commit
+    concept: |
+      Committing inside a loop. Each commit is a database roundtrip, making large 
+      loops extremely slow. Batch operations and commit once, or use bulk_insert.
+    vulnerableCode: |
+      def import_users(users):
+          for user in users:
+              session.add(User(**user))
+              session.commit()  # VULNERABLE: Slow
+    testCode: |
+      def test_bulk_import_batched():
+          users = [{"name": f"user{i}"} for i in range(1000)]
+          
+          import time
+          start = time.time()
+          import_users(users)
+          elapsed = time.time() - start
+          
+          assert elapsed < 5  # Should be fast with batching
+    language: python
+    severity: medium
+
+  - name: partial-batch-failure
+    concept: |
+      Bulk insert without error handling. When one row fails in a batch, the 
+      behavior depends on settings. Use explicit error handling to know what 
+      succeeded and what failed.
+    vulnerableCode: |
+      async function importProducts(products) {
+        // VULNERABLE: All-or-nothing, unclear on failure
+        return await Product.createMany({ data: products });
+      }
+    testCode: |
+      it('reports partial failures', async () => {
+        const products = [
+          { sku: 'A1', price: 10 },
+          { sku: null, price: 20 },  // Invalid
+        ];
+        
+        const result = await importProducts(products);
+        expect(result.errors).toContainEqual(
+          expect.objectContaining({ index: 1 })
+        );
+      });
+    language: typescript
+    severity: high
+
+  - name: memory-exhaustion
+    concept: |
+      Loading all results into memory. Fetching millions of rows with .all() 
+      exhausts memory. Use pagination, streaming, or server-side cursors for 
+      large result sets.
+    vulnerableCode: |
+      def export_all_orders():
+          # VULNERABLE: Loads all into memory
+          orders = Order.query.all()
+          return [o.to_dict() for o in orders]
+    testCode: |
+      def test_export_uses_streaming():
+          import tracemalloc
+          tracemalloc.start()
+          
+          export_all_orders()
+          
+          current, peak = tracemalloc.get_traced_memory()
+          tracemalloc.stop()
+          
+          # Should not use more than 100MB for 1M rows
+          assert peak < 100 * 1024 * 1024
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

@@ -1,0 +1,418 @@
+id: precision-loss
+version: 1
+name: Precision Loss
+description: |
+  Detects floating-point precision issues including rounding errors in financial 
+  calculations, IEEE 754 precision limits, currency conversion errors, and 
+  comparison tolerance issues. Floating-point math is inherently imprecise; 
+  use decimal types for money and exact arithmetic.
+domain: data
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/681.html
+  - https://floating-point-gui.de/
+  - https://docs.python.org/3/library/decimal.html
+
+detectionPatterns:
+  - id: python-float-currency
+    type: regex
+    language: python
+    pattern: "(price|amount|total|cost|fee|balance|money|currency).*float|float.*(price|amount|total)"
+    confidence: high
+    description: Detects float used for currency values
+
+  - id: python-float-equality
+    type: regex
+    language: python
+    pattern: "==\\s*\\d+\\.\\d+|\\d+\\.\\d+\\s*=="
+    confidence: medium
+    description: Detects exact equality comparison with floats
+
+  - id: python-round-currency
+    type: regex
+    language: python
+    pattern: "round\\s*\\(.*,\\s*2\\s*\\)"
+    confidence: medium
+    description: Detects rounding for currency (consider Decimal)
+
+  - id: python-float-division
+    type: regex
+    language: python
+    pattern: "/\\s*\\d+(?!\\.)|\\d+(?!\\.)\\s*/"
+    confidence: low
+    description: Detects integer division that may lose precision
+
+  - id: ts-number-currency
+    type: regex
+    language: typescript
+    pattern: "(price|amount|total|cost|fee|balance):\\s*number"
+    confidence: high
+    description: Detects number type for currency values
+
+  - id: ts-float-equality
+    type: regex
+    language: typescript
+    pattern: "===\\s*\\d+\\.\\d+|\\d+\\.\\d+\\s*==="
+    confidence: medium
+    description: Detects exact equality with floats
+
+  - id: ts-tofixed-currency
+    type: regex
+    language: typescript
+    pattern: "\\.toFixed\\s*\\(\\s*2\\s*\\)"
+    confidence: medium
+    description: Detects toFixed for currency (still imprecise)
+
+  - id: ts-math-operations
+    type: regex
+    language: typescript
+    pattern: "Math\\.round|Math\\.floor|Math\\.ceil"
+    confidence: low
+    description: Detects rounding (verify precision requirements)
+
+testTemplates:
+  - id: pytest-precision-loss
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from decimal import Decimal
+      
+      
+      class Test{{className}}PrecisionLoss:
+          """Precision loss tests for {{functionName}}"""
+          
+          def test_float_addition_error(self, {{fixtures}}):
+              """Verify classic 0.1 + 0.2 precision issue"""
+              # In float: 0.1 + 0.2 != 0.3
+              result = {{addFunctionCall}}(0.1, 0.2)
+              
+              # Should use Decimal or tolerance comparison
+              assert abs(result - 0.3) < 1e-10 or result == Decimal("0.3")
+          
+          def test_currency_precision(self, {{fixtures}}):
+              """Verify currency calculations maintain precision"""
+              # 100 items at $1.01 each
+              quantity = 100
+              price = Decimal("1.01")
+              expected = Decimal("101.00")
+              
+              result = {{currencyFunctionCall}}(quantity, price)
+              
+              assert result == expected
+          
+          def test_currency_not_float(self, {{fixtures}}):
+              """Verify currency uses Decimal, not float"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              # Should use Decimal
+              assert "Decimal" in source or "decimal" in source
+              
+              # Should not use float for currency
+              currency_float_patterns = [
+                  "float(price",
+                  "float(amount",
+                  "float(total",
+              ]
+              for pattern in currency_float_patterns:
+                  assert pattern not in source
+          
+          def test_accumulated_rounding_error(self, {{fixtures}}):
+              """Verify accumulated operations don't compound error"""
+              # Add 0.01 one hundred times
+              result = {{accumulateFunctionCall}}(0.01, 100)
+              expected = Decimal("1.00")
+              
+              # Float would give 0.9999999999999999 or 1.0000000000000002
+              assert result == expected or abs(float(result) - 1.0) < 1e-10
+          
+          def test_division_precision(self, {{fixtures}}):
+              """Verify division maintains needed precision"""
+              # $10 split 3 ways
+              result = {{divideFunctionCall}}(Decimal("10.00"), 3)
+              
+              # Should be 3.33 or 3.34 (banker's rounding)
+              assert result in [Decimal("3.33"), Decimal("3.34")]
+          
+          def test_percentage_calculation(self, {{fixtures}}):
+              """Verify percentage doesn't lose precision"""
+              # 15% of $99.99
+              amount = Decimal("99.99")
+              percentage = Decimal("0.15")
+              expected = Decimal("15.00")  # Rounded from 14.9985
+              
+              result = {{percentageFunctionCall}}(amount, percentage)
+              
+              assert result == expected or abs(result - expected) < Decimal("0.01")
+          
+          def test_comparison_tolerance(self, {{fixtures}}):
+              """Verify float comparisons use tolerance"""
+              a = 0.1 + 0.2
+              b = 0.3
+              
+              result = {{compareFunctionCall}}(a, b)
+              
+              # Should be equal within tolerance
+              assert result is True
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: addFunctionCall
+        type: string
+        description: Addition function call
+        required: true
+      - name: currencyFunctionCall
+        type: string
+        description: Currency function call
+        required: true
+      - name: accumulateFunctionCall
+        type: string
+        description: Accumulation function call
+        required: true
+      - name: divideFunctionCall
+        type: string
+        description: Division function call
+        required: true
+      - name: percentageFunctionCall
+        type: string
+        description: Percentage function call
+        required: true
+      - name: compareFunctionCall
+        type: string
+        description: Comparison function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-precision-loss
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import Decimal from 'decimal.js';
+      
+      describe('{{className}} Precision Tests', () => {
+        describe('floating point errors', () => {
+          it('handles 0.1 + 0.2 correctly', async () => {
+            const result = await {{addFunctionCall}}(0.1, 0.2);
+            
+            // Should be exactly 0.3 or very close
+            expect(Math.abs(result - 0.3)).toBeLessThan(1e-10);
+          });
+          
+          it('does not accumulate rounding errors', async () => {
+            // Add 0.01 one hundred times
+            const result = await {{accumulateFunctionCall}}(0.01, 100);
+            
+            expect(Math.abs(result - 1.0)).toBeLessThan(1e-10);
+          });
+        });
+        
+        describe('currency precision', () => {
+          it('uses cents/integer for currency', async () => {
+            // $1.01 should be stored as 101 cents
+            const price = 101;  // cents
+            const quantity = 100;
+            
+            const result = await {{currencyFunctionCall}}(quantity, price);
+            
+            expect(result).toBe(10100);  // $101.00 in cents
+          });
+          
+          it('handles currency division correctly', async () => {
+            // $10 split 3 ways
+            const totalCents = 1000;
+            const parts = 3;
+            
+            const result = await {{divideFunctionCall}}(totalCents, parts);
+            
+            // Should handle remainder properly
+            // 333 + 333 + 334 = 1000
+            expect(result.reduce((a: number, b: number) => a + b, 0)).toBe(1000);
+          });
+          
+          it('calculates percentages without precision loss', async () => {
+            // 15% of $99.99 = $14.9985, rounds to $15.00
+            const amountCents = 9999;
+            const percentage = 15;
+            
+            const result = await {{percentageFunctionCall}}(amountCents, percentage);
+            
+            expect(result).toBe(1500);  // $15.00 in cents
+          });
+        });
+        
+        describe('comparison tolerance', () => {
+          it('uses tolerance for float comparison', async () => {
+            const a = 0.1 + 0.2;
+            const b = 0.3;
+            
+            const result = await {{compareFunctionCall}}(a, b);
+            
+            expect(result).toBe(true);
+          });
+          
+          it('does not use === for floats', async () => {
+            // This would fail with ===
+            expect(0.1 + 0.2 === 0.3).toBe(false);
+            
+            // Our function should handle it
+            const result = await {{compareFunctionCall}}(0.1 + 0.2, 0.3);
+            expect(result).toBe(true);
+          });
+        });
+        
+        describe('large numbers', () => {
+          it('handles large integers without precision loss', async () => {
+            const largeInt = BigInt('9007199254740993');
+            
+            const result = await {{bigintFunctionCall}}(largeInt);
+            
+            expect(result).toBe(largeInt);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: addFunctionCall
+        type: string
+        description: Addition function
+        required: true
+      - name: accumulateFunctionCall
+        type: string
+        description: Accumulation function
+        required: true
+      - name: currencyFunctionCall
+        type: string
+        description: Currency function
+        required: true
+      - name: divideFunctionCall
+        type: string
+        description: Division function
+        required: true
+      - name: percentageFunctionCall
+        type: string
+        description: Percentage function
+        required: true
+      - name: compareFunctionCall
+        type: string
+        description: Comparison function
+        required: true
+      - name: bigintFunctionCall
+        type: string
+        description: BigInt function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-float-currency
+    concept: |
+      Using float for currency calculations. Floating-point numbers cannot exactly 
+      represent most decimal values. 0.1 + 0.2 != 0.3 in float. Use Decimal for 
+      money to avoid rounding errors that compound over many transactions.
+    vulnerableCode: |
+      def calculate_total(items):
+          # VULNERABLE: Float loses precision
+          total = 0.0
+          for item in items:
+              total += float(item['price'])
+          return round(total, 2)
+    testCode: |
+      import pytest
+      from decimal import Decimal
+      
+      def test_float_precision_error():
+          """Verify float precision issue"""
+          items = [{'price': '0.1'}] * 10
+          
+          result = calculate_total(items)
+          
+          # Float gives 0.9999999999999999, not 1.0
+          assert result == Decimal('1.00')
+    language: python
+    severity: high
+
+  - name: javascript-currency-cents
+    concept: |
+      Storing currency as floating-point dollars. Use integers representing cents 
+      (or smallest currency unit) to avoid precision issues. Convert to dollars 
+      only for display.
+    vulnerableCode: |
+      function addToCart(cart, price) {
+        // VULNERABLE: Float for money
+        cart.total += price;
+        return cart;
+      }
+    testCode: |
+      describe('addToCart', () => {
+        it('maintains precision', () => {
+          let cart = { total: 0 };
+          
+          for (let i = 0; i < 100; i++) {
+            cart = addToCart(cart, 0.01);
+          }
+          
+          expect(cart.total).toBe(1.00);  // Fails with float
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: python-float-comparison
+    concept: |
+      Direct equality comparison of floats. Due to precision limits, floats that 
+      should be equal may differ slightly. Use math.isclose() or a tolerance 
+      value for comparisons.
+    vulnerableCode: |
+      def is_balanced(debits, credits):
+          # VULNERABLE: Exact float comparison
+          return sum(debits) == sum(credits)
+    testCode: |
+      import pytest
+      import math
+      
+      def test_float_comparison():
+          """Verify float comparison uses tolerance"""
+          debits = [0.1, 0.2, 0.3]
+          credits = [0.6]
+          
+          # 0.1 + 0.2 + 0.3 != 0.6 in float
+          result = is_balanced(debits, credits)
+          
+          assert result is True
+    language: python
+    severity: medium
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

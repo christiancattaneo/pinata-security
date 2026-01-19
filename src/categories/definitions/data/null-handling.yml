@@ -1,0 +1,411 @@
+id: null-handling
+version: 1
+name: Null Handling
+description: |
+  Detects issues with null value handling including null vs empty string confusion, 
+  null propagation in calculations, nullable column defaults, and null coalescing 
+  errors. Improper null handling causes NullPointerExceptions, incorrect query 
+  results, and data integrity issues.
+domain: data
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/476.html
+  - https://en.wikipedia.org/wiki/Null_pointer
+
+detectionPatterns:
+  - id: python-none-vs-empty
+    type: regex
+    language: python
+    pattern: "if\\s+not\\s+\\w+:|if\\s+\\w+\\s*:|==\\s*None\\s+or\\s+==\\s*[\"'][\"']"
+    confidence: medium
+    description: Detects conflation of None and empty string
+
+  - id: python-nullable-column-no-default
+    type: regex
+    language: python
+    pattern: "Column\\(.*nullable\\s*=\\s*True(?!.*default)"
+    confidence: medium
+    description: Detects nullable columns without explicit default
+
+  - id: python-null-arithmetic
+    type: regex
+    language: python
+    pattern: "\\+.*None|None.*\\+|\\*.*None|None.*\\*"
+    confidence: high
+    description: Detects arithmetic with potential None values
+
+  - id: python-json-null
+    type: regex
+    language: python
+    pattern: "json\\.loads|json\\.load"
+    confidence: low
+    description: Detects JSON parsing (verify null handling)
+    negativePattern: "or\\s+\\{\\}|or\\s+\\[\\]|\\.get\\("
+
+  - id: ts-null-vs-undefined
+    type: regex
+    language: typescript
+    pattern: "===\\s*null(?!.*undefined)|===\\s*undefined(?!.*null)"
+    confidence: medium
+    description: Detects checking only null or undefined, not both
+
+  - id: ts-optional-chain-missing
+    type: regex
+    language: typescript
+    pattern: "\\w+\\.\\w+\\.\\w+(?!\\.?)"
+    confidence: low
+    description: Detects deep property access without optional chaining
+    negativePattern: "\\?\\."
+
+  - id: ts-nullable-db-field
+    type: regex
+    language: typescript
+    pattern: "String\\s*\\|\\s*null|number\\s*\\|\\s*null"
+    confidence: low
+    description: Detects nullable types (verify null handling)
+
+  - id: ts-json-parse-null
+    type: regex
+    language: typescript
+    pattern: "JSON\\.parse\\s*\\("
+    confidence: low
+    description: Detects JSON parsing (verify null handling)
+
+testTemplates:
+  - id: pytest-null-handling
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      
+      class Test{{className}}NullHandling:
+          """Null handling tests for {{functionName}}"""
+          
+          def test_none_vs_empty_string(self, {{fixtures}}):
+              """Verify None and empty string are handled differently"""
+              result_none = {{functionCall}}(None)
+              result_empty = {{functionCall}}("")
+              
+              # Should be distinguishable
+              assert result_none != result_empty or (result_none is None and result_empty == "")
+          
+          def test_none_in_calculation(self, {{fixtures}}):
+              """Verify None values don't cause calculation errors"""
+              values = [1, 2, None, 4]
+              
+              # Should either skip None or raise explicit error
+              try:
+                  result = {{calcFunctionCall}}(values)
+                  assert result in [7, None]  # Sum without None, or explicit None
+              except TypeError:
+                  pytest.fail("Should handle None explicitly, not raise TypeError")
+          
+          def test_nullable_column_default(self, {{fixtures}}):
+              """Verify nullable columns have sensible defaults"""
+              obj = {{modelClass}}()
+              
+              # Should have explicit None, not undefined behavior
+              assert hasattr(obj, '{{nullableField}}')
+              assert obj.{{nullableField}} is None
+          
+          def test_null_coalescing(self, {{fixtures}}):
+              """Verify null coalescing works correctly"""
+              test_cases = [
+                  (None, "{{defaultValue}}"),
+                  ("", ""),  # Empty string is not null
+                  ("value", "value"),
+                  (0, 0),  # Zero is not null
+                  (False, False),  # False is not null
+              ]
+              
+              for input_val, expected in test_cases:
+                  result = {{coalesceFunctionCall}}(input_val)
+                  assert result == expected, f"Failed for input {input_val!r}"
+          
+          def test_json_null_values(self, {{fixtures}}):
+              """Verify JSON null is handled correctly"""
+              json_with_null = '{"value": null, "name": "test"}'
+              result = {{jsonFunctionCall}}(json_with_null)
+              
+              assert result.get("value") is None
+              assert "value" in result  # Key should exist
+          
+          def test_none_in_list_operations(self, {{fixtures}}):
+              """Verify None in lists doesn't cause silent failures"""
+              items = [{"id": 1}, None, {"id": 3}]
+              
+              # Should skip None items explicitly
+              result = {{listFunctionCall}}(items)
+              assert len(result) == 2
+          
+          def test_null_propagation_sql(self, {{fixtures}}):
+              """Verify SQL NULL propagation is understood"""
+              # NULL in SQL comparisons
+              # NULL = NULL is NULL (not true)
+              # NULL != NULL is NULL (not true)
+              query_result = {{sqlQueryCall}}("SELECT NULL = NULL")
+              assert query_result is None or query_result == [None]
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: calcFunctionCall
+        type: string
+        description: Calculation function call
+        required: true
+      - name: coalesceFunctionCall
+        type: string
+        description: Coalesce function call
+        required: true
+      - name: jsonFunctionCall
+        type: string
+        description: JSON function call
+        required: true
+      - name: listFunctionCall
+        type: string
+        description: List function call
+        required: true
+      - name: sqlQueryCall
+        type: string
+        description: SQL query function call
+        required: true
+      - name: modelClass
+        type: string
+        description: Model class name
+        required: true
+      - name: nullableField
+        type: string
+        description: Nullable field name
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: db_session
+      - name: defaultValue
+        type: string
+        description: Default value for coalescing
+        required: false
+        defaultValue: default
+
+  - id: jest-null-handling
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Null Handling Tests', () => {
+        describe('null vs undefined vs empty', () => {
+          it('distinguishes null from undefined', async () => {
+            const resultNull = await {{functionCall}}(null);
+            const resultUndefined = await {{functionCall}}(undefined);
+            
+            // Should handle both but potentially differently
+            expect(resultNull).not.toBe(resultUndefined);
+          });
+          
+          it('distinguishes null from empty string', async () => {
+            const resultNull = await {{functionCall}}(null);
+            const resultEmpty = await {{functionCall}}('');
+            
+            expect(resultNull).not.toBe(resultEmpty);
+          });
+          
+          it('distinguishes null from zero', async () => {
+            const resultNull = await {{functionCall}}(null);
+            const resultZero = await {{functionCall}}(0);
+            
+            expect(resultNull).not.toBe(resultZero);
+          });
+        });
+        
+        describe('null coalescing', () => {
+          it('uses nullish coalescing correctly', async () => {
+            const testCases = [
+              { input: null, expected: '{{defaultValue}}' },
+              { input: undefined, expected: '{{defaultValue}}' },
+              { input: '', expected: '' },  // Empty string is not nullish
+              { input: 0, expected: 0 },  // Zero is not nullish
+              { input: false, expected: false },  // False is not nullish
+            ];
+            
+            for (const { input, expected } of testCases) {
+              const result = await {{coalesceFunctionCall}}(input);
+              expect(result).toBe(expected);
+            }
+          });
+        });
+        
+        describe('optional chaining', () => {
+          it('handles deeply nested null values', async () => {
+            const obj = { a: null };
+            
+            const result = await {{nestedFunctionCall}}(obj);
+            
+            // Should not throw, should return null/undefined
+            expect(result).toBeUndefined();
+          });
+          
+          it('handles arrays with null elements', async () => {
+            const items = [{ id: 1 }, null, { id: 3 }];
+            
+            const result = await {{arrayFunctionCall}}(items);
+            
+            // Should filter or handle nulls explicitly
+            expect(result.length).toBe(2);
+          });
+        });
+        
+        describe('database null semantics', () => {
+          it('understands NULL comparison semantics', async () => {
+            // In SQL, NULL = NULL is NULL (not true)
+            const result = await {{sqlFunctionCall}}(null, null);
+            
+            // Should not use === for null comparison in queries
+            expect(result).toBe(false);  // They're not "equal"
+          });
+          
+          it('uses IS NULL for null checks', async () => {
+            const nullableValue = null;
+            
+            const result = await {{isNullFunctionCall}}(nullableValue);
+            expect(result).toBe(true);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: coalesceFunctionCall
+        type: string
+        description: Coalesce function call
+        required: true
+      - name: nestedFunctionCall
+        type: string
+        description: Nested access function
+        required: true
+      - name: arrayFunctionCall
+        type: string
+        description: Array function call
+        required: true
+      - name: sqlFunctionCall
+        type: string
+        description: SQL function call
+        required: true
+      - name: isNullFunctionCall
+        type: string
+        description: IS NULL check function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+      - name: defaultValue
+        type: string
+        description: Default value
+        required: false
+        defaultValue: default
+
+examples:
+  - name: python-none-vs-empty
+    concept: |
+      Conflating None with empty string. The falsy check 'if not value' treats 
+      both None and empty string as false. This causes incorrect behavior when 
+      empty string is a valid input but None means "not provided".
+    vulnerableCode: |
+      def process_name(name):
+          # VULNERABLE: Treats "" same as None
+          if not name:
+              return "Anonymous"
+          return name.strip()
+    testCode: |
+      import pytest
+      
+      def test_empty_string_preserved():
+          """Empty string should not become Anonymous"""
+          result = process_name("")
+          assert result == ""
+      
+      def test_none_becomes_anonymous():
+          """None should become Anonymous"""
+          result = process_name(None)
+          assert result == "Anonymous"
+    language: python
+    severity: medium
+
+  - name: typescript-nullish-coalescing
+    concept: |
+      Using || instead of ?? for defaults. The logical OR operator treats 0, 
+      empty string, and false as falsy, providing the default incorrectly. 
+      Use nullish coalescing ?? to only default on null/undefined.
+    vulnerableCode: |
+      function getQuantity(input: number | null): number {
+        // VULNERABLE: || treats 0 as falsy
+        return input || 1;  // 0 becomes 1!
+      }
+    testCode: |
+      describe('getQuantity', () => {
+        it('preserves zero', () => {
+          expect(getQuantity(0)).toBe(0);
+        });
+        
+        it('defaults null to 1', () => {
+          expect(getQuantity(null)).toBe(1);
+        });
+      });
+    language: typescript
+    severity: medium
+
+  - name: sql-null-comparison
+    concept: |
+      Using equality for NULL comparison in SQL. In SQL, NULL = NULL returns 
+      NULL (unknown), not true. This causes incorrect query results when 
+      comparing nullable columns. Use IS NULL or IS NOT NULL instead.
+    vulnerableCode: |
+      def find_matching(session, value):
+          # VULNERABLE: Won't find rows where column IS NULL
+          return session.query(Model).filter(
+              Model.nullable_column == value
+          ).all()
+    testCode: |
+      import pytest
+      
+      def test_find_null_values(session):
+          """Verify NULL values can be found"""
+          session.add(Model(nullable_column=None))
+          session.commit()
+          
+          results = find_matching(session, None)
+          assert len(results) == 1
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

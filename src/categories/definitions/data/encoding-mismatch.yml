@@ -1,0 +1,404 @@
+id: encoding-mismatch
+version: 1
+name: Encoding Mismatch
+description: |
+  Detects character encoding issues including UTF-8 vs Latin-1 mismatches, 
+  emoji and multi-byte character handling, BOM markers, and encoding declaration 
+  mismatches. Encoding errors cause mojibake (garbled text), data corruption, 
+  security bypasses, and application crashes.
+domain: data
+level: integration
+priority: P1
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-8161
+  - CVE-2019-19844
+
+references:
+  - https://cwe.mitre.org/data/definitions/838.html
+  - https://www.joelonsoftware.com/2003/10/08/the-absolute-minimum-every-software-developer-absolutely-positively-must-know-about-unicode-and-character-sets-no-excuses/
+
+detectionPatterns:
+  - id: python-encode-decode-default
+    type: regex
+    language: python
+    pattern: "\\.encode\\(\\)|\\.decode\\(\\)"
+    confidence: medium
+    description: Detects encode/decode without explicit encoding
+
+  - id: python-open-no-encoding
+    type: regex
+    language: python
+    pattern: "open\\s*\\([^)]+\\)(?!.*encoding)"
+    confidence: medium
+    description: Detects file open without explicit encoding
+
+  - id: python-latin1-read
+    type: regex
+    language: python
+    pattern: "encoding\\s*=\\s*[\"']latin-?1[\"']|encoding\\s*=\\s*[\"']iso-8859"
+    confidence: medium
+    description: Detects Latin-1 encoding which loses Unicode data
+
+  - id: python-bytes-string-mix
+    type: regex
+    language: python
+    pattern: "b[\"'].*\\+.*[\"'][^b]|[\"'][^b].*\\+.*b[\"']"
+    confidence: high
+    description: Detects mixing bytes and string concatenation
+
+  - id: ts-textdecoder-no-encoding
+    type: regex
+    language: typescript
+    pattern: "new TextDecoder\\(\\)|TextDecoder\\(\\)"
+    confidence: low
+    description: Detects TextDecoder without explicit encoding
+
+  - id: ts-buffer-tostring-default
+    type: regex
+    language: typescript
+    pattern: "Buffer\\.from\\(.*\\)\\.toString\\(\\)"
+    confidence: medium
+    description: Detects Buffer toString without encoding
+
+  - id: ts-charcodeat-emoji
+    type: regex
+    language: typescript
+    pattern: "\\.charCodeAt\\s*\\(|String\\.fromCharCode\\s*\\("
+    confidence: medium
+    description: Detects char operations that may fail on emoji
+
+  - id: ts-length-emoji
+    type: regex
+    language: typescript
+    pattern: "\\.length(?!\\s*[=!<>])"
+    confidence: low
+    description: Detects string length (verify emoji handling)
+    negativePattern: "\\[\\.\\.\\.\\w+\\]\\.length|Array\\.from\\("
+
+testTemplates:
+  - id: pytest-encoding-mismatch
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      
+      class Test{{className}}EncodingMismatch:
+          """Encoding mismatch tests for {{functionName}}"""
+          
+          UNICODE_TEST_CASES = [
+              ("Hello", "ASCII"),
+              ("Héllo", "Latin extended"),
+              ("Привет", "Cyrillic"),
+              ("你好", "Chinese"),
+              ("🎉🚀", "Emoji"),
+              ("👨‍👩‍👧‍👦", "Emoji ZWJ sequence"),
+              ("café\u0301", "Combining characters"),
+              ("\ufeff Hello", "BOM marker"),
+          ]
+          
+          @pytest.mark.parametrize("text,description", UNICODE_TEST_CASES)
+          def test_unicode_roundtrip(self, text, description, {{fixtures}}):
+              """Verify {description} survives roundtrip"""
+              result = {{functionCall}}(text)
+              assert result == text, f"Failed for {description}: {text!r} -> {result!r}"
+          
+          def test_emoji_length(self, {{fixtures}}):
+              """Verify emoji length is counted correctly"""
+              emoji_text = "👨‍👩‍👧‍👦"  # Family emoji (ZWJ sequence)
+              
+              result = {{lengthFunctionCall}}(emoji_text)
+              
+              # Should count grapheme clusters, not code units
+              # This emoji is 1 grapheme but 7 code points (11 UTF-16 code units)
+              assert result == 1 or result == len(emoji_text)  # Document which is used
+          
+          def test_utf8_vs_latin1(self, {{fixtures}}):
+              """Verify UTF-8 doesn't get misread as Latin-1"""
+              utf8_bytes = "café".encode("utf-8")
+              
+              # Reading as Latin-1 would produce mojibake
+              result = {{decodeFunctionCall}}(utf8_bytes)
+              assert result == "café"
+              assert "Ã" not in result  # Mojibake indicator
+          
+          def test_bom_handling(self, {{fixtures}}):
+              """Verify BOM markers are handled"""
+              text_with_bom = "\ufeffHello"
+              
+              result = {{functionCall}}(text_with_bom)
+              
+              # BOM should be stripped or preserved consistently
+              assert result in ["Hello", "\ufeffHello"]
+          
+          def test_mixed_encoding_detection(self, {{fixtures}}):
+              """Verify mixed encoding is detected"""
+              # Bytes that are valid Latin-1 but invalid UTF-8
+              latin1_bytes = b"\xe9"  # é in Latin-1
+              
+              with pytest.raises((UnicodeDecodeError, ValueError)):
+                  {{strictDecodeFunctionCall}}(latin1_bytes)
+          
+          def test_null_byte_in_string(self, {{fixtures}}):
+              """Verify null bytes are handled safely"""
+              text_with_null = "Hello\x00World"
+              
+              result = {{functionCall}}(text_with_null)
+              
+              # Should either reject or preserve null
+              assert result == text_with_null or "\x00" not in result
+          
+          def test_combining_characters(self, {{fixtures}}):
+              """Verify combining characters are preserved"""
+              # e + combining acute = é
+              decomposed = "cafe\u0301"
+              composed = "café"
+              
+              result_decomposed = {{functionCall}}(decomposed)
+              result_composed = {{functionCall}}(composed)
+              
+              # Both should work, may be normalized
+              import unicodedata
+              assert unicodedata.normalize("NFC", result_decomposed) == \
+                     unicodedata.normalize("NFC", result_composed)
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: lengthFunctionCall
+        type: string
+        description: Length function call
+        required: true
+      - name: decodeFunctionCall
+        type: string
+        description: Decode function call
+        required: true
+      - name: strictDecodeFunctionCall
+        type: string
+        description: Strict decode function call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-encoding-mismatch
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Encoding Tests', () => {
+        const UNICODE_TEST_CASES = [
+          { text: 'Hello', desc: 'ASCII' },
+          { text: 'Héllo', desc: 'Latin extended' },
+          { text: 'Привет', desc: 'Cyrillic' },
+          { text: '你好', desc: 'Chinese' },
+          { text: '🎉🚀', desc: 'Emoji' },
+          { text: '👨‍👩‍👧‍👦', desc: 'Family emoji' },
+        ];
+        
+        describe('unicode roundtrip', () => {
+          test.each(UNICODE_TEST_CASES)(
+            'preserves $desc: $text',
+            async ({ text }) => {
+              const result = await {{functionCall}}(text);
+              expect(result).toBe(text);
+            }
+          );
+        });
+        
+        describe('emoji handling', () => {
+          it('counts emoji correctly', async () => {
+            const familyEmoji = '👨‍👩‍👧‍👦';
+            
+            const result = await {{lengthFunctionCall}}(familyEmoji);
+            
+            // Should count grapheme clusters
+            // Family emoji is 1 grapheme but many code points
+            expect(result).toBe(1);
+          });
+          
+          it('handles emoji in strings', async () => {
+            const text = 'Hello 🌍 World';
+            
+            const result = await {{functionCall}}(text);
+            expect(result).toBe(text);
+            expect(result).toContain('🌍');
+          });
+          
+          it('slices emoji correctly', async () => {
+            const text = '🎉🎊🎈';
+            
+            const result = await {{sliceFunctionCall}}(text, 0, 1);
+            
+            // Should get first emoji, not half of it
+            expect(result).toBe('🎉');
+            expect(result.length).toBeGreaterThan(0);
+          });
+        });
+        
+        describe('buffer encoding', () => {
+          it('decodes UTF-8 correctly', async () => {
+            const utf8Buffer = Buffer.from('café', 'utf8');
+            
+            const result = await {{decodeFunctionCall}}(utf8Buffer);
+            expect(result).toBe('café');
+          });
+          
+          it('detects encoding mismatch', async () => {
+            // This is é in Latin-1 but invalid UTF-8
+            const latin1Buffer = Buffer.from([0xe9]);
+            
+            await expect(
+              {{strictDecodeFunctionCall}}(latin1Buffer)
+            ).rejects.toThrow();
+          });
+        });
+        
+        describe('string length', () => {
+          it('uses correct length for limits', async () => {
+            const text = '🎉'.repeat(5);  // 5 emoji
+            
+            // String.length gives code units (10), not graphemes (5)
+            const graphemeCount = await {{graphemeCountFunctionCall}}(text);
+            expect(graphemeCount).toBe(5);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: lengthFunctionCall
+        type: string
+        description: Length function call
+        required: true
+      - name: sliceFunctionCall
+        type: string
+        description: Slice function call
+        required: true
+      - name: decodeFunctionCall
+        type: string
+        description: Decode function call
+        required: true
+      - name: strictDecodeFunctionCall
+        type: string
+        description: Strict decode function call
+        required: true
+      - name: graphemeCountFunctionCall
+        type: string
+        description: Grapheme count function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-file-encoding
+    concept: |
+      File opened without explicit encoding. Python 3's open() uses the system 
+      default encoding, which varies by platform. Always specify encoding='utf-8' 
+      for consistent behavior across platforms.
+    vulnerableCode: |
+      def read_config(path):
+          # VULNERABLE: Uses system default encoding
+          with open(path) as f:
+              return f.read()
+    testCode: |
+      import pytest
+      import tempfile
+      
+      def test_reads_utf8_file():
+          """Verify UTF-8 files are read correctly"""
+          content = "café ☕"
+          
+          with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False) as f:
+              f.write(content)
+              f.flush()
+              
+              result = read_config(f.name)
+              assert result == content
+    language: python
+    severity: medium
+    cve: CVE-2020-8161
+
+  - name: javascript-emoji-length
+    concept: |
+      Using string.length with emoji. JavaScript's length property counts UTF-16 
+      code units, not grapheme clusters. Emoji like 👨‍👩‍👧‍👦 are 1 visible 
+      character but have length 11. Use Intl.Segmenter for grapheme counting.
+    vulnerableCode: |
+      function truncate(text, maxLength) {
+        // VULNERABLE: May cut emoji in half
+        if (text.length > maxLength) {
+          return text.slice(0, maxLength) + '...';
+        }
+        return text;
+      }
+    testCode: |
+      describe('truncate', () => {
+        it('does not break emoji', () => {
+          const text = '🎉🎊🎈 Party!';
+          const result = truncate(text, 3);
+          
+          // Should keep complete emoji
+          expect(result).not.toContain('\ud83c');  // Surrogate
+        });
+      });
+    language: typescript
+    severity: medium
+
+  - name: python-mojibake
+    concept: |
+      Reading UTF-8 as Latin-1 (mojibake). When UTF-8 encoded text is read as 
+      Latin-1, multi-byte characters become garbled. café becomes cafÃ©. 
+      Always use consistent encoding throughout.
+    vulnerableCode: |
+      def process_text(data):
+          # VULNERABLE: Assumes Latin-1
+          text = data.decode('latin-1')
+          return text.upper()
+    testCode: |
+      import pytest
+      
+      def test_utf8_not_mojibake():
+          """Verify UTF-8 is not misread"""
+          utf8_data = "café".encode('utf-8')
+          
+          result = process_text(utf8_data)
+          
+          assert "Ã" not in result  # Mojibake
+          assert result == "CAFÉ"
+    language: python
+    severity: high
+    cve: CVE-2019-19844
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

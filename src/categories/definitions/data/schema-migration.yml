@@ -1,0 +1,441 @@
+id: schema-migration
+version: 1
+name: Schema Migration
+description: |
+  Detects schema migration issues including destructive column drops, type 
+  changes that lose data, missing rollback handling, and migration ordering 
+  problems. Schema changes in production require careful planning to avoid 
+  data loss and downtime.
+domain: data
+level: system
+priority: P1
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/669.html
+  - https://martinfowler.com/articles/evodb.html
+
+detectionPatterns:
+  - id: python-alembic-drop-column
+    type: regex
+    language: python
+    pattern: "op\\.drop_column\\s*\\("
+    confidence: high
+    description: Detects Alembic drop column (verify data migration)
+
+  - id: python-alembic-drop-table
+    type: regex
+    language: python
+    pattern: "op\\.drop_table\\s*\\("
+    confidence: high
+    description: Detects Alembic drop table (verify backup)
+
+  - id: python-alembic-alter-column
+    type: regex
+    language: python
+    pattern: "op\\.alter_column\\s*\\("
+    confidence: medium
+    description: Detects column type change (verify data compatibility)
+
+  - id: python-django-remove-field
+    type: regex
+    language: python
+    pattern: "RemoveField\\s*\\(|RemoveModel\\s*\\("
+    confidence: high
+    description: Detects Django field/model removal
+
+  - id: ts-prisma-drop
+    type: regex
+    language: typescript
+    pattern: "@db\\..*\\(\\)\\s*//.*drop|DROP\\s+COLUMN|DROP\\s+TABLE"
+    confidence: high
+    description: Detects Prisma/SQL drop operations
+
+  - id: ts-knex-drop
+    type: regex
+    language: typescript
+    pattern: "\\.dropColumn\\s*\\(|\\.dropTable\\s*\\("
+    confidence: high
+    description: Detects Knex drop operations
+
+  - id: ts-typeorm-drop
+    type: regex
+    language: typescript
+    pattern: "dropColumn\\s*\\(|dropTable\\s*\\("
+    confidence: high
+    description: Detects TypeORM drop operations
+
+  - id: ts-sequelize-remove
+    type: regex
+    language: typescript
+    pattern: "removeColumn\\s*\\(|dropTable\\s*\\("
+    confidence: high
+    description: Detects Sequelize remove operations
+
+testTemplates:
+  - id: pytest-schema-migration
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from alembic import command
+      from alembic.config import Config
+      
+      
+      class Test{{className}}SchemaMigration:
+          """Schema migration tests for {{migrationName}}"""
+          
+          @pytest.fixture
+          def alembic_config(self):
+              config = Config("alembic.ini")
+              return config
+          
+          def test_migration_up(self, alembic_config, {{fixtures}}):
+              """Test migration applies successfully"""
+              command.upgrade(alembic_config, "{{migrationId}}")
+              
+              # Verify expected schema changes
+              {{verifyUpCall}}()
+          
+          def test_migration_down(self, alembic_config, {{fixtures}}):
+              """Test migration rollback works"""
+              command.upgrade(alembic_config, "{{migrationId}}")
+              command.downgrade(alembic_config, "-1")
+              
+              # Verify rollback restored schema
+              {{verifyDownCall}}()
+          
+          def test_migration_preserves_data(self, {{fixtures}}):
+              """Test data is preserved during migration"""
+              # Insert test data before migration
+              test_data = {{insertTestDataCall}}()
+              
+              # Apply migration
+              {{applyMigrationCall}}()
+              
+              # Verify data is still accessible
+              migrated_data = {{queryDataCall}}()
+              assert len(migrated_data) == len(test_data)
+              
+              # Verify data values
+              for original, migrated in zip(test_data, migrated_data):
+                  {{assertDataEqualCall}}(original, migrated)
+          
+          def test_column_drop_has_backup(self, {{fixtures}}):
+              """Test dropped columns are backed up"""
+              # Check backup table exists before drop
+              backup_exists = {{checkBackupCall}}("{{columnName}}")
+              
+              assert backup_exists, \
+                  f"Column {{columnName}} should be backed up before dropping"
+          
+          def test_type_change_preserves_values(self, {{fixtures}}):
+              """Test type changes don't lose data"""
+              original_values = {{getColumnValuesCall}}("{{columnName}}")
+              
+              {{applyMigrationCall}}()
+              
+              new_values = {{getColumnValuesCall}}("{{columnName}}")
+              
+              # Values should be convertible or preserved
+              assert len(new_values) == len(original_values)
+          
+          def test_nullable_to_not_null_handles_existing(self, {{fixtures}}):
+              """Test nullable to NOT NULL handles existing NULLs"""
+              # Insert row with NULL value
+              {{insertNullRowCall}}("{{columnName}}")
+              
+              # Migration should either:
+              # 1. Fail with clear error
+              # 2. Set default for NULL values
+              try:
+                  {{applyMigrationCall}}()
+                  
+                  # If succeeded, NULLs should have default
+                  null_count = {{countNullsCall}}("{{columnName}}")
+                  assert null_count == 0
+              except Exception as e:
+                  assert "null" in str(e).lower()
+          
+          def test_migration_is_idempotent(self, {{fixtures}}):
+              """Test migration can be safely re-run"""
+              {{applyMigrationCall}}()
+              
+              # Second application should not error
+              try:
+                  {{applyMigrationCall}}()
+              except Exception as e:
+                  pytest.fail(f"Migration is not idempotent: {e}")
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: migrationName
+        type: string
+        description: Migration name
+        required: true
+      - name: migrationId
+        type: string
+        description: Migration ID
+        required: true
+      - name: verifyUpCall
+        type: string
+        description: Verify up function
+        required: true
+      - name: verifyDownCall
+        type: string
+        description: Verify down function
+        required: true
+      - name: insertTestDataCall
+        type: string
+        description: Insert test data function
+        required: true
+      - name: applyMigrationCall
+        type: string
+        description: Apply migration function
+        required: true
+      - name: queryDataCall
+        type: string
+        description: Query data function
+        required: true
+      - name: assertDataEqualCall
+        type: string
+        description: Assert data equal function
+        required: true
+      - name: checkBackupCall
+        type: string
+        description: Check backup function
+        required: true
+      - name: getColumnValuesCall
+        type: string
+        description: Get column values function
+        required: true
+      - name: insertNullRowCall
+        type: string
+        description: Insert null row function
+        required: true
+      - name: countNullsCall
+        type: string
+        description: Count nulls function
+        required: true
+      - name: columnName
+        type: string
+        description: Column name
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: db_session
+
+  - id: jest-schema-migration
+    language: typescript
+    framework: jest
+    template: |
+      import { {{migrationClass}} } from '{{modulePath}}';
+      
+      describe('{{className}} Schema Migration', () => {
+        describe('migration up', () => {
+          it('applies successfully', async () => {
+            await expect({{applyUpCall}}()).resolves.not.toThrow();
+          });
+          
+          it('creates expected schema changes', async () => {
+            await {{applyUpCall}}();
+            
+            const schema = await {{getSchemaCall}}();
+            expect(schema).toMatchObject({{expectedSchema}});
+          });
+        });
+        
+        describe('migration down', () => {
+          it('rolls back successfully', async () => {
+            await {{applyUpCall}}();
+            await expect({{applyDownCall}}()).resolves.not.toThrow();
+          });
+          
+          it('restores original schema', async () => {
+            const originalSchema = await {{getSchemaCall}}();
+            
+            await {{applyUpCall}}();
+            await {{applyDownCall}}();
+            
+            const restoredSchema = await {{getSchemaCall}}();
+            expect(restoredSchema).toEqual(originalSchema);
+          });
+        });
+        
+        describe('data preservation', () => {
+          it('preserves existing data', async () => {
+            const testData = await {{insertTestDataCall}}();
+            
+            await {{applyUpCall}}();
+            
+            const migratedData = await {{queryDataCall}}();
+            expect(migratedData).toHaveLength(testData.length);
+          });
+          
+          it('handles NULL values in type changes', async () => {
+            await {{insertNullRowCall}}();
+            
+            await expect({{applyUpCall}}()).resolves.not.toThrow();
+          });
+        });
+        
+        describe('destructive changes', () => {
+          it('backs up data before column drop', async () => {
+            const backupExists = await {{checkBackupExistsCall}}();
+            expect(backupExists).toBe(true);
+          });
+          
+          it('provides data recovery mechanism', async () => {
+            await {{applyUpCall}}();
+            
+            const canRecover = await {{canRecoverDataCall}}();
+            expect(canRecover).toBe(true);
+          });
+        });
+        
+        describe('idempotency', () => {
+          it('can be run multiple times safely', async () => {
+            await {{applyUpCall}}();
+            await expect({{applyUpCall}}()).resolves.not.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: migrationClass
+        type: string
+        description: Migration class
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+      - name: applyUpCall
+        type: string
+        description: Apply up function
+        required: true
+      - name: applyDownCall
+        type: string
+        description: Apply down function
+        required: true
+      - name: getSchemaCall
+        type: string
+        description: Get schema function
+        required: true
+      - name: expectedSchema
+        type: object
+        description: Expected schema object
+        required: true
+      - name: insertTestDataCall
+        type: string
+        description: Insert test data function
+        required: true
+      - name: queryDataCall
+        type: string
+        description: Query data function
+        required: true
+      - name: insertNullRowCall
+        type: string
+        description: Insert null row function
+        required: true
+      - name: checkBackupExistsCall
+        type: string
+        description: Check backup exists function
+        required: true
+      - name: canRecoverDataCall
+        type: string
+        description: Can recover data function
+        required: true
+
+examples:
+  - name: alembic-drop-column
+    concept: |
+      Dropping a column without backup. When dropping a column, the data is 
+      permanently lost. Always backup the column data before dropping, or use 
+      a soft-delete approach (rename + deprecate).
+    vulnerableCode: |
+      def upgrade():
+          # VULNERABLE: No backup before drop
+          op.drop_column('users', 'legacy_field')
+      
+      def downgrade():
+          # Cannot restore data!
+          op.add_column('users', sa.Column('legacy_field', sa.String(100)))
+    testCode: |
+      import pytest
+      
+      def test_column_drop_has_backup(db_session):
+          """Verify dropped column data is backed up"""
+          # Check backup exists
+          result = db_session.execute(
+              "SELECT COUNT(*) FROM users_legacy_field_backup"
+          )
+          assert result.scalar() > 0
+    language: python
+    severity: high
+
+  - name: type-change-data-loss
+    concept: |
+      Changing column type loses data. Changing from TEXT to VARCHAR(50) truncates 
+      long strings. Changing from FLOAT to INT loses decimal precision. Test type 
+      changes with production-like data first.
+    vulnerableCode: |
+      def upgrade():
+          # VULNERABLE: May truncate long descriptions
+          op.alter_column(
+              'products',
+              'description',
+              type_=sa.String(100),  # Was TEXT
+          )
+    testCode: |
+      import pytest
+      
+      def test_type_change_no_truncation(db_session):
+          """Verify type change doesn't truncate data"""
+          max_len = db_session.execute(
+              "SELECT MAX(LENGTH(description)) FROM products"
+          ).scalar()
+          
+          assert max_len <= 100, f"Data would be truncated: max length is {max_len}"
+    language: python
+    severity: high
+
+  - name: nullable-to-notnull
+    concept: |
+      Changing nullable to NOT NULL with existing NULLs. If the column has NULL 
+      values, making it NOT NULL fails. Must set a default or update NULLs first.
+    vulnerableCode: |
+      def upgrade():
+          # VULNERABLE: Fails if NULLs exist
+          op.alter_column(
+              'users',
+              'email',
+              nullable=False,
+          )
+    testCode: |
+      import pytest
+      
+      def test_nullable_change_handles_nulls(db_session):
+          """Verify NULL handling before NOT NULL"""
+          null_count = db_session.execute(
+              "SELECT COUNT(*) FROM users WHERE email IS NULL"
+          ).scalar()
+          
+          assert null_count == 0, \
+              f"Migration will fail: {null_count} NULL values exist"
+    language: python
+    severity: medium
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

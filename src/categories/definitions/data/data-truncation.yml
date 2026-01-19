@@ -1,0 +1,425 @@
+id: data-truncation
+version: 1
+name: Data Truncation
+description: |
+  Detects data truncation vulnerabilities where values exceed storage limits. 
+  Includes varchar/text field limits causing silent truncation, integer overflow 
+  from arithmetic or type conversion, and binary data exceeding blob limits. 
+  Can lead to data corruption, security bypasses, or application crashes.
+domain: data
+level: integration
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2019-1010218
+  - CVE-2021-32027
+
+references:
+  - https://cwe.mitre.org/data/definitions/190.html
+  - https://cwe.mitre.org/data/definitions/193.html
+  - https://owasp.org/www-community/vulnerabilities/Buffer_Overflow
+
+detectionPatterns:
+  - id: python-varchar-no-length-check
+    type: regex
+    language: python
+    pattern: "Column\\(String\\(\\d+\\)|VARCHAR\\(\\d+\\)"
+    confidence: low
+    description: Detects string columns with limits (verify length validation)
+    negativePattern: "len\\(.*\\)\\s*<=|max_length|validators"
+
+  - id: python-int-overflow-arithmetic
+    type: regex
+    language: python
+    pattern: "\\*\\s*\\d{6,}|\\+\\s*\\d{9,}|\\*\\*\\s*\\d{2,}"
+    confidence: medium
+    description: Detects arithmetic that may cause integer overflow
+
+  - id: python-struct-pack
+    type: regex
+    language: python
+    pattern: "struct\\.pack\\s*\\([\"'][bBhHiI]"
+    confidence: medium
+    description: Detects struct packing with fixed-size integers
+
+  - id: python-ctypes-overflow
+    type: regex
+    language: python
+    pattern: "ctypes\\.c_(int|short|byte|uint)"
+    confidence: medium
+    description: Detects ctypes with potential overflow
+
+  - id: ts-number-overflow
+    type: regex
+    language: typescript
+    pattern: "Number\\.MAX_SAFE_INTEGER|9007199254740991|\\d{16,}"
+    confidence: medium
+    description: Detects operations near JavaScript number limits
+
+  - id: ts-parseint-overflow
+    type: regex
+    language: typescript
+    pattern: "parseInt\\s*\\(|Number\\s*\\("
+    confidence: low
+    description: Detects number parsing (verify overflow handling)
+
+  - id: ts-varchar-prisma
+    type: regex
+    language: typescript
+    pattern: "@db\\.VarChar\\(\\d+\\)|String.*@db"
+    confidence: low
+    description: Detects Prisma varchar columns (verify length validation)
+
+  - id: ts-buffer-alloc
+    type: regex
+    language: typescript
+    pattern: "Buffer\\.alloc\\s*\\(|Buffer\\.allocUnsafe\\s*\\("
+    confidence: low
+    description: Detects buffer allocation (verify size limits)
+
+testTemplates:
+  - id: pytest-data-truncation
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import sys
+      
+      
+      class Test{{className}}DataTruncation:
+          """Data truncation tests for {{functionName}}"""
+          
+          def test_varchar_boundary(self, {{fixtures}}):
+              """Test string at exactly the varchar limit"""
+              max_length = {{maxLength}}
+              
+              # Exactly at limit should succeed
+              at_limit = "x" * max_length
+              result = {{functionCall}}(at_limit)
+              assert len(result) == max_length
+              
+              # Over limit should fail or truncate explicitly
+              over_limit = "x" * (max_length + 1)
+              with pytest.raises((ValueError, {{exceptionClass}})):
+                  {{functionCall}}(over_limit)
+          
+          def test_unicode_varchar_boundary(self, {{fixtures}}):
+              """Test unicode strings at byte vs char boundary"""
+              max_length = {{maxLength}}
+              
+              # Emoji takes 4 bytes but 1 char
+              emoji_string = "🎉" * (max_length // 4)
+              result = {{functionCall}}(emoji_string)
+              
+              # Verify we're counting chars not bytes
+              assert len(result) <= max_length
+          
+          def test_integer_overflow(self, {{fixtures}}):
+              """Test integer overflow boundaries"""
+              test_cases = [
+                  (2**31 - 1, "INT32_MAX"),
+                  (2**31, "INT32_MAX + 1"),
+                  (2**63 - 1, "INT64_MAX"),
+                  (-2**31, "INT32_MIN"),
+                  (-2**31 - 1, "INT32_MIN - 1"),
+              ]
+              
+              for value, name in test_cases:
+                  try:
+                      result = {{intFunctionCall}}(value)
+                      # If it succeeds, verify no silent truncation
+                      assert result == value, f"Silent truncation at {name}"
+                  except (OverflowError, ValueError):
+                      pass  # Explicit rejection is acceptable
+          
+          def test_arithmetic_overflow(self, {{fixtures}}):
+              """Test arithmetic that could overflow"""
+              large_a = 2**30
+              large_b = 2**30
+              
+              # Multiplication could overflow 32-bit
+              with pytest.raises((OverflowError, ValueError)) if sys.maxsize < 2**62 else pytest.nullcontext():
+                  result = {{arithmeticCall}}(large_a, large_b)
+                  assert result == large_a * large_b
+          
+          def test_binary_data_limit(self, {{fixtures}}):
+              """Test binary data at blob limits"""
+              max_blob_size = {{maxBlobSize}}
+              
+              # At limit
+              data = b"x" * max_blob_size
+              result = {{blobFunctionCall}}(data)
+              assert len(result) == max_blob_size
+              
+              # Over limit
+              over_data = b"x" * (max_blob_size + 1)
+              with pytest.raises((ValueError, {{exceptionClass}})):
+                  {{blobFunctionCall}}(over_data)
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Function call for string operations
+        required: true
+      - name: intFunctionCall
+        type: string
+        description: Function call for integer operations
+        required: true
+      - name: arithmeticCall
+        type: string
+        description: Function call for arithmetic operations
+        required: true
+      - name: blobFunctionCall
+        type: string
+        description: Function call for blob operations
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: db_session
+      - name: maxLength
+        type: number
+        description: Maximum varchar length
+        required: false
+        defaultValue: 255
+      - name: maxBlobSize
+        type: number
+        description: Maximum blob size
+        required: false
+        defaultValue: 65535
+      - name: exceptionClass
+        type: string
+        description: Exception class for truncation errors
+        required: false
+        defaultValue: DataError
+
+  - id: jest-data-truncation
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Data Truncation Tests', () => {
+        const MAX_LENGTH = {{maxLength}};
+        
+        describe('string truncation', () => {
+          it('accepts strings at exactly the limit', async () => {
+            const atLimit = 'x'.repeat(MAX_LENGTH);
+            const result = await {{functionCall}}(atLimit);
+            expect(result.length).toBe(MAX_LENGTH);
+          });
+          
+          it('rejects strings over the limit', async () => {
+            const overLimit = 'x'.repeat(MAX_LENGTH + 1);
+            await expect({{functionCall}}(overLimit)).rejects.toThrow();
+          });
+          
+          it('handles unicode correctly', async () => {
+            // Emoji is 1 char but multiple bytes
+            const emojiString = '🎉'.repeat(MAX_LENGTH / 2);
+            const result = await {{functionCall}}(emojiString);
+            
+            // Should count characters, not bytes
+            expect([...result].length).toBeLessThanOrEqual(MAX_LENGTH);
+          });
+        });
+        
+        describe('number overflow', () => {
+          it('handles MAX_SAFE_INTEGER', async () => {
+            const result = await {{intFunctionCall}}(Number.MAX_SAFE_INTEGER);
+            expect(result).toBe(Number.MAX_SAFE_INTEGER);
+          });
+          
+          it('rejects or handles numbers beyond safe integer', async () => {
+            const unsafeNumber = Number.MAX_SAFE_INTEGER + 1;
+            
+            // Should either reject or use BigInt
+            try {
+              const result = await {{intFunctionCall}}(unsafeNumber);
+              // If accepted, verify no precision loss
+              expect(typeof result === 'bigint' || result === unsafeNumber).toBe(true);
+            } catch (error) {
+              expect(error).toBeDefined();
+            }
+          });
+          
+          it('handles BigInt for large integers', async () => {
+            const bigValue = BigInt('9223372036854775807');  // INT64_MAX
+            const result = await {{bigintFunctionCall}}(bigValue);
+            expect(result).toBe(bigValue);
+          });
+        });
+        
+        describe('arithmetic overflow', () => {
+          it('detects multiplication overflow', async () => {
+            const a = 2 ** 30;
+            const b = 2 ** 30;
+            
+            // Result would exceed safe integer
+            const result = await {{arithmeticCall}}(a, b);
+            
+            // Should use BigInt or handle overflow
+            expect(typeof result === 'bigint' || result === a * b).toBe(true);
+          });
+        });
+        
+        describe('binary data limits', () => {
+          const MAX_BLOB = {{maxBlobSize}};
+          
+          it('accepts data at limit', async () => {
+            const data = Buffer.alloc(MAX_BLOB, 'x');
+            const result = await {{blobFunctionCall}}(data);
+            expect(result.length).toBe(MAX_BLOB);
+          });
+          
+          it('rejects data over limit', async () => {
+            const data = Buffer.alloc(MAX_BLOB + 1, 'x');
+            await expect({{blobFunctionCall}}(data)).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: String function call
+        required: true
+      - name: intFunctionCall
+        type: string
+        description: Integer function call
+        required: true
+      - name: bigintFunctionCall
+        type: string
+        description: BigInt function call
+        required: true
+      - name: arithmeticCall
+        type: string
+        description: Arithmetic function call
+        required: true
+      - name: blobFunctionCall
+        type: string
+        description: Blob function call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module import path
+        required: true
+      - name: maxLength
+        type: number
+        description: Max varchar length
+        required: false
+        defaultValue: 255
+      - name: maxBlobSize
+        type: number
+        description: Max blob size
+        required: false
+        defaultValue: 65535
+
+examples:
+  - name: python-varchar-truncation
+    concept: |
+      Silent varchar truncation in databases. When inserting strings longer than 
+      the column limit, some databases silently truncate. This can bypass security 
+      checks or corrupt data. Always validate length before insert.
+    vulnerableCode: |
+      class User(Base):
+          username = Column(String(50))
+      
+      def create_user(username):
+          # VULNERABLE: No length check before insert
+          user = User(username=username)
+          session.add(user)
+          session.commit()
+    testCode: |
+      import pytest
+      
+      def test_username_length_limit():
+          """Verify usernames over 50 chars are rejected"""
+          long_name = "a" * 51
+          
+          with pytest.raises(ValueError):
+              create_user(long_name)
+      
+      def test_username_at_limit():
+          """Verify 50 char usernames work"""
+          max_name = "a" * 50
+          user = create_user(max_name)
+          assert len(user.username) == 50
+    language: python
+    severity: high
+
+  - name: javascript-integer-overflow
+    concept: |
+      JavaScript number precision loss. Numbers larger than MAX_SAFE_INTEGER 
+      (2^53-1) lose precision. This affects ID handling, timestamps, and 
+      financial calculations. Use BigInt for large integers.
+    vulnerableCode: |
+      function processId(id) {
+        // VULNERABLE: Large IDs lose precision
+        return { id: Number(id), processed: true };
+      }
+      
+      // 9007199254740993 becomes 9007199254740992
+    testCode: |
+      describe('ID processing', () => {
+        it('preserves large ID precision', () => {
+          const largeId = '9007199254740993';
+          const result = processId(largeId);
+          
+          expect(String(result.id)).toBe(largeId);
+        });
+      });
+    language: typescript
+    severity: high
+    cve: CVE-2019-1010218
+
+  - name: python-arithmetic-overflow
+    concept: |
+      Arithmetic overflow in calculations. Multiplying large numbers can overflow 
+      fixed-size integer types. Python's int auto-promotes but ctypes/struct do not. 
+      Validate ranges before operations.
+    vulnerableCode: |
+      import ctypes
+      
+      def calculate_total(quantity, price_cents):
+          # VULNERABLE: ctypes.c_int32 can overflow
+          total = ctypes.c_int32(quantity * price_cents)
+          return total.value
+    testCode: |
+      import pytest
+      
+      def test_large_order_overflow():
+          """Verify large orders don't overflow"""
+          quantity = 1000000
+          price = 100000  # $1000 in cents
+          
+          result = calculate_total(quantity, price)
+          expected = quantity * price
+          
+          assert result == expected
+    language: python
+    severity: high
+    cve: CVE-2021-32027
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
