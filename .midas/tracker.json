@@ -1,47 +1,32 @@
 {
-  "lastUpdated": "2026-01-19T03:54:32.625Z",
+  "lastUpdated": "2026-01-19T04:59:38.431Z",
   "recentFiles": [
     {
-      "path": "src/categories/definitions/security/command-injection.yml",
-      "lastModified": 1768794864544.94
-    },
-    {
       "path": "tests/categories/definitions/security.test.ts",
-      "lastModified": 1768794759472.9873
+      "lastModified": 1768798770072.162
     },
     {
-      "path": "src/categories/definitions/security/deserialization.yml",
-      "lastModified": 1768794730594.2642
+      "path": "src/categories/definitions/security/timing-attack.yml",
+      "lastModified": 1768798749600.1748
     },
     {
-      "path": "src/categories/definitions/security/xxe.yml",
-      "lastModified": 1768794602007.675
+      "path": "src/categories/definitions/security/ssrf.yml",
+      "lastModified": 1768798679817.0566
     },
     {
-      "path": "src/categories/definitions/security/csrf.yml",
-      "lastModified": 1768794539992.3733
-    },
-    {
-      "path": "src/categories/definitions/security/path-traversal.yml",
-      "lastModified": 1768792683152.6416
-    },
-    {
-      "path": "src/categories/definitions/security/xss.yml",
-      "lastModified": 1768792683152.2231
-    },
-    {
-      "path": "src/categories/definitions/security/sql-injection.yml",
-      "lastModified": 1768792683152.2097
+      "path": "src/categories/definitions/security/ldap-injection.yml",
+      "lastModified": 1768798617666.5098
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "241c9ef0240e1a6d0001cbe4843319001de36edf",
-    "lastCommitMessage": "Add first 3 security categories: sql-injection, xss, path-traversal",
-    "lastCommitTime": 1768792666000,
-    "uncommittedChanges": 10,
+    "lastCommit": "4c5ced95c2267464e01ca904f88c9a617b9f352b",
+    "lastCommitMessage": "Add security categories: csrf, xxe, command-injection, deserialization",
+    "lastCommitTime": 1768794876000,
+    "uncommittedChanges": 9,
     "recentCommits": [
+      "Add security categories: csrf, xxe, command-injection, deserialization",
       "Add first 3 security categories: sql-injection, xss, path-traversal",
       "Implement CategoryStore with CRUD, indexing, and search",
       "Initial TypeScript project structure with Zod schemas"
@@ -67,6 +52,16 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768798573424,
+      "suggestion": "Run 'pnpm test' to see which tests are failing, then fix them. Start with any import/module resolution errors, then schema validation issues, and finally the security category tests. Make sure the YAML files match the expected schema structure.",
+      "accepted": false
+    },
+    {
+      "timestamp": 1768796757050,
+      "suggestion": "Create 3 more security category YAML files in src/categories/definitions/security/: 1) ldap-injection.yml for LDAP query injection vulnerabilities, 2) ssrf.yml for Server-Side Request Forgery attacks, and 3) timing-attack.yml for timing-based security issues. Follow the same structure as existing categories with detection patterns for Python/TypeScript, test templates for pytest/jest, and at least 3 examples each.",
+      "accepted": false
+    },
     {
       "timestamp": 1768793522717,
       "suggestion": "Create the next batch of security categories: csrf, xxe, command-injection, and deserialization. Each should have detection patterns for Python/TypeScript, test templates for pytest/jest, and 3 real-world examples with CVE references where applicable.",
@@ -146,7 +141,7 @@
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768793522703,
+  "lastAnalysis": 1768798573413,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

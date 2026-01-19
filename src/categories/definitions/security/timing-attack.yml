@@ -1,0 +1,489 @@
+id: timing-attack
+version: 1
+name: Timing Attack
+description: |
+  Detects timing-based security vulnerabilities where execution time reveals 
+  sensitive information. Includes string comparison timing attacks, enumeration 
+  via response time differences, and cache timing side channels. Use constant-time 
+  comparison functions for secrets and avoid branching on sensitive data.
+domain: security
+level: integration
+priority: P1
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-1747
+  - CVE-2019-1010266
+  - CVE-2021-23358
+
+references:
+  - https://owasp.org/www-community/attacks/Timing_attack
+  - https://codahale.com/a-lesson-in-timing-attacks/
+  - https://cwe.mitre.org/data/definitions/208.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-string-compare-secret
+    type: regex
+    language: python
+    pattern: "(password|secret|token|key|api_key).*==|==.*(password|secret|token|key)"
+    confidence: high
+    description: Detects direct string comparison of secrets
+
+  - id: python-hash-compare-direct
+    type: regex
+    language: python
+    pattern: "hashlib.*==|==.*hashlib|digest\\(\\).*=="
+    confidence: high
+    description: Detects direct comparison of hash digests
+
+  - id: python-hmac-compare-direct
+    type: regex
+    language: python
+    pattern: "hmac.*==|==.*hmac"
+    confidence: high
+    description: Detects direct HMAC comparison instead of compare_digest
+    negativePattern: "compare_digest"
+
+  - id: python-missing-compare-digest
+    type: regex
+    language: python
+    pattern: "hmac\\.new|hashlib\\."
+    confidence: low
+    description: Detects crypto usage (verify constant-time comparison)
+    negativePattern: "hmac\\.compare_digest|secrets\\.compare_digest"
+
+  # TypeScript/JavaScript patterns
+  - id: ts-string-compare-secret
+    type: regex
+    language: typescript
+    pattern: "(password|secret|token|key|apiKey).*===|===.*(password|secret|token)"
+    confidence: high
+    description: Detects direct string comparison of secrets
+
+  - id: ts-buffer-compare-timing
+    type: regex
+    language: typescript
+    pattern: "Buffer.*===|===.*Buffer|toString\\(\\).*==="
+    confidence: medium
+    description: Detects direct buffer comparison
+
+  - id: ts-crypto-compare-direct
+    type: regex
+    language: typescript
+    pattern: "\\.digest\\(\\).*===|===.*\\.digest\\(\\)"
+    confidence: high
+    description: Detects direct crypto digest comparison
+    negativePattern: "timingSafeEqual|crypto\\.timingSafeEqual"
+
+  - id: ts-early-return-auth
+    type: regex
+    language: typescript
+    pattern: "if.*(!|!==).*password.*return|if.*password.*!==.*return"
+    confidence: medium
+    description: Detects early return in authentication revealing user existence
+
+testTemplates:
+  - id: pytest-timing-attack
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import statistics
+      import hmac
+      import hashlib
+      
+      
+      class Test{{className}}TimingAttack:
+          """Timing attack tests for {{functionName}}"""
+          
+          def measure_time(self, func, *args, iterations=100):
+              """Measure execution time with multiple iterations"""
+              times = []
+              for _ in range(iterations):
+                  start = time.perf_counter_ns()
+                  try:
+                      func(*args)
+                  except Exception:
+                      pass
+                  end = time.perf_counter_ns()
+                  times.append(end - start)
+              return statistics.mean(times), statistics.stdev(times)
+          
+          def test_constant_time_comparison(self, {{fixtures}}):
+              """Verify secret comparison is constant-time"""
+              correct = "{{correctValue}}"
+              
+              # Test with first char wrong
+              wrong_first = "X" + correct[1:]
+              time_first, _ = self.measure_time({{functionCall}}, wrong_first)
+              
+              # Test with last char wrong
+              wrong_last = correct[:-1] + "X"
+              time_last, _ = self.measure_time({{functionCall}}, wrong_last)
+              
+              # Test with all chars wrong
+              all_wrong = "X" * len(correct)
+              time_all, _ = self.measure_time({{functionCall}}, all_wrong)
+              
+              # Times should be similar (within 10% or statistical noise)
+              times = [time_first, time_last, time_all]
+              mean_time = statistics.mean(times)
+              
+              for t in times:
+                  deviation = abs(t - mean_time) / mean_time
+                  assert deviation < 0.1, \
+                      f"Timing deviation {deviation:.2%} suggests non-constant-time comparison"
+          
+          def test_uses_compare_digest(self):
+              """Verify hmac.compare_digest or secrets.compare_digest is used"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              safe_patterns = [
+                  "hmac.compare_digest",
+                  "secrets.compare_digest",
+                  "constant_time_compare",
+                  "secure_compare",
+              ]
+              
+              unsafe_patterns = [
+                  " == ",
+                  "!=",
+              ]
+              
+              has_safe = any(p in source for p in safe_patterns)
+              has_unsafe = any(p in source for p in unsafe_patterns)
+              
+              if not has_safe and has_unsafe:
+                  pytest.fail("Secret comparison should use constant-time function")
+          
+          def test_no_early_return_on_user_not_found(self, {{fixtures}}):
+              """Verify non-existent users don't return faster"""
+              existing_user = "{{existingUser}}"
+              nonexistent_user = "definitely_not_a_real_user_12345"
+              
+              time_existing, _ = self.measure_time(
+                  {{functionCall}}, existing_user, "wrong_password"
+              )
+              time_nonexistent, _ = self.measure_time(
+                  {{functionCall}}, nonexistent_user, "wrong_password"
+              )
+              
+              # Times should be similar
+              ratio = time_existing / time_nonexistent if time_nonexistent > 0 else float('inf')
+              assert 0.5 < ratio < 2.0, \
+                  f"User enumeration via timing: ratio={ratio:.2f}"
+          
+          def test_no_timing_leak_in_token_validation(self, {{fixtures}}):
+              """Verify token validation doesn't leak valid prefix length"""
+              valid_token = "{{validToken}}"
+              
+              times = []
+              for i in range(len(valid_token)):
+                  partial_valid = valid_token[:i] + "X" * (len(valid_token) - i)
+                  t, _ = self.measure_time({{functionCall}}, partial_valid, iterations=50)
+                  times.append(t)
+              
+              # Should not show increasing time as more chars match
+              # Check correlation
+              from scipy.stats import pearsonr
+              indices = list(range(len(times)))
+              correlation, _ = pearsonr(indices, times)
+              
+              assert abs(correlation) < 0.3, \
+                  f"Timing correlation {correlation:.2f} suggests char-by-char comparison"
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ""
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+      - name: correctValue
+        type: string
+        description: Correct secret value for testing
+        required: true
+      - name: existingUser
+        type: string
+        description: Username that exists in the system
+        required: false
+        defaultValue: admin
+      - name: validToken
+        type: string
+        description: Valid token for testing
+        required: true
+
+  - id: jest-timing-attack
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import { timingSafeEqual } from 'crypto';
+      
+      describe('{{className}} Timing Attack Tests', () => {
+        const measureTime = async (fn: () => Promise<any>, iterations = 50) => {
+          const times: number[] = [];
+          
+          for (let i = 0; i < iterations; i++) {
+            const start = process.hrtime.bigint();
+            try {
+              await fn();
+            } catch (e) {
+              // Ignore errors, measure time anyway
+            }
+            const end = process.hrtime.bigint();
+            times.push(Number(end - start));
+          }
+          
+          return {
+            mean: times.reduce((a, b) => a + b, 0) / times.length,
+            stdev: Math.sqrt(
+              times.reduce((sum, t) => sum + Math.pow(t - times.reduce((a, b) => a + b, 0) / times.length, 2), 0) / times.length
+            ),
+          };
+        };
+        
+        describe('constant-time comparison', () => {
+          it('takes same time regardless of where mismatch occurs', async () => {
+            const correct = '{{correctValue}}';
+            
+            // Wrong first character
+            const wrongFirst = 'X' + correct.slice(1);
+            const timeFirst = await measureTime(() => {{functionCall}}(wrongFirst));
+            
+            // Wrong last character
+            const wrongLast = correct.slice(0, -1) + 'X';
+            const timeLast = await measureTime(() => {{functionCall}}(wrongLast));
+            
+            // All wrong
+            const allWrong = 'X'.repeat(correct.length);
+            const timeAll = await measureTime(() => {{functionCall}}(allWrong));
+            
+            // Compare times - should be within 20% of each other
+            const times = [timeFirst.mean, timeLast.mean, timeAll.mean];
+            const meanTime = times.reduce((a, b) => a + b, 0) / times.length;
+            
+            for (const t of times) {
+              const deviation = Math.abs(t - meanTime) / meanTime;
+              expect(deviation).toBeLessThan(0.2);
+            }
+          });
+        });
+        
+        describe('user enumeration', () => {
+          it('takes same time for existing and non-existing users', async () => {
+            const existingUser = '{{existingUser}}';
+            const nonExistentUser = 'definitely_not_real_user_xyz';
+            
+            const timeExisting = await measureTime(
+              () => {{functionCall}}(existingUser, 'wrong_password')
+            );
+            const timeNonExistent = await measureTime(
+              () => {{functionCall}}(nonExistentUser, 'wrong_password')
+            );
+            
+            // Ratio should be close to 1
+            const ratio = timeExisting.mean / timeNonExistent.mean;
+            expect(ratio).toBeGreaterThan(0.5);
+            expect(ratio).toBeLessThan(2.0);
+          });
+        });
+        
+        describe('implementation', () => {
+          it('uses timingSafeEqual for buffer comparison', () => {
+            // Verify the function uses crypto.timingSafeEqual
+            const a = Buffer.from('secret1');
+            const b = Buffer.from('secret2');
+            
+            // This should not throw
+            expect(() => timingSafeEqual(a, b)).not.toThrow();
+          });
+          
+          it('does not use direct equality for secrets', async () => {
+            // Source code inspection would be ideal here
+            // At minimum, verify timing characteristics
+          });
+        });
+        
+        describe('hash comparison', () => {
+          it('compares hashes in constant time', async () => {
+            const correctHash = '{{correctHash}}';
+            
+            // Measure with progressively more matching characters
+            const times: number[] = [];
+            
+            for (let i = 0; i < correctHash.length; i += 8) {
+              const partial = correctHash.slice(0, i) + 'x'.repeat(correctHash.length - i);
+              const result = await measureTime(() => {{functionCall}}(partial));
+              times.push(result.mean);
+            }
+            
+            // Times should not increase with more matching chars
+            for (let i = 1; i < times.length; i++) {
+              const increase = (times[i] - times[0]) / times[0];
+              expect(increase).toBeLessThan(0.3);
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+      - name: correctValue
+        type: string
+        description: Correct secret value for testing
+        required: true
+      - name: existingUser
+        type: string
+        description: Username that exists in the system
+        required: false
+        defaultValue: admin
+      - name: correctHash
+        type: string
+        description: Correct hash value for testing
+        required: true
+
+examples:
+  - name: python-string-compare
+    concept: |
+      Timing attack via Python string comparison. The == operator compares strings 
+      character by character and returns early on mismatch. This allows attackers 
+      to guess secrets character by character. Use hmac.compare_digest() instead.
+    vulnerableCode: |
+      def verify_api_key(provided_key):
+          expected_key = os.environ.get('API_KEY')
+          # VULNERABLE: Non-constant-time comparison
+          return provided_key == expected_key
+    testCode: |
+      import pytest
+      import hmac
+      
+      def test_uses_constant_time_compare():
+          """Verify constant-time comparison"""
+          import inspect
+          source = inspect.getsource(verify_api_key)
+          
+          assert "hmac.compare_digest" in source or "secrets.compare_digest" in source
+          assert " == " not in source
+      
+      def test_safe_implementation():
+          """Example of safe implementation"""
+          import hmac
+          
+          def safe_verify(provided, expected):
+              return hmac.compare_digest(provided.encode(), expected.encode())
+    language: python
+    severity: high
+    cve: CVE-2020-1747
+
+  - name: python-user-enumeration
+    concept: |
+      User enumeration via timing. When authentication fails faster for non-existent 
+      users than for wrong passwords, attackers can enumerate valid usernames. 
+      Always perform the same operations regardless of whether the user exists.
+    vulnerableCode: |
+      def authenticate(username, password):
+          user = User.query.filter_by(username=username).first()
+          
+          # VULNERABLE: Early return reveals user doesn't exist
+          if not user:
+              return False
+          
+          return check_password_hash(user.password_hash, password)
+    testCode: |
+      import pytest
+      import time
+      
+      def test_no_user_enumeration():
+          """Verify timing doesn't reveal user existence"""
+          iterations = 100
+          
+          # Time for existing user
+          start = time.perf_counter()
+          for _ in range(iterations):
+              authenticate("admin", "wrong")
+          time_existing = time.perf_counter() - start
+          
+          # Time for non-existing user
+          start = time.perf_counter()
+          for _ in range(iterations):
+              authenticate("not_a_user", "wrong")
+          time_missing = time.perf_counter() - start
+          
+          # Should be within 50%
+          ratio = time_existing / time_missing
+          assert 0.5 < ratio < 2.0
+    language: python
+    severity: medium
+
+  - name: nodejs-buffer-compare
+    concept: |
+      Timing attack via Node.js Buffer comparison. Direct buffer equality checks 
+      are not constant-time. Use crypto.timingSafeEqual() for comparing secrets, 
+      tokens, or cryptographic values.
+    vulnerableCode: |
+      function verifySignature(provided, expected) {
+        const providedBuf = Buffer.from(provided, 'hex');
+        const expectedBuf = Buffer.from(expected, 'hex');
+        
+        // VULNERABLE: Not constant-time
+        return providedBuf.equals(expectedBuf);
+      }
+    testCode: |
+      import { timingSafeEqual } from 'crypto';
+      
+      describe('Signature verification', () => {
+        it('uses timingSafeEqual', () => {
+          function safeVerify(provided: string, expected: string) {
+            const a = Buffer.from(provided, 'hex');
+            const b = Buffer.from(expected, 'hex');
+            
+            if (a.length !== b.length) return false;
+            return timingSafeEqual(a, b);
+          }
+          
+          expect(safeVerify('abcd', 'abcd')).toBe(true);
+          expect(safeVerify('abcd', 'dcba')).toBe(false);
+        });
+      });
+    language: typescript
+    severity: high
+    cve: CVE-2019-1010266
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

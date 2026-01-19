@@ -48,9 +48,21 @@ describe("Security Category Definitions", () => {
       expect(store.has("deserialization")).toBe(true);
     });
 
-    it("loads exactly 7 security categories", () => {
+    it("loads ldap-injection category", () => {
+      expect(store.has("ldap-injection")).toBe(true);
+    });
+
+    it("loads ssrf category", () => {
+      expect(store.has("ssrf")).toBe(true);
+    });
+
+    it("loads timing-attack category", () => {
+      expect(store.has("timing-attack")).toBe(true);
+    });
+
+    it("loads exactly 10 security categories", () => {
       const securityCategories = store.byDomain("security");
-      expect(securityCategories).toHaveLength(7);
+      expect(securityCategories).toHaveLength(10);
     });
   });
 
@@ -296,6 +308,90 @@ describe("Security Category Definitions", () => {
     it("finds deserialization by searching 'pickle'", () => {
       const results = store.search({ query: "pickle" });
       expect(results.some((r) => r.category.id === "deserialization")).toBe(true);
+    });
+
+    it("finds ldap-injection by searching 'ldap'", () => {
+      const results = store.search({ query: "ldap" });
+      expect(results.some((r) => r.category.id === "ldap-injection")).toBe(true);
+    });
+
+    it("finds ssrf by searching 'request forgery'", () => {
+      const results = store.search({ query: "request forgery" });
+      expect(results.some((r) => r.category.id === "ssrf")).toBe(true);
+    });
+
+    it("finds timing-attack by searching 'timing'", () => {
+      const results = store.search({ query: "timing" });
+      expect(results.some((r) => r.category.id === "timing-attack")).toBe(true);
+    });
+  });
+
+  describe("ldap-injection category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("ldap-injection");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("LDAP");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for LDAP queries", () => {
+      const result = store.get("ldap-injection");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("ldap"))).toBe(true);
+      }
+    });
+  });
+
+  describe("ssrf category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("ssrf");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("SSRF");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P0");
+        expect(category.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for HTTP requests", () => {
+      const result = store.get("ssrf");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("request") || p.pattern.includes("fetch"))).toBe(true);
+      }
+    });
+  });
+
+  describe("timing-attack category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("timing-attack");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        const category = result.data;
+        expect(category.name).toContain("Timing");
+        expect(category.domain).toBe("security");
+        expect(category.priority).toBe("P1");
+        expect(category.severity).toBe("high");
+      }
+    });
+
+    it("has detection patterns for secret comparison", () => {
+      const result = store.get("timing-attack");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.pattern.includes("password") || p.pattern.includes("secret"))).toBe(true);
+      }
     });
   });
 });

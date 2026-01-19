@@ -1,0 +1,477 @@
+id: ssrf
+version: 1
+name: Server-Side Request Forgery (SSRF)
+description: |
+  Detects Server-Side Request Forgery vulnerabilities where user-controlled input 
+  influences URLs that the server fetches. Attackers can access internal services, 
+  cloud metadata endpoints, read local files via file:// protocol, or pivot to 
+  internal networks. Validate URLs against allowlists and block internal IP ranges.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-21973
+  - CVE-2019-17571
+  - CVE-2022-42745
+
+references:
+  - https://owasp.org/www-community/attacks/Server_Side_Request_Forgery
+  - https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/918.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-requests-user-url
+    type: regex
+    language: python
+    pattern: "requests\\.(get|post|put|delete|patch|head)\\s*\\(.*request\\."
+    confidence: high
+    description: Detects requests library with user-controlled URL
+
+  - id: python-urllib-user-url
+    type: regex
+    language: python
+    pattern: "urllib\\.request\\.urlopen\\s*\\(.*request\\.|urlopen\\s*\\(.*request\\."
+    confidence: high
+    description: Detects urllib with user-controlled URL
+
+  - id: python-httpx-user-url
+    type: regex
+    language: python
+    pattern: "httpx\\.(get|post|put|delete|patch)\\s*\\(.*request\\."
+    confidence: high
+    description: Detects httpx library with user-controlled URL
+
+  - id: python-aiohttp-user-url
+    type: regex
+    language: python
+    pattern: "session\\.(get|post|put|delete|fetch)\\s*\\(.*request\\."
+    confidence: medium
+    description: Detects aiohttp with user-controlled URL
+
+  - id: python-pycurl
+    type: regex
+    language: python
+    pattern: "pycurl.*setopt.*URL.*request\\."
+    confidence: high
+    description: Detects pycurl with user-controlled URL
+
+  # TypeScript/JavaScript patterns
+  - id: ts-fetch-user-url
+    type: regex
+    language: typescript
+    pattern: "fetch\\s*\\(.*req\\.(body|query|params)"
+    confidence: high
+    description: Detects fetch with user-controlled URL
+
+  - id: ts-axios-user-url
+    type: regex
+    language: typescript
+    pattern: "axios\\.(get|post|put|delete|patch)\\s*\\(.*req\\."
+    confidence: high
+    description: Detects axios with user-controlled URL
+
+  - id: ts-got-user-url
+    type: regex
+    language: typescript
+    pattern: "got\\s*\\(.*req\\.|got\\.(get|post)\\s*\\(.*req\\."
+    confidence: high
+    description: Detects got library with user-controlled URL
+
+  - id: ts-node-fetch-user
+    type: regex
+    language: typescript
+    pattern: "node-fetch.*req\\.(body|query|params)"
+    confidence: high
+    description: Detects node-fetch with user-controlled URL
+
+  - id: ts-http-request-user
+    type: regex
+    language: typescript
+    pattern: "http\\.request\\s*\\(.*req\\.|https\\.request\\s*\\(.*req\\."
+    confidence: high
+    description: Detects native http/https with user-controlled URL
+
+testTemplates:
+  - id: pytest-ssrf
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from unittest.mock import patch, MagicMock
+      import ipaddress
+      from urllib.parse import urlparse
+      
+      
+      class Test{{className}}SSRF:
+          """SSRF security tests for {{functionName}}"""
+          
+          SSRF_PAYLOADS = [
+              # Cloud metadata endpoints
+              "http://169.254.169.254/latest/meta-data/",
+              "http://metadata.google.internal/computeMetadata/v1/",
+              "http://169.254.169.254/metadata/v1/",
+              
+              # Internal network
+              "http://localhost/admin",
+              "http://127.0.0.1:8080/",
+              "http://0.0.0.0/",
+              "http://[::1]/",
+              "http://127.1/",
+              "http://0x7f.0.0.1/",
+              "http://2130706433/",  # 127.0.0.1 as integer
+              
+              # File protocol
+              "file:///etc/passwd",
+              "file:///etc/shadow",
+              
+              # Internal services
+              "http://internal-api.local/",
+              "http://10.0.0.1/",
+              "http://192.168.1.1/",
+              "http://172.16.0.1/",
+              
+              # DNS rebinding
+              "http://spoofed.burpcollaborator.net/",
+          ]
+          
+          @pytest.mark.parametrize("url", SSRF_PAYLOADS)
+          def test_blocks_ssrf_url(self, url, {{fixtures}}):
+              """Verify {{functionName}} blocks SSRF attempts"""
+              with pytest.raises((ValueError, PermissionError, {{exceptionClass}})):
+                  {{functionCall}}(url)
+          
+          def test_blocks_internal_ip_ranges(self, {{fixtures}}):
+              """Verify internal IP ranges are blocked"""
+              internal_ranges = [
+                  "10.0.0.0/8",
+                  "172.16.0.0/12",
+                  "192.168.0.0/16",
+                  "127.0.0.0/8",
+                  "169.254.0.0/16",
+              ]
+              
+              for cidr in internal_ranges:
+                  network = ipaddress.ip_network(cidr)
+                  test_ip = str(network.network_address + 1)
+                  url = f"http://{test_ip}/"
+                  
+                  with pytest.raises((ValueError, PermissionError)):
+                      {{functionCall}}(url)
+          
+          def test_blocks_file_protocol(self, {{fixtures}}):
+              """Verify file:// protocol is blocked"""
+              file_urls = [
+                  "file:///etc/passwd",
+                  "file://localhost/etc/passwd",
+                  "file:///C:/Windows/System32/config/SAM",
+              ]
+              
+              for url in file_urls:
+                  with pytest.raises((ValueError, PermissionError)):
+                      {{functionCall}}(url)
+          
+          def test_validates_url_after_redirect(self, {{fixtures}}):
+              """Verify redirects don't bypass SSRF protection"""
+              with patch("requests.get") as mock_get:
+                  # Simulate redirect to internal URL
+                  mock_response = MagicMock()
+                  mock_response.url = "http://169.254.169.254/latest/meta-data/"
+                  mock_get.return_value = mock_response
+                  
+                  with pytest.raises((ValueError, PermissionError)):
+                      {{functionCall}}("http://evil.com/redirect")
+          
+          def test_blocks_dns_rebinding(self, {{fixtures}}):
+              """Verify DNS is resolved before allowing request"""
+              # DNS rebinding domain that resolves to internal IP
+              with patch("socket.gethostbyname") as mock_dns:
+                  mock_dns.return_value = "127.0.0.1"
+                  
+                  with pytest.raises((ValueError, PermissionError)):
+                      {{functionCall}}("http://rebinding.attacker.com/")
+          
+          def test_uses_allowlist(self, {{fixtures}}):
+              """Verify only allowlisted domains are permitted"""
+              allowed_domains = {{allowedDomains}}
+              
+              for domain in allowed_domains:
+                  result = {{functionCall}}(f"https://{domain}/api")
+                  assert result is not None
+              
+              # Non-allowlisted should fail
+              with pytest.raises((ValueError, PermissionError)):
+                  {{functionCall}}("https://evil.com/")
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ""
+      - name: exceptionClass
+        type: string
+        description: Custom exception class
+        required: false
+        defaultValue: Exception
+      - name: allowedDomains
+        type: array
+        description: List of allowed domains
+        required: false
+        defaultValue: '["api.example.com"]'
+
+  - id: jest-ssrf
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} SSRF Tests', () => {
+        const SSRF_PAYLOADS = [
+          // Cloud metadata
+          'http://169.254.169.254/latest/meta-data/',
+          'http://metadata.google.internal/',
+          
+          // Localhost variants
+          'http://localhost/admin',
+          'http://127.0.0.1/',
+          'http://[::1]/',
+          'http://0/',
+          
+          // Internal networks
+          'http://10.0.0.1/',
+          'http://192.168.1.1/',
+          'http://172.16.0.1/',
+          
+          // File protocol
+          'file:///etc/passwd',
+        ];
+        
+        describe('blocks SSRF payloads', () => {
+          test.each(SSRF_PAYLOADS)(
+            'blocks: %s',
+            async (url) => {
+              await expect({{functionCall}}(url)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('IP address validation', () => {
+          it('blocks private IP ranges', async () => {
+            const privateIPs = [
+              '10.0.0.1',
+              '172.16.0.1',
+              '192.168.0.1',
+              '127.0.0.1',
+            ];
+            
+            for (const ip of privateIPs) {
+              await expect({{functionCall}}(`http://${ip}/`)).rejects.toThrow();
+            }
+          });
+          
+          it('blocks IP address obfuscation', async () => {
+            // Various ways to represent 127.0.0.1
+            const obfuscated = [
+              '0x7f.0.0.1',
+              '2130706433',  // Decimal
+              '017700000001',  // Octal
+              '127.1',
+            ];
+            
+            for (const ip of obfuscated) {
+              await expect({{functionCall}}(`http://${ip}/`)).rejects.toThrow();
+            }
+          });
+        });
+        
+        describe('protocol validation', () => {
+          it('only allows http and https', async () => {
+            const badProtocols = [
+              'file:///etc/passwd',
+              'gopher://localhost/',
+              'dict://localhost/',
+              'ftp://localhost/',
+            ];
+            
+            for (const url of badProtocols) {
+              await expect({{functionCall}}(url)).rejects.toThrow();
+            }
+          });
+        });
+        
+        describe('redirect handling', () => {
+          it('validates URL after redirects', async () => {
+            // Mock fetch to simulate redirect
+            const mockFetch = jest.fn().mockResolvedValue({
+              url: 'http://169.254.169.254/',
+              ok: true,
+            });
+            
+            global.fetch = mockFetch;
+            
+            await expect(
+              {{functionCall}}('http://evil.com/redirect')
+            ).rejects.toThrow();
+          });
+        });
+        
+        describe('DNS rebinding protection', () => {
+          it('resolves DNS before allowing request', async () => {
+            // Domain that resolves to internal IP
+            // Implementation should resolve and check IP
+            await expect(
+              {{functionCall}}('http://spoofed.attacker.com/')
+            ).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+
+examples:
+  - name: python-requests-ssrf
+    concept: |
+      SSRF via Python requests library. When user input controls the URL passed 
+      to requests.get(), attackers can fetch internal resources. Validate URLs 
+      against an allowlist and block private IP ranges.
+    vulnerableCode: |
+      import requests
+      
+      @app.route('/fetch')
+      def fetch_url():
+          url = request.args.get('url')
+          # VULNERABLE: User controls the URL
+          response = requests.get(url)
+          return response.text
+    testCode: |
+      import pytest
+      
+      def test_blocks_metadata_endpoint(client):
+          """Verify cloud metadata is blocked"""
+          response = client.get('/fetch?url=http://169.254.169.254/')
+          assert response.status_code == 403
+      
+      def test_blocks_internal_network(client):
+          """Verify internal IPs are blocked"""
+          response = client.get('/fetch?url=http://10.0.0.1/')
+          assert response.status_code == 403
+    language: python
+    severity: critical
+    cve: CVE-2021-21973
+
+  - name: nodejs-fetch-ssrf
+    concept: |
+      SSRF via Node.js fetch. When user input is passed to fetch() without 
+      validation, attackers can access internal services. Implement URL 
+      validation before making requests.
+    vulnerableCode: |
+      app.get('/proxy', async (req, res) => {
+        const url = req.query.url;
+        // VULNERABLE: User controls fetch URL
+        const response = await fetch(url);
+        const data = await response.text();
+        res.send(data);
+      });
+    testCode: |
+      describe('Proxy endpoint SSRF', () => {
+        it('blocks cloud metadata', async () => {
+          const response = await request(app)
+            .get('/proxy')
+            .query({ url: 'http://169.254.169.254/' });
+          
+          expect(response.status).toBe(403);
+        });
+        
+        it('blocks localhost', async () => {
+          const response = await request(app)
+            .get('/proxy')
+            .query({ url: 'http://localhost/admin' });
+          
+          expect(response.status).toBe(403);
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: python-url-validation
+    concept: |
+      Proper SSRF prevention with URL validation. Before making any HTTP request 
+      with user-controlled input, validate the URL against an allowlist of domains 
+      and block all private IP ranges. Resolve DNS and check the IP before allowing.
+    vulnerableCode: |
+      # SAFE implementation
+      import ipaddress
+      import socket
+      from urllib.parse import urlparse
+      
+      ALLOWED_DOMAINS = {'api.example.com', 'cdn.example.com'}
+      
+      def is_safe_url(url):
+          parsed = urlparse(url)
+          
+          # Only allow http/https
+          if parsed.scheme not in ('http', 'https'):
+              return False
+          
+          # Check allowlist
+          if parsed.hostname not in ALLOWED_DOMAINS:
+              return False
+          
+          # Resolve and check IP
+          try:
+              ip = socket.gethostbyname(parsed.hostname)
+              ip_obj = ipaddress.ip_address(ip)
+              if ip_obj.is_private or ip_obj.is_loopback:
+                  return False
+          except socket.gaierror:
+              return False
+          
+          return True
+    testCode: |
+      import pytest
+      
+      def test_is_safe_url():
+          """Verify URL validation works"""
+          assert is_safe_url("https://api.example.com/data")
+          assert not is_safe_url("http://169.254.169.254/")
+          assert not is_safe_url("file:///etc/passwd")
+          assert not is_safe_url("http://localhost/")
+    language: python
+    severity: critical
+    cve: CVE-2022-42745
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

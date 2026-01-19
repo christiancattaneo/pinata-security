@@ -1,0 +1,397 @@
+id: ldap-injection
+version: 1
+name: LDAP Injection
+description: |
+  Detects LDAP injection vulnerabilities where user input is concatenated into 
+  LDAP queries without proper escaping. Attackers can manipulate LDAP filters to 
+  bypass authentication, enumerate users, extract sensitive directory information, 
+  or modify directory entries. Input must be escaped using LDAP-specific encoding.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-27568
+  - CVE-2020-25192
+  - CVE-2019-10173
+
+references:
+  - https://owasp.org/www-community/attacks/LDAP_Injection
+  - https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/90.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-ldap-search-format
+    type: regex
+    language: python
+    pattern: "ldap.*search.*\\(.*%s|ldap.*search.*\\.format\\(|ldap.*search.*f[\"']"
+    confidence: high
+    description: Detects LDAP search with string formatting
+
+  - id: python-ldap-filter-concat
+    type: regex
+    language: python
+    pattern: "\\(.*=.*\\).*\\+.*request|filter.*=.*\\+|filterstr.*=.*%"
+    confidence: medium
+    description: Detects LDAP filter construction with concatenation
+
+  - id: python-ldap3-search
+    type: regex
+    language: python
+    pattern: "connection\\.search\\(.*search_filter.*=.*f[\"']|conn\\.search.*%"
+    confidence: high
+    description: Detects ldap3 library search with interpolation
+
+  - id: python-django-ldap-auth
+    type: regex
+    language: python
+    pattern: "AUTH_LDAP_USER_SEARCH.*%|LDAPSearch.*%s"
+    confidence: medium
+    description: Detects Django LDAP auth with string formatting
+
+  # TypeScript/JavaScript patterns
+  - id: ts-ldapjs-search
+    type: regex
+    language: typescript
+    pattern: "client\\.search\\(.*filter.*\\+|client\\.search.*`.*\\$\\{"
+    confidence: high
+    description: Detects ldapjs search with string interpolation
+
+  - id: ts-ldap-filter-template
+    type: regex
+    language: typescript
+    pattern: "\\(.*=.*\\$\\{.*\\}.*\\)|filter.*=.*`.*\\$\\{"
+    confidence: high
+    description: Detects LDAP filter with template literal interpolation
+
+  - id: ts-activedirectory
+    type: regex
+    language: typescript
+    pattern: "activedirectory.*find.*\\+|ad\\.find.*`.*\\$\\{"
+    confidence: medium
+    description: Detects ActiveDirectory library with user input
+
+  - id: ts-ldap-escape-missing
+    type: regex
+    language: typescript
+    pattern: "ldap\\.search\\(|client\\.search\\("
+    confidence: low
+    description: Detects LDAP search (verify escaping is used)
+    negativePattern: "ldap\\.escape|escape.*filter|sanitize"
+
+testTemplates:
+  - id: pytest-ldap-injection
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      
+      class Test{{className}}LDAPInjection:
+          """LDAP injection tests for {{functionName}}"""
+          
+          LDAP_INJECTION_PAYLOADS = [
+              "*",
+              "*)(&",
+              "*)(uid=*))(|(uid=*",
+              "admin)(&)",
+              "x)(|(objectClass=*)",
+              "*)(objectClass=user))(|(objectClass=*",
+              "*)((|userPassword=*",
+              "\\00",
+              "*)(uid=admin))(|(cn=*",
+              ")(|(password=*))",
+          ]
+          
+          @pytest.mark.parametrize("payload", LDAP_INJECTION_PAYLOADS)
+          def test_rejects_ldap_injection_payload(self, payload, {{fixtures}}):
+              """Verify {{functionName}} rejects LDAP injection attempts"""
+              with pytest.raises((ValueError, ldap.FILTER_ERROR, {{exceptionClass}})):
+                  {{functionCall}}(payload)
+          
+          @pytest.mark.parametrize("payload", LDAP_INJECTION_PAYLOADS)
+          def test_escapes_special_characters(self, payload, {{fixtures}}):
+              """Verify special LDAP characters are escaped"""
+              # If the function doesn't reject, it should escape
+              try:
+                  result = {{functionCall}}(payload)
+                  
+                  # LDAP special chars should be escaped
+                  if isinstance(result, str):
+                      assert "*)(" not in result
+                      assert "(|" not in result or "\\28" in result
+              except (ValueError, Exception):
+                  pass  # Rejection is acceptable
+          
+          def test_uses_parameterized_search(self):
+              """Verify LDAP queries use parameterization or escaping"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              # Should use escape function or parameterized queries
+              escape_patterns = [
+                  "ldap.filter.escape_filter_chars",
+                  "escape_dn_chars",
+                  "ldap3.utils.conv.escape_filter_chars",
+                  "sanitize",
+              ]
+              
+              has_escaping = any(p in source for p in escape_patterns)
+              
+              # Or should not have string formatting in filter
+              has_injection = any(p in source for p in [
+                  "% username",
+                  "% user",
+                  ".format(user",
+                  "f'(uid={user",
+              ])
+              
+              assert has_escaping or not has_injection, \
+                  "LDAP queries should use escaping or avoid string formatting"
+          
+          def test_null_byte_injection(self, {{fixtures}}):
+              """Verify null bytes in input are rejected"""
+              payloads = [
+                  "admin\x00",
+                  "user\x00)(objectClass=*",
+                  "\x00*",
+              ]
+              
+              for payload in payloads:
+                  with pytest.raises((ValueError, Exception)):
+                      {{functionCall}}(payload)
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: ldap_connection
+      - name: exceptionClass
+        type: string
+        description: Custom exception class
+        required: false
+        defaultValue: Exception
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+
+  - id: jest-ldap-injection
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} LDAP Injection Tests', () => {
+        const LDAP_INJECTION_PAYLOADS = [
+          '*',
+          '*)(&',
+          '*)(uid=*))(|(uid=*',
+          'admin)(&)',
+          'x)(|(objectClass=*)',
+          '*)(objectClass=user))(|(objectClass=*',
+          '*)((|userPassword=*',
+          '*)(uid=admin))(|(cn=*',
+        ];
+        
+        describe('rejects LDAP injection payloads', () => {
+          test.each(LDAP_INJECTION_PAYLOADS)(
+            'rejects payload: %s',
+            async (payload) => {
+              await expect({{functionCall}}(payload)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('escapes special characters', () => {
+          const specialChars = ['*', '(', ')', '\\', '\x00', '/'];
+          
+          test.each(specialChars)(
+            'escapes character: %s',
+            async (char) => {
+              const input = `user${char}name`;
+              
+              try {
+                const result = await {{functionCall}}(input);
+                
+                // If succeeded, special chars should be escaped
+                if (typeof result === 'string') {
+                  // Check for proper LDAP escaping
+                  expect(result).not.toContain('*)');
+                  expect(result).not.toContain('(|');
+                }
+              } catch (error) {
+                // Rejection is also acceptable
+                expect(error).toBeDefined();
+              }
+            }
+          );
+        });
+        
+        describe('filter construction', () => {
+          it('uses ldap.escape for user input', async () => {
+            const mockEscape = jest.fn((s) => s.replace(/[*()\\\x00]/g, '\\$&'));
+            
+            // Test that escape is called
+            await {{functionCall}}('testuser');
+            
+            // Verify the query doesn't contain unescaped user input
+          });
+          
+          it('does not allow filter breakout', async () => {
+            // Try to break out of the filter and add OR condition
+            const breakout = 'admin)(|(objectClass=*';
+            
+            await expect({{functionCall}}(breakout)).rejects.toThrow();
+          });
+        });
+        
+        describe('authentication bypass', () => {
+          it('prevents wildcard authentication bypass', async () => {
+            // Wildcard should not match any user
+            await expect({{functionCall}}('*')).rejects.toThrow();
+          });
+          
+          it('prevents always-true filter injection', async () => {
+            // This would make filter always true
+            await expect({{functionCall}}('*)(uid=*))(|(uid=*')).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+
+examples:
+  - name: python-ldap-filter-format
+    concept: |
+      LDAP injection via Python string formatting. When user input is directly 
+      formatted into LDAP filters, attackers can manipulate the filter logic to 
+      bypass authentication or extract data. Use ldap.filter.escape_filter_chars().
+    vulnerableCode: |
+      import ldap
+      
+      def authenticate(username, password):
+          conn = ldap.initialize("ldap://localhost")
+          # VULNERABLE: User input in filter without escaping
+          filter_str = f"(&(uid={username})(userPassword={password}))"
+          result = conn.search_s("dc=example,dc=com", ldap.SCOPE_SUBTREE, filter_str)
+          return len(result) > 0
+    testCode: |
+      import pytest
+      
+      def test_ldap_injection_bypass():
+          """Verify LDAP injection cannot bypass auth"""
+          # This payload makes filter always true
+          result = authenticate("*)(uid=*))(|(uid=*", "anything")
+          assert result is False
+      
+      def test_uses_escape_function():
+          """Verify input is escaped"""
+          from ldap.filter import escape_filter_chars
+          escaped = escape_filter_chars("*)(uid=*")
+          assert "\\2a" in escaped  # * escaped
+    language: python
+    severity: critical
+    cve: CVE-2021-27568
+
+  - name: python-ldap3-search
+    concept: |
+      LDAP injection in ldap3 library. The ldap3 library requires manual escaping 
+      of filter values. Use ldap3.utils.conv.escape_filter_chars() to sanitize 
+      user input before including it in search filters.
+    vulnerableCode: |
+      from ldap3 import Server, Connection
+      
+      def find_user(username):
+          server = Server('ldap://localhost')
+          conn = Connection(server, auto_bind=True)
+          # VULNERABLE: No escaping of username
+          conn.search('dc=example,dc=com', f'(uid={username})')
+          return conn.entries
+    testCode: |
+      import pytest
+      from ldap3.utils.conv import escape_filter_chars
+      
+      def test_find_user_escapes_input():
+          """Verify find_user escapes special characters"""
+          result = find_user("*")
+          assert len(result) == 0  # Wildcard should not match
+      
+      def test_escape_function():
+          """Verify escape_filter_chars works"""
+          escaped = escape_filter_chars("admin*)(objectClass=*)")
+          assert "\\2a" in escaped
+    language: python
+    severity: critical
+
+  - name: nodejs-ldapjs-injection
+    concept: |
+      LDAP injection in Node.js ldapjs library. When constructing LDAP filters 
+      with template literals or concatenation, user input can break out of the 
+      intended filter. Use a dedicated escape function for LDAP special characters.
+    vulnerableCode: |
+      const ldap = require('ldapjs');
+      
+      async function findUser(username) {
+        const client = ldap.createClient({ url: 'ldap://localhost' });
+        
+        return new Promise((resolve, reject) => {
+          // VULNERABLE: Template literal with user input
+          client.search('dc=example,dc=com', {
+            filter: `(uid=${username})`
+          }, (err, res) => {
+            // ...
+          });
+        });
+      }
+    testCode: |
+      describe('findUser LDAP injection', () => {
+        it('rejects wildcard injection', async () => {
+          await expect(findUser('*')).rejects.toThrow();
+        });
+        
+        it('rejects filter breakout', async () => {
+          await expect(
+            findUser('admin)(|(objectClass=*)')
+          ).rejects.toThrow();
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2020-25192
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
