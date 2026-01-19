@@ -1,0 +1,462 @@
+id: path-traversal
+version: 1
+name: Path Traversal
+description: |
+  Detects path traversal (directory traversal) vulnerabilities where user input 
+  is used to construct file paths without proper validation. Attackers can use 
+  sequences like ../ to escape intended directories and access sensitive files 
+  such as /etc/passwd, configuration files, source code, or private keys. Also 
+  known as dot-dot-slash attacks or directory climbing.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-41773
+  - CVE-2019-16278
+  - CVE-2023-26604
+
+references:
+  - https://owasp.org/www-community/attacks/Path_Traversal
+  - https://cwe.mitre.org/data/definitions/22.html
+  - https://portswigger.net/web-security/file-path-traversal
+
+detectionPatterns:
+  # Python patterns
+  - id: python-open-user-input
+    type: regex
+    language: python
+    pattern: "open\\s*\\(.*request\\.|open\\s*\\(.*\\+|open\\s*\\(.*format|open\\s*\\(f[\"']"
+    confidence: high
+    description: Detects open() with potential user-controlled path
+
+  - id: python-pathlib-user-input
+    type: regex
+    language: python
+    pattern: "Path\\s*\\(.*request\\.|Path\\s*\\(.*\\+|Path\\s*\\(.*format"
+    confidence: medium
+    description: Detects pathlib.Path() with potential user input
+
+  - id: python-os-path-join-user
+    type: regex
+    language: python
+    pattern: "os\\.path\\.join\\s*\\(.*request\\."
+    confidence: medium
+    description: Detects os.path.join() with request data
+    negativePattern: "os\\.path\\.realpath|os\\.path\\.abspath.*startswith"
+
+  - id: python-send-file
+    type: regex
+    language: python
+    pattern: "send_file\\s*\\(.*request\\.|send_from_directory\\s*\\(.*request\\."
+    confidence: high
+    description: Detects Flask send_file with user input
+
+  - id: python-shutil-user
+    type: regex
+    language: python
+    pattern: "shutil\\.(copy|move|rmtree)\\s*\\(.*request\\."
+    confidence: high
+    description: Detects shutil operations with user-controlled paths
+
+  # TypeScript/JavaScript patterns
+  - id: ts-fs-read-user-input
+    type: regex
+    language: typescript
+    pattern: "fs\\.(readFile|readFileSync|createReadStream)\\s*\\(.*\\+|fs\\.(readFile|readFileSync)\\s*\\(`.*\\$\\{"
+    confidence: high
+    description: Detects fs.readFile with string concatenation or template literal
+
+  - id: ts-path-join-req
+    type: regex
+    language: typescript
+    pattern: "path\\.join\\s*\\(.*req\\.(params|query|body)"
+    confidence: medium
+    description: Detects path.join with request parameters
+    negativePattern: "path\\.resolve.*includes\\(|\\.\\.\\/'"
+
+  - id: ts-res-sendfile
+    type: regex
+    language: typescript
+    pattern: "res\\.sendFile\\s*\\(.*req\\.|res\\.download\\s*\\(.*req\\."
+    confidence: high
+    description: Detects Express sendFile/download with request data
+
+  - id: ts-fs-write-user
+    type: regex
+    language: typescript
+    pattern: "fs\\.(writeFile|writeFileSync|appendFile)\\s*\\(.*req\\."
+    confidence: high
+    description: Detects fs write operations with user-controlled paths
+
+  - id: ts-require-user-input
+    type: regex
+    language: typescript
+    pattern: "require\\s*\\(.*req\\.|import\\s*\\(.*req\\."
+    confidence: high
+    description: Detects dynamic require/import with user input (code injection risk)
+
+testTemplates:
+  - id: pytest-path-traversal
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import os
+      from pathlib import Path
+      
+      
+      class Test{{className}}PathTraversal:
+          """Path traversal security tests for {{functionName}}"""
+          
+          PATH_TRAVERSAL_PAYLOADS = [
+              "../../../etc/passwd",
+              "..\\..\\..\\windows\\system32\\config\\sam",
+              "....//....//....//etc/passwd",
+              "..%2f..%2f..%2fetc/passwd",
+              "..%252f..%252f..%252fetc/passwd",
+              "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc/passwd",
+              "....\/....\/....\/etc/passwd",
+              "/etc/passwd",
+              "C:\\Windows\\System32\\config\\SAM",
+              "file:///etc/passwd",
+              "../" * 20 + "etc/passwd",
+          ]
+          
+          SENSITIVE_FILES = [
+              "/etc/passwd",
+              "/etc/shadow",
+              "~/.ssh/id_rsa",
+              ".env",
+              "config/database.yml",
+              "../.git/config",
+          ]
+          
+          @pytest.mark.parametrize("payload", PATH_TRAVERSAL_PAYLOADS)
+          def test_rejects_traversal_sequences(self, payload, {{fixtures}}):
+              """Verify {{functionName}} rejects path traversal attempts"""
+              with pytest.raises((ValueError, PermissionError, FileNotFoundError, {{exceptionClass}})):
+                  {{functionCall}}(payload)
+          
+          @pytest.mark.parametrize("sensitive_file", SENSITIVE_FILES)
+          def test_cannot_access_sensitive_files(self, sensitive_file, {{fixtures}}):
+              """Verify {{functionName}} cannot access sensitive system files"""
+              with pytest.raises((ValueError, PermissionError, FileNotFoundError)):
+                  {{functionCall}}(sensitive_file)
+          
+          def test_path_stays_within_base_directory(self, {{fixtures}}):
+              """Verify resolved paths stay within allowed directory"""
+              base_dir = Path("{{baseDirectory}}").resolve()
+              test_path = "../../../etc/passwd"
+              
+              # The function should either:
+              # 1. Raise an exception
+              # 2. Return a path within base_dir
+              try:
+                  result_path = {{functionCall}}(test_path)
+                  if isinstance(result_path, (str, Path)):
+                      resolved = Path(result_path).resolve()
+                      assert str(resolved).startswith(str(base_dir)), \
+                          f"Path {resolved} escaped base directory {base_dir}"
+              except (ValueError, PermissionError, FileNotFoundError):
+                  pass  # Expected behavior
+          
+          def test_validates_path_before_operation(self):
+              """Verify path validation happens before file operations"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              # Should validate path before open/read
+              validation_patterns = [
+                  'os.path.realpath',
+                  'os.path.abspath',
+                  'Path.resolve',
+                  'secure_filename',
+                  'startswith',
+              ]
+              
+              has_validation = any(p in source for p in validation_patterns)
+              assert has_validation, \
+                  "Function should validate paths before file operations"
+          
+          def test_null_byte_injection(self, {{fixtures}}):
+              """Verify null bytes in paths are rejected"""
+              payloads = [
+                  "valid.txt\x00.jpg",
+                  "../../etc/passwd\x00.png",
+                  "file.txt%00.jpg",
+              ]
+              
+              for payload in payloads:
+                  with pytest.raises((ValueError, Exception)):
+                      {{functionCall}}(payload)
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: tmp_path
+      - name: baseDirectory
+        type: string
+        description: Expected base directory for file operations
+        required: true
+      - name: exceptionClass
+        type: string
+        description: Custom exception class
+        required: false
+        defaultValue: SecurityError
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+
+  - id: jest-path-traversal
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import path from 'path';
+      import fs from 'fs';
+      
+      describe('{{className}} Path Traversal Tests', () => {
+        const PATH_TRAVERSAL_PAYLOADS = [
+          '../../../etc/passwd',
+          '..\\..\\..\\windows\\system32\\config\\sam',
+          '....//....//....//etc/passwd',
+          '..%2f..%2f..%2fetc/passwd',
+          '/etc/passwd',
+          '../' .repeat(20) + 'etc/passwd',
+        ];
+        
+        const SENSITIVE_FILES = [
+          '/etc/passwd',
+          '../.env',
+          '../.git/config',
+          '../../package.json',
+        ];
+        
+        describe('rejects path traversal attempts', () => {
+          test.each(PATH_TRAVERSAL_PAYLOADS)(
+            'rejects payload: %s',
+            async (payload) => {
+              await expect({{functionCall}}(payload)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('prevents access to sensitive files', () => {
+          test.each(SENSITIVE_FILES)(
+            'cannot access: %s',
+            async (file) => {
+              await expect({{functionCall}}(file)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('path validation', () => {
+          const BASE_DIR = '{{baseDirectory}}';
+          
+          it('resolves paths within base directory only', async () => {
+            const maliciousPath = '../../../etc/passwd';
+            
+            // Should throw or return path within BASE_DIR
+            try {
+              const result = await {{functionCall}}(maliciousPath);
+              const resolved = path.resolve(BASE_DIR, result);
+              
+              expect(resolved.startsWith(path.resolve(BASE_DIR))).toBe(true);
+            } catch (error) {
+              // Expected - path traversal rejected
+              expect(error).toBeDefined();
+            }
+          });
+          
+          it('normalizes paths before validation', async () => {
+            // Encoded traversal attempt
+            const encoded = '..%2F..%2F..%2Fetc%2Fpasswd';
+            
+            await expect({{functionCall}}(decodeURIComponent(encoded)))
+              .rejects.toThrow();
+          });
+          
+          it('rejects null bytes in paths', async () => {
+            const payloads = [
+              'valid.txt\x00.jpg',
+              '../../etc/passwd\x00.png',
+            ];
+            
+            for (const payload of payloads) {
+              await expect({{functionCall}}(payload)).rejects.toThrow();
+            }
+          });
+        });
+        
+        describe('symlink protection', () => {
+          it('does not follow symlinks outside base directory', async () => {
+            // This test requires setup of a symlink pointing outside
+            const symlinkPath = '{{testSymlink}}';
+            
+            if (fs.existsSync(symlinkPath)) {
+              await expect({{functionCall}}(symlinkPath)).rejects.toThrow();
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+      - name: baseDirectory
+        type: string
+        description: Expected base directory for file operations
+        required: true
+      - name: testSymlink
+        type: string
+        description: Path to test symlink
+        required: false
+        defaultValue: ./test-fixtures/symlink-outside
+
+examples:
+  - name: python-open-concatenation
+    concept: |
+      Path traversal via string concatenation in file paths. When user input is 
+      directly concatenated to create file paths, attackers can use ../ sequences 
+      to access files outside the intended directory.
+    vulnerableCode: |
+      def get_document(filename):
+          # VULNERABLE: user input concatenated to path
+          filepath = "/var/www/documents/" + filename
+          with open(filepath, 'r') as f:
+              return f.read()
+    testCode: |
+      import pytest
+      
+      def test_get_document_path_traversal():
+          """Verify path traversal is prevented"""
+          with pytest.raises((ValueError, PermissionError)):
+              get_document("../../../etc/passwd")
+      
+      def test_get_document_stays_in_directory():
+          """Verify files are served from documents directory only"""
+          import os
+          base = "/var/www/documents"
+          
+          # Should not be able to escape documents directory
+          result_path = os.path.realpath(os.path.join(base, "test.txt"))
+          assert result_path.startswith(base)
+    language: python
+    severity: critical
+    cve: CVE-2021-41773
+
+  - name: flask-send-file
+    concept: |
+      Path traversal in Flask file downloads. Using user input directly in 
+      send_file() or send_from_directory() without validation allows attackers 
+      to download arbitrary files from the server.
+    vulnerableCode: |
+      from flask import Flask, request, send_file
+      
+      @app.route('/download')
+      def download():
+          filename = request.args.get('file')
+          # VULNERABLE: user controls file path
+          return send_file(f'/uploads/{filename}')
+    testCode: |
+      import pytest
+      
+      def test_download_path_traversal(client):
+          """Verify download endpoint prevents path traversal"""
+          response = client.get('/download?file=../../../etc/passwd')
+          
+          # Should return 400/403/404, not the file contents
+          assert response.status_code in (400, 403, 404)
+          assert b'root:' not in response.data
+    language: python
+    severity: critical
+
+  - name: express-sendfile
+    concept: |
+      Path traversal in Express.js file serving. Using req.params or req.query 
+      directly in res.sendFile() without path validation allows attackers to 
+      access files outside the intended directory.
+    vulnerableCode: |
+      app.get('/files/:filename', (req, res) => {
+        const filename = req.params.filename;
+        // VULNERABLE: user controls file path
+        res.sendFile(path.join(__dirname, 'uploads', filename));
+      });
+    testCode: |
+      import request from 'supertest';
+      
+      describe('GET /files/:filename', () => {
+        it('prevents path traversal', async () => {
+          const response = await request(app)
+            .get('/files/..%2F..%2F..%2Fetc%2Fpasswd');
+          
+          expect(response.status).toBeGreaterThanOrEqual(400);
+          expect(response.text).not.toContain('root:');
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: node-fs-read
+    concept: |
+      Path traversal in Node.js file operations. Using user input to construct 
+      paths for fs.readFile() or fs.readFileSync() without validation allows 
+      reading arbitrary files from the filesystem.
+    vulnerableCode: |
+      async function getConfig(configName: string): Promise<string> {
+        // VULNERABLE: user input in file path
+        const configPath = `./configs/${configName}.json`;
+        return fs.promises.readFile(configPath, 'utf-8');
+      }
+    testCode: |
+      describe('getConfig', () => {
+        it('rejects path traversal attempts', async () => {
+          await expect(
+            getConfig('../../../etc/passwd')
+          ).rejects.toThrow();
+        });
+        
+        it('validates config name format', async () => {
+          // Only alphanumeric config names should be allowed
+          await expect(getConfig('valid-config')).resolves.toBeDefined();
+          await expect(getConfig('../malicious')).rejects.toThrow();
+        });
+      });
+    language: typescript
+    severity: critical
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

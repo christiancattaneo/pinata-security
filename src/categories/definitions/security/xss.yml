@@ -1,0 +1,411 @@
+id: xss
+version: 1
+name: Cross-Site Scripting (XSS)
+description: |
+  Detects Cross-Site Scripting vulnerabilities where user input is rendered in HTML 
+  without proper encoding or sanitization. XSS allows attackers to inject malicious 
+  scripts that execute in victims' browsers, enabling session hijacking, credential 
+  theft, defacement, and malware distribution. Includes detection for stored XSS, 
+  reflected XSS, and DOM-based XSS patterns.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-41773
+  - CVE-2020-11022
+  - CVE-2023-29489
+
+references:
+  - https://owasp.org/www-community/attacks/xss/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/79.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-mark-safe
+    type: regex
+    language: python
+    pattern: "mark_safe\\s*\\(.*\\+|mark_safe\\s*\\(.*format|mark_safe\\s*\\(f[\"']"
+    confidence: high
+    description: Detects Django mark_safe() with user-controlled content
+
+  - id: python-jinja-safe
+    type: regex
+    language: python
+    pattern: "\\|\\s*safe\\s*\\}|Markup\\s*\\(.*\\+|Markup\\s*\\(.*format"
+    confidence: high
+    description: Detects Jinja2 |safe filter or Markup() with user input
+
+  - id: python-render-template-string
+    type: regex
+    language: python
+    pattern: "render_template_string\\s*\\("
+    confidence: medium
+    description: Detects Flask render_template_string which can be vulnerable to SSTI/XSS
+
+  - id: python-html-response
+    type: regex
+    language: python
+    pattern: "HttpResponse\\s*\\(.*\\+|HttpResponse\\s*\\(.*format|HttpResponse\\s*\\(f[\"']"
+    confidence: medium
+    description: Detects Django HttpResponse with string interpolation
+
+  # TypeScript/JavaScript patterns
+  - id: ts-innerhtml
+    type: regex
+    language: typescript
+    pattern: "\\.innerHTML\\s*=|\\.outerHTML\\s*="
+    confidence: high
+    description: Detects direct innerHTML/outerHTML assignment
+
+  - id: ts-document-write
+    type: regex
+    language: typescript
+    pattern: "document\\.write\\s*\\(|document\\.writeln\\s*\\("
+    confidence: high
+    description: Detects document.write() which is vulnerable to XSS
+
+  - id: ts-dangerouslysetinnerhtml
+    type: regex
+    language: typescript
+    pattern: "dangerouslySetInnerHTML\\s*=\\s*\\{\\s*\\{\\s*__html\\s*:"
+    confidence: medium
+    description: Detects React dangerouslySetInnerHTML usage
+    negativePattern: "DOMPurify\\.sanitize|sanitizeHtml|xss\\("
+
+  - id: ts-eval-user-input
+    type: regex
+    language: typescript
+    pattern: "eval\\s*\\(|new\\s+Function\\s*\\(|setTimeout\\s*\\(\\s*[`\"'].*\\$\\{"
+    confidence: high
+    description: Detects eval() or Function() with potential user input
+
+  - id: ts-jquery-html
+    type: regex
+    language: typescript
+    pattern: "\\$\\(.*\\)\\.html\\s*\\(|\\$\\(.*\\)\\.append\\s*\\(.*\\+|\\$\\(.*\\)\\.prepend\\s*\\("
+    confidence: medium
+    description: Detects jQuery .html(), .append() with potential user input
+
+  - id: ts-location-href
+    type: regex
+    language: typescript
+    pattern: "location\\.href\\s*=.*\\+|location\\.replace\\s*\\(.*\\+|window\\.open\\s*\\(.*\\+"
+    confidence: medium
+    description: Detects URL manipulation with string concatenation
+
+testTemplates:
+  - id: pytest-xss
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from html import escape
+      import re
+      
+      
+      class Test{{className}}XSS:
+          """XSS security tests for {{functionName}}"""
+          
+          XSS_PAYLOADS = [
+              '<script>alert("xss")</script>',
+              '<img src=x onerror=alert("xss")>',
+              '<svg onload=alert("xss")>',
+              '"><script>alert("xss")</script>',
+              "'-alert('xss')-'",
+              '<body onload=alert("xss")>',
+              '<iframe src="javascript:alert(1)">',
+              '<a href="javascript:alert(1)">click</a>',
+              '{{constructor.constructor("alert(1)")()}}',
+              '<math><maction xlink:href="javascript:alert(1)">click',
+          ]
+          
+          @pytest.mark.parametrize("payload", XSS_PAYLOADS)
+          def test_html_encodes_xss_payload(self, payload, {{fixtures}}):
+              """Verify {{functionName}} HTML-encodes dangerous characters"""
+              result = {{functionCall}}(payload)
+              
+              # Result should not contain unescaped script tags
+              assert '<script>' not in result.lower()
+              assert 'onerror=' not in result.lower()
+              assert 'onload=' not in result.lower()
+              assert 'javascript:' not in result.lower()
+              
+              # Dangerous characters should be escaped
+              if '<' in payload:
+                  assert '&lt;' in result or '<' not in result
+          
+          @pytest.mark.parametrize("payload", XSS_PAYLOADS)
+          def test_api_response_content_type(self, client, payload):
+              """Verify API responses have correct Content-Type"""
+              response = client.post(
+                  "{{endpoint}}",
+                  json={"{{inputField}}": payload}
+              )
+              
+              content_type = response.headers.get('Content-Type', '')
+              
+              # JSON responses are safer than HTML
+              if 'text/html' in content_type:
+                  # HTML responses must escape the payload
+                  assert payload not in response.text
+          
+          def test_uses_template_autoescaping(self):
+              """Verify templates have autoescaping enabled"""
+              from {{templateModule}} import env
+              
+              assert env.autoescape is True, \
+                  "Template autoescaping should be enabled"
+          
+          def test_no_mark_safe_on_user_input(self):
+              """Verify mark_safe is not used on user-controlled data"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              # mark_safe should only be used on trusted content
+              if 'mark_safe' in source:
+                  # Verify it's not on request/user data
+                  assert 'request.' not in source.split('mark_safe')[0][-100:]
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: client
+      - name: endpoint
+        type: string
+        description: API endpoint path
+        required: true
+      - name: inputField
+        type: string
+        description: Field name for user input
+        required: true
+      - name: templateModule
+        type: string
+        description: Template environment module
+        required: false
+        defaultValue: myapp.templates
+      - name: functionReference
+        type: string
+        description: Reference to function for inspection
+        required: true
+
+  - id: jest-xss
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import { JSDOM } from 'jsdom';
+      
+      describe('{{className}} XSS Tests', () => {
+        const XSS_PAYLOADS = [
+          '<script>alert("xss")</script>',
+          '<img src=x onerror=alert("xss")>',
+          '<svg onload=alert("xss")>',
+          '"><script>alert("xss")</script>',
+          '<body onload=alert("xss")>',
+          '<iframe src="javascript:alert(1)">',
+          '<a href="javascript:alert(1)">click</a>',
+        ];
+        
+        describe('sanitizes XSS payloads', () => {
+          test.each(XSS_PAYLOADS)(
+            'sanitizes payload: %s',
+            async (payload) => {
+              const result = await {{functionCall}}(payload);
+              
+              // Should not contain executable script content
+              expect(result.toLowerCase()).not.toContain('<script>');
+              expect(result.toLowerCase()).not.toContain('onerror=');
+              expect(result.toLowerCase()).not.toContain('onload=');
+              expect(result.toLowerCase()).not.toContain('javascript:');
+            }
+          );
+        });
+        
+        describe('DOM-based XSS prevention', () => {
+          let dom: JSDOM;
+          let document: Document;
+          
+          beforeEach(() => {
+            dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+            document = dom.window.document;
+          });
+          
+          it('uses textContent instead of innerHTML for user data', () => {
+            const userInput = '<script>alert("xss")</script>';
+            const element = document.createElement('div');
+            
+            // Safe approach
+            element.textContent = userInput;
+            
+            expect(element.innerHTML).not.toContain('<script>');
+            expect(element.textContent).toBe(userInput);
+          });
+          
+          it('sanitizes HTML before using dangerouslySetInnerHTML', () => {
+            const userInput = '<img src=x onerror=alert(1)>';
+            const sanitized = {{sanitizeFunction}}(userInput);
+            
+            expect(sanitized).not.toContain('onerror');
+          });
+        });
+        
+        describe('Content Security Policy', () => {
+          it('response includes CSP header', async () => {
+            const response = await fetch('{{endpoint}}');
+            const csp = response.headers.get('Content-Security-Policy');
+            
+            expect(csp).toBeDefined();
+            expect(csp).toContain("script-src");
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+      - name: sanitizeFunction
+        type: string
+        description: HTML sanitization function name
+        required: false
+        defaultValue: sanitizeHtml
+      - name: endpoint
+        type: string
+        description: API endpoint URL
+        required: true
+
+examples:
+  - name: django-mark-safe
+    concept: |
+      XSS via Django's mark_safe() function. When user input is passed through 
+      mark_safe(), it bypasses Django's automatic HTML escaping, allowing script 
+      injection. mark_safe() should only be used on trusted, developer-controlled 
+      content.
+    vulnerableCode: |
+      from django.utils.safestring import mark_safe
+      
+      def render_comment(comment):
+          # VULNERABLE: user input marked as safe
+          return mark_safe(f'<div class="comment">{comment.text}</div>')
+    testCode: |
+      import pytest
+      
+      def test_comment_escapes_html(client):
+          """Verify comment content is HTML-escaped"""
+          response = client.post('/comment/', {
+              'text': '<script>alert("xss")</script>'
+          })
+          
+          assert b'<script>' not in response.content
+          assert b'&lt;script&gt;' in response.content
+    language: python
+    severity: critical
+
+  - name: react-dangerouslysetinnerhtml
+    concept: |
+      XSS via React's dangerouslySetInnerHTML without sanitization. This prop 
+      bypasses React's built-in XSS protection and renders raw HTML. User input 
+      must be sanitized with a library like DOMPurify before using this prop.
+    vulnerableCode: |
+      function Comment({ text }: { text: string }) {
+        // VULNERABLE: user input rendered as HTML without sanitization
+        return (
+          <div dangerouslySetInnerHTML={{ __html: text }} />
+        );
+      }
+    testCode: |
+      import { render } from '@testing-library/react';
+      import DOMPurify from 'dompurify';
+      
+      test('Comment sanitizes HTML content', () => {
+        const malicious = '<img src=x onerror=alert(1)>';
+        const { container } = render(<Comment text={malicious} />);
+        
+        expect(container.innerHTML).not.toContain('onerror');
+      });
+    language: typescript
+    severity: critical
+
+  - name: innerhtml-assignment
+    concept: |
+      DOM-based XSS via direct innerHTML assignment. Setting innerHTML with 
+      user-controlled data allows script execution. Use textContent for plain 
+      text, or sanitize HTML with DOMPurify before assignment.
+    vulnerableCode: |
+      function displaySearchResults(query: string) {
+        const resultsDiv = document.getElementById('results');
+        // VULNERABLE: user input directly in innerHTML
+        resultsDiv!.innerHTML = `<h2>Results for: ${query}</h2>`;
+      }
+    testCode: |
+      import { JSDOM } from 'jsdom';
+      
+      test('displaySearchResults escapes user input', () => {
+        const dom = new JSDOM('<div id="results"></div>');
+        global.document = dom.window.document;
+        
+        displaySearchResults('<script>alert(1)</script>');
+        
+        const results = document.getElementById('results');
+        expect(results?.innerHTML).not.toContain('<script>');
+      });
+    language: typescript
+    severity: critical
+
+  - name: jquery-html
+    concept: |
+      XSS via jQuery's .html() method. The .html() method sets innerHTML and 
+      will execute script content. Use .text() for plain text content, or 
+      sanitize before using .html().
+    vulnerableCode: |
+      function showMessage(message: string) {
+        // VULNERABLE: user message rendered as HTML
+        $('#notification').html(message);
+      }
+    testCode: |
+      import $ from 'jquery';
+      
+      test('showMessage escapes HTML', () => {
+        document.body.innerHTML = '<div id="notification"></div>';
+        
+        showMessage('<img src=x onerror=alert(1)>');
+        
+        expect($('#notification').html()).not.toContain('onerror');
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

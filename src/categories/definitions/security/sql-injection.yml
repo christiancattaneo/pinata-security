@@ -1,0 +1,401 @@
+id: sql-injection
+version: 1
+name: SQL Injection
+description: |
+  Detects SQL injection vulnerabilities where user input is concatenated or formatted 
+  directly into SQL queries without parameterization. Attackers can manipulate queries 
+  to bypass authentication, extract sensitive data, modify or delete records, and in 
+  some cases execute system commands. This is consistently ranked as a top vulnerability 
+  in OWASP Top 10.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2019-9193
+  - CVE-2021-32819
+  - CVE-2023-34362
+
+references:
+  - https://owasp.org/www-community/attacks/SQL_Injection
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+  - https://cwe.mitre.org/data/definitions/89.html
+
+detectionPatterns:
+  # Python patterns
+  - id: python-string-format-execute
+    type: regex
+    language: python
+    pattern: "(execute|executemany)\\s*\\(\\s*[\"'].*%[sd].*[\"'].*%"
+    confidence: high
+    description: Detects cursor.execute() with Python string formatting (% operator)
+
+  - id: python-fstring-execute
+    type: regex
+    language: python
+    pattern: "(execute|executemany)\\s*\\(\\s*f[\"']"
+    confidence: high
+    description: Detects cursor.execute() with f-string interpolation
+
+  - id: python-format-method-execute
+    type: regex
+    language: python
+    pattern: "(execute|executemany)\\s*\\(\\s*[\"'].*\\{\\}.*[\"']\\.format\\s*\\("
+    confidence: high
+    description: Detects cursor.execute() with .format() method
+
+  - id: python-concat-execute
+    type: regex
+    language: python
+    pattern: "(execute|executemany)\\s*\\(.*\\s*\\+\\s*"
+    confidence: medium
+    description: Detects cursor.execute() with string concatenation
+
+  - id: python-raw-sql-django
+    type: regex
+    language: python
+    pattern: "\\.raw\\s*\\(\\s*[\"'].*%[sd]|\\.raw\\s*\\(\\s*f[\"']|\\.extra\\s*\\("
+    confidence: high
+    description: Detects Django raw() or extra() with string interpolation
+
+  # TypeScript/JavaScript patterns
+  - id: ts-template-literal-query
+    type: regex
+    language: typescript
+    pattern: "(query|execute|run)\\s*\\(\\s*`.*\\$\\{"
+    confidence: high
+    description: Detects database query with template literal interpolation
+
+  - id: ts-concat-query
+    type: regex
+    language: typescript
+    pattern: "(query|execute|run)\\s*\\(.*\\s*\\+\\s*"
+    confidence: medium
+    description: Detects database query with string concatenation
+
+  - id: ts-prisma-raw-unsafe
+    type: regex
+    language: typescript
+    pattern: "\\$queryRawUnsafe\\s*\\(|\\$executeRawUnsafe\\s*\\("
+    confidence: high
+    description: Detects Prisma unsafe raw query methods
+
+  - id: ts-sequelize-literal
+    type: regex
+    language: typescript
+    pattern: "sequelize\\.literal\\s*\\(\\s*`.*\\$\\{"
+    confidence: high
+    description: Detects Sequelize literal with interpolation
+
+testTemplates:
+  - id: pytest-sql-injection
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from unittest.mock import patch, MagicMock
+      
+      
+      class Test{{className}}SQLInjection:
+          """SQL injection security tests for {{functionName}}"""
+          
+          # Classic SQL injection payloads
+          SQL_INJECTION_PAYLOADS = [
+              "'; DROP TABLE users; --",
+              "' OR '1'='1",
+              "' OR '1'='1' --",
+              "'; SELECT * FROM passwords; --",
+              "' UNION SELECT username, password FROM users --",
+              "1; DELETE FROM {{tableName}}; --",
+              "' AND 1=CONVERT(int, (SELECT TOP 1 password FROM users)) --",
+              "'; EXEC xp_cmdshell('whoami'); --",
+          ]
+          
+          @pytest.mark.parametrize("payload", SQL_INJECTION_PAYLOADS)
+          def test_rejects_sql_injection_payload(self, payload):
+              """Verify {{functionName}} rejects or sanitizes SQL injection attempts"""
+              # This test should either:
+              # 1. Raise an exception for invalid input
+              # 2. Safely parameterize the input (verify via mock)
+              # 3. Return an error response
+              
+              with pytest.raises((ValueError, TypeError, {{exceptionClass}})):
+                  {{functionCall}}(payload)
+          
+          def test_uses_parameterized_query(self, {{fixtures}}):
+              """Verify {{functionName}} uses parameterized queries, not string formatting"""
+              with patch("{{modulePath}}.cursor") as mock_cursor:
+                  mock_cursor.execute = MagicMock()
+                  
+                  {{functionCall}}("safe_value")
+                  
+                  # Verify execute was called with parameterized query
+                  call_args = mock_cursor.execute.call_args
+                  query = call_args[0][0] if call_args else ""
+                  
+                  # Should use placeholders, not string formatting
+                  assert "%s" in query or "?" in query or ":param" in query, \
+                      f"Query should use parameterized placeholders, got: {query}"
+                  
+                  # Parameters should be passed separately
+                  assert len(call_args[0]) > 1 or call_args[1], \
+                      "Parameters should be passed separately from query"
+          
+          def test_no_string_formatting_in_query(self, {{fixtures}}):
+              """Verify query construction doesn't use string formatting"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              dangerous_patterns = [
+                  'execute(f"',
+                  "execute(f'",
+                  'execute("%' ,
+                  "execute('%",
+                  ".format(",
+              ]
+              
+              for pattern in dangerous_patterns:
+                  assert pattern not in source, \
+                      f"Found dangerous pattern '{pattern}' in source code"
+    variables:
+      - name: className
+        type: string
+        description: Name of the class being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: tableName
+        type: string
+        description: Name of the database table
+        required: false
+        defaultValue: users
+      - name: exceptionClass
+        type: string
+        description: Exception class for invalid input
+        required: false
+        defaultValue: Exception
+      - name: fixtures
+        type: string
+        description: pytest fixtures to inject
+        required: false
+        defaultValue: db_session
+      - name: modulePath
+        type: string
+        description: Module path for mocking
+        required: true
+      - name: functionReference
+        type: string
+        description: Reference to function for source inspection
+        required: true
+
+  - id: jest-sql-injection
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} SQL Injection Tests', () => {
+        const SQL_INJECTION_PAYLOADS = [
+          "'; DROP TABLE users; --",
+          "' OR '1'='1",
+          "' OR '1'='1' --",
+          "'; SELECT * FROM passwords; --",
+          "' UNION SELECT username, password FROM users --",
+          "1; DELETE FROM {{tableName}}; --",
+        ];
+        
+        describe('rejects SQL injection payloads', () => {
+          test.each(SQL_INJECTION_PAYLOADS)(
+            'rejects payload: %s',
+            async (payload) => {
+              // Should either throw, return error, or sanitize
+              await expect({{functionCall}}(payload)).rejects.toThrow();
+            }
+          );
+        });
+        
+        describe('uses parameterized queries', () => {
+          let mockQuery: jest.Mock;
+          
+          beforeEach(() => {
+            mockQuery = jest.fn().mockResolvedValue({ rows: [] });
+            jest.spyOn({{dbClient}}, 'query').mockImplementation(mockQuery);
+          });
+          
+          afterEach(() => {
+            jest.restoreAllMocks();
+          });
+          
+          it('passes parameters separately from query', async () => {
+            await {{functionCall}}('safe_value');
+            
+            expect(mockQuery).toHaveBeenCalled();
+            const [query, params] = mockQuery.mock.calls[0];
+            
+            // Query should use placeholders
+            expect(query).toMatch(/\$\d|\?|:\w+/);
+            
+            // Parameters should be passed separately
+            expect(params).toBeDefined();
+            expect(Array.isArray(params) || typeof params === 'object').toBe(true);
+          });
+          
+          it('does not interpolate user input into query string', async () => {
+            const userInput = "test_value";
+            await {{functionCall}}(userInput);
+            
+            const [query] = mockQuery.mock.calls[0];
+            
+            // User input should NOT appear directly in query
+            expect(query).not.toContain(userInput);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Name of the class or module being tested
+        required: true
+      - name: functionName
+        type: string
+        description: Name of the function being tested
+        required: true
+      - name: functionCall
+        type: string
+        description: Full function call expression
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path for the module
+        required: true
+      - name: tableName
+        type: string
+        description: Name of the database table
+        required: false
+        defaultValue: users
+      - name: dbClient
+        type: string
+        description: Database client variable name
+        required: true
+
+examples:
+  - name: python-format-string
+    concept: |
+      SQL injection via Python string formatting. The % operator or .format() method 
+      interpolates user input directly into the SQL query, allowing attackers to 
+      break out of the intended query structure.
+    vulnerableCode: |
+      def get_user(user_id):
+          query = "SELECT * FROM users WHERE id = '%s'" % user_id
+          cursor.execute(query)
+          return cursor.fetchone()
+    testCode: |
+      import pytest
+      
+      def test_get_user_rejects_injection():
+          """Verify get_user sanitizes input"""
+          with pytest.raises(ValueError):
+              get_user("' OR '1'='1")
+      
+      def test_get_user_uses_parameterized_query(mocker):
+          """Verify get_user uses parameterized queries"""
+          mock_cursor = mocker.patch('myapp.db.cursor')
+          get_user("123")
+          
+          call_args = mock_cursor.execute.call_args[0]
+          assert "%s" in call_args[0] or "?" in call_args[0]
+    language: python
+    severity: critical
+    cve: CVE-2019-9193
+
+  - name: python-fstring
+    concept: |
+      SQL injection via Python f-strings. F-string interpolation happens before the 
+      query reaches the database driver, preventing proper escaping. This is especially 
+      dangerous because f-strings are convenient and developers may not realize the risk.
+    vulnerableCode: |
+      def search_products(name):
+          query = f"SELECT * FROM products WHERE name LIKE '%{name}%'"
+          cursor.execute(query)
+          return cursor.fetchall()
+    testCode: |
+      import pytest
+      
+      def test_search_products_injection():
+          """Verify search handles injection attempts"""
+          malicious = "'; DELETE FROM products; --"
+          
+          # Should either raise or return empty (not execute injection)
+          with pytest.raises((ValueError, Exception)):
+              search_products(malicious)
+    language: python
+    severity: critical
+
+  - name: typescript-template-literal
+    concept: |
+      SQL injection via JavaScript template literals. Template literal interpolation 
+      embeds user input directly in the query string before it reaches the database 
+      driver, bypassing parameterization.
+    vulnerableCode: |
+      async function getUser(userId: string) {
+        const query = `SELECT * FROM users WHERE id = '${userId}'`;
+        const result = await db.query(query);
+        return result.rows[0];
+      }
+    testCode: |
+      describe('getUser', () => {
+        it('rejects SQL injection attempts', async () => {
+          await expect(
+            getUser("' OR '1'='1")
+          ).rejects.toThrow();
+        });
+        
+        it('uses parameterized queries', async () => {
+          const spy = jest.spyOn(db, 'query');
+          await getUser('123');
+          
+          const [query, params] = spy.mock.calls[0];
+          expect(query).toContain('$1');
+          expect(params).toContain('123');
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: prisma-raw-unsafe
+    concept: |
+      SQL injection via Prisma's $queryRawUnsafe or $executeRawUnsafe methods. These 
+      methods bypass Prisma's built-in parameterization and should only be used with 
+      trusted, validated input. The safe alternatives are $queryRaw and $executeRaw 
+      with tagged template literals.
+    vulnerableCode: |
+      async function searchUsers(searchTerm: string) {
+        return prisma.$queryRawUnsafe(
+          `SELECT * FROM users WHERE name LIKE '%${searchTerm}%'`
+        );
+      }
+    testCode: |
+      describe('searchUsers', () => {
+        it('should use safe Prisma methods', async () => {
+          // Verify the function uses $queryRaw, not $queryRawUnsafe
+          const spy = jest.spyOn(prisma, '$queryRaw');
+          await searchUsers('test');
+          expect(spy).toHaveBeenCalled();
+        });
+      });
+    language: typescript
+    severity: critical
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
