@@ -48,3 +48,7 @@ export type {
   TestTemplate,
   Example,
 } from "./schema/index.js";
+
+// Store exports
+export { CategoryStore, createCategoryStore } from "./store/index.js";
+export type { CategoryFilter, SearchOptions, SearchResult } from "./store/index.js";

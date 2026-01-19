@@ -44,7 +44,13 @@ export type {
   TestFramework,
   TestTemplate,
   Example,
+  CategoryFilter,
+  SearchOptions,
+  SearchResult,
 } from "./categories/index.js";
+
+// Store
+export { CategoryStore, createCategoryStore } from "./categories/index.js";
 
 // Library utilities
 export {
