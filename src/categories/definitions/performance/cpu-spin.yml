@@ -1,0 +1,506 @@
+id: cpu-spin
+version: 1
+name: CPU Spin and Busy Waiting
+description: |
+  Detects busy waiting and CPU-intensive loops that waste resources. Includes 
+  polling without sleep, spin locks, tight loops without yield, and inefficient 
+  algorithms. CPU spin causes high cloud costs, battery drain, and starves 
+  other processes.
+domain: performance
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2019-9512
+  - CVE-2020-11080
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://cwe.mitre.org/data/definitions/834.html
+  - https://en.wikipedia.org/wiki/Busy_waiting
+
+detectionPatterns:
+  - id: python-while-true-no-sleep
+    type: regex
+    language: python
+    pattern: "while\\s+True:\\s*(?!.*sleep|.*wait|.*await|.*time\\.sleep)"
+    confidence: high
+    description: Detects infinite loop without sleep
+
+  - id: python-busy-poll
+    type: regex
+    language: python
+    pattern: "while.*not\\s+\\w+:(?!.*sleep|.*wait)"
+    confidence: medium
+    description: Detects polling without sleep
+
+  - id: python-spinlock
+    type: regex
+    language: python
+    pattern: "while.*lock\\.locked\\(\\)|while.*not.*acquire"
+    confidence: high
+    description: Detects spin lock pattern
+
+  - id: python-nested-loop-large
+    type: regex
+    language: python
+    pattern: "for.*range\\(\\d{4,}.*for.*range\\(\\d{4,}"
+    confidence: medium
+    description: Detects nested loops with large ranges
+
+  - id: ts-while-true-no-await
+    type: regex
+    language: typescript
+    pattern: "while\\s*\\(true\\)\\s*\\{(?!.*await|.*setTimeout|.*sleep)"
+    confidence: high
+    description: Detects infinite loop without yield
+
+  - id: ts-busy-poll
+    type: regex
+    language: typescript
+    pattern: "while\\s*\\(!.*\\)\\s*\\{(?!.*await|.*setTimeout)"
+    confidence: medium
+    description: Detects polling without delay
+
+  - id: ts-setinterval-fast
+    type: regex
+    language: typescript
+    pattern: "setInterval\\([^,]+,\\s*[0-9]\\)|setInterval\\([^,]+,\\s*[1-9][0-9]?\\)"
+    confidence: high
+    description: Detects setInterval with very short delay (<100ms)
+
+  - id: ts-recursive-no-base
+    type: regex
+    language: typescript
+    pattern: "function\\s+\\w+\\([^)]*\\)\\s*\\{[^}]*\\1\\([^)]*\\)(?!.*return|.*if)"
+    confidence: low
+    description: Detects recursion (verify base case)
+
+testTemplates:
+  - id: pytest-cpu-spin
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import threading
+      import psutil
+      import os
+      from unittest.mock import patch
+      
+      class Test{{className}}CPUSpin:
+          """CPU spin and busy wait tests for {{functionName}}"""
+          
+          def test_no_busy_wait(self, {{fixtures}}):
+              """Test no busy waiting loop"""
+              cpu_samples = []
+              stop_event = threading.Event()
+              
+              def sample_cpu():
+                  process = psutil.Process(os.getpid())
+                  while not stop_event.is_set():
+                      cpu_samples.append(process.cpu_percent())
+                      time.sleep(0.1)
+              
+              sampler = threading.Thread(target=sample_cpu)
+              sampler.start()
+              
+              # Run function that might spin
+              start = time.time()
+              {{waitFunctionCall}}(timeout=1.0)
+              elapsed = time.time() - start
+              
+              stop_event.set()
+              sampler.join()
+              
+              # Should not use 100% CPU while waiting
+              avg_cpu = sum(cpu_samples) / len(cpu_samples) if cpu_samples else 0
+              assert avg_cpu < 50, f"High CPU during wait: {avg_cpu}%"
+          
+          def test_poll_has_sleep(self, {{fixtures}}):
+              """Test polling loops include sleep"""
+              import inspect
+              
+              source = inspect.getsource({{pollFunctionReference}})
+              
+              has_loop = 'while' in source
+              has_sleep = any(kw in source for kw in [
+                  'sleep', 'wait', 'await', 'asyncio.sleep', 'time.sleep'
+              ])
+              
+              if has_loop:
+                  assert has_sleep, "Polling loop should include sleep"
+          
+          def test_uses_event_not_spin(self, {{fixtures}}):
+              """Test uses event/condition instead of spin"""
+              import inspect
+              
+              source = inspect.getsource({{syncFunctionReference}})
+              
+              uses_primitive = any(kw in source for kw in [
+                  'Event()', 'Condition()', 'Queue', 'await', 
+                  'asyncio', 'threading.Event'
+              ])
+              
+              has_spin = 'while True' in source and 'sleep' not in source
+              
+              assert uses_primitive or not has_spin, \
+                     "Use Event/Condition instead of spinning"
+          
+          def test_algorithm_complexity(self, {{fixtures}}):
+              """Test algorithm is not O(n²) or worse"""
+              import time
+              
+              times = []
+              for n in [100, 1000, 10000]:
+                  start = time.time()
+                  {{algorithmCall}}(n)
+                  times.append(time.time() - start)
+              
+              # O(n²) would be 100x slower for 10x data
+              ratio = times[2] / times[1] if times[1] > 0 else 1
+              assert ratio < 20, f"Algorithm appears O(n²): {ratio}x slower"
+          
+          def test_no_tight_loop(self, {{fixtures}}):
+              """Test loops have appropriate work or yield"""
+              iterations = []
+              
+              def count_iterations(n):
+                  iterations.append(n)
+              
+              with patch('{{counterModule}}.increment', side_effect=count_iterations):
+                  start = time.time()
+                  {{loopFunctionCall}}()
+                  elapsed = time.time() - start
+              
+              # Should not do millions of iterations per second
+              if elapsed > 0:
+                  rate = len(iterations) / elapsed
+                  assert rate < 1000000, f"Loop too tight: {rate} iter/s"
+          
+          def test_recursive_has_limit(self, {{fixtures}}):
+              """Test recursion has depth limit"""
+              import sys
+              original_limit = sys.getrecursionlimit()
+              
+              sys.setrecursionlimit(100)
+              
+              try:
+                  result = {{recursiveFunctionCall}}(depth=50)
+                  # Should complete or hit limit gracefully
+                  assert result is not None
+              except RecursionError:
+                  pytest.fail("Recursion hit limit - add depth check")
+              finally:
+                  sys.setrecursionlimit(original_limit)
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: waitFunctionCall
+        type: string
+        description: Wait function call
+        required: true
+      - name: pollFunctionReference
+        type: string
+        description: Poll function reference
+        required: true
+      - name: syncFunctionReference
+        type: string
+        description: Sync function reference
+        required: true
+      - name: algorithmCall
+        type: string
+        description: Algorithm call
+        required: true
+      - name: counterModule
+        type: string
+        description: Counter module
+        required: true
+      - name: loopFunctionCall
+        type: string
+        description: Loop function call
+        required: true
+      - name: recursiveFunctionCall
+        type: string
+        description: Recursive function call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-cpu-spin
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} CPU Spin Tests', () => {
+        describe('busy waiting', () => {
+          it('does not busy wait', async () => {
+            const start = Date.now();
+            let loopCount = 0;
+            
+            const originalSetTimeout = global.setTimeout;
+            global.setTimeout = ((fn: Function, delay: number) => {
+              loopCount++;
+              return originalSetTimeout(fn, delay);
+            }) as typeof setTimeout;
+            
+            await {{waitFunctionCall}}(1000);
+            
+            global.setTimeout = originalSetTimeout;
+            
+            // Should use setTimeout, not tight loop
+            expect(loopCount).toBeLessThan(100);
+          });
+        });
+        
+        describe('polling', () => {
+          it('polls with delay', async () => {
+            const delays: number[] = [];
+            
+            const originalSetTimeout = global.setTimeout;
+            global.setTimeout = ((fn: Function, delay: number) => {
+              delays.push(delay);
+              return originalSetTimeout(fn, Math.min(delay, 10));
+            }) as typeof setTimeout;
+            
+            await {{pollFunctionCall}}();
+            
+            global.setTimeout = originalSetTimeout;
+            
+            // Each poll should have reasonable delay
+            expect(delays.every(d => d >= 100)).toBe(true);
+          });
+        });
+        
+        describe('event-driven', () => {
+          it('uses events instead of polling', async () => {
+            const eventEmitter = {{createEventEmitterCall}}();
+            let pollCount = 0;
+            
+            const checkComplete = {{setupCompletionCheckCall}}(eventEmitter, () => {
+              pollCount++;
+            });
+            
+            // Trigger completion via event
+            eventEmitter.emit('complete');
+            
+            await checkComplete;
+            
+            // Should not poll, should wait for event
+            expect(pollCount).toBe(0);
+          });
+        });
+        
+        describe('algorithm efficiency', () => {
+          it('has reasonable time complexity', async () => {
+            const times: number[] = [];
+            
+            for (const n of [100, 1000, 10000]) {
+              const start = Date.now();
+              await {{algorithmCall}}(n);
+              times.push(Date.now() - start);
+            }
+            
+            // O(n²) would be ~100x slower for 10x data
+            const ratio = times[2] / Math.max(times[1], 1);
+            expect(ratio).toBeLessThan(20);
+          });
+        });
+        
+        describe('setInterval', () => {
+          it('uses reasonable interval', async () => {
+            const intervals: number[] = [];
+            
+            const originalSetInterval = global.setInterval;
+            global.setInterval = ((fn: Function, delay: number) => {
+              intervals.push(delay);
+              return originalSetInterval(fn, delay);
+            }) as typeof setInterval;
+            
+            const cleanup = await {{startPollingCall}}();
+            cleanup();
+            
+            global.setInterval = originalSetInterval;
+            
+            // Intervals should be >= 100ms
+            expect(intervals.every(i => i >= 100)).toBe(true);
+          });
+        });
+        
+        describe('recursion', () => {
+          it('has recursion depth limit', async () => {
+            await expect(
+              {{recursiveCall}}({ maxDepth: 10000 })
+            ).rejects.toThrow(/depth|limit|stack/i);
+          });
+          
+          it('uses tail call optimization or iteration', async () => {
+            // Should handle deep recursion without stack overflow
+            const result = await {{deepRecursiveCall}}(1000);
+            expect(result).toBeDefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: waitFunctionCall
+        type: string
+        description: Wait function call
+        required: true
+      - name: pollFunctionCall
+        type: string
+        description: Poll function call
+        required: true
+      - name: createEventEmitterCall
+        type: string
+        description: Create event emitter
+        required: true
+      - name: setupCompletionCheckCall
+        type: string
+        description: Setup completion check
+        required: true
+      - name: algorithmCall
+        type: string
+        description: Algorithm call
+        required: true
+      - name: startPollingCall
+        type: string
+        description: Start polling call
+        required: true
+      - name: recursiveCall
+        type: string
+        description: Recursive call
+        required: true
+      - name: deepRecursiveCall
+        type: string
+        description: Deep recursive call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: busy-wait-loop
+    concept: |
+      Busy waiting in a loop. Checking a condition in a tight loop burns CPU.
+      Use proper synchronization primitives (Event, Condition, await) or 
+      add sleep between checks.
+    vulnerableCode: |
+      def wait_for_ready():
+          # VULNERABLE: Burns 100% CPU
+          while not is_ready():
+              pass  # Tight loop, no sleep
+    testCode: |
+      import pytest
+      import time
+      import psutil
+      import os
+      
+      def test_low_cpu_wait():
+          process = psutil.Process(os.getpid())
+          
+          start_cpu = process.cpu_percent()
+          start = time.time()
+          
+          wait_for_ready()
+          
+          elapsed = time.time() - start
+          avg_cpu = process.cpu_percent()
+          
+          assert avg_cpu < 10, f"Wait used {avg_cpu}% CPU"
+      
+      # Fixed version
+      def wait_for_ready_safe():
+          while not is_ready():
+              time.sleep(0.1)
+    language: python
+    severity: high
+
+  - name: setinterval-fast
+    concept: |
+      setInterval with very short delay. Intervals under 100ms waste CPU and 
+      battery. For animations use requestAnimationFrame. For data, use 
+      websockets or longer intervals.
+    vulnerableCode: |
+      // VULNERABLE: Fires 100x per second
+      setInterval(() => {
+        checkForUpdates();
+      }, 10);
+    testCode: |
+      describe('polling', () => {
+        it('uses reasonable interval', () => {
+          const intervals = [];
+          
+          jest.spyOn(global, 'setInterval').mockImplementation((fn, delay) => {
+            intervals.push(delay);
+            return 0 as any;
+          });
+          
+          startPolling();
+          
+          expect(intervals.every(i => i >= 100)).toBe(true);
+        });
+      });
+    language: typescript
+    severity: medium
+    cve: CVE-2019-9512
+
+  - name: quadratic-algorithm
+    concept: |
+      O(n²) algorithm where O(n) is possible. Nested loops over the same 
+      data often indicate quadratic complexity. Use hash maps, sorting, 
+      or different data structures for linear performance.
+    vulnerableCode: |
+      def find_duplicates(items):
+          # VULNERABLE: O(n²) comparison
+          duplicates = []
+          for i, item in enumerate(items):
+              for j, other in enumerate(items):
+                  if i != j and item == other:
+                      duplicates.append(item)
+          return duplicates
+    testCode: |
+      import pytest
+      import time
+      
+      def test_linear_complexity():
+          times = []
+          
+          for n in [1000, 10000, 100000]:
+              items = list(range(n))
+              start = time.time()
+              find_duplicates(items)
+              times.append(time.time() - start)
+          
+          # O(n²) would be 100x slower for 10x data
+          ratio = times[2] / times[1]
+          assert ratio < 15, f"Algorithm is O(n²): {ratio}x slower"
+    language: python
+    severity: high
+    cve: CVE-2020-11080
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

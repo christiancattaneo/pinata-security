@@ -1,21 +1,37 @@
 {
-  "lastUpdated": "2026-01-19T17:31:01.886Z",
+  "lastUpdated": "2026-01-19T17:41:06.986Z",
   "recentFiles": [
     {
+      "path": "tests/categories/definitions/performance.test.ts",
+      "lastModified": 1768844456550.2078
+    },
+    {
+      "path": "src/categories/definitions/performance/blocking-io.yml",
+      "lastModified": 1768844422291.5693
+    },
+    {
+      "path": "src/categories/definitions/performance/cpu-spin.yml",
+      "lastModified": 1768844358635.518
+    },
+    {
+      "path": "src/categories/definitions/performance/memory-bloat.yml",
+      "lastModified": 1768844294135.7664
+    },
+    {
       "path": "tests/categories/definitions/network.test.ts",
-      "lastModified": 1768843849962.753
-    },
-    {
-      "path": "src/categories/definitions/network/high-latency.yml",
-      "lastModified": 1768843801690.44
-    },
-    {
-      "path": "src/categories/definitions/network/thundering-herd.yml",
-      "lastModified": 1768843729897.9917
+      "lastModified": 1768843877264.6724
     },
     {
       "path": "src/categories/definitions/network/network-partition.yml",
-      "lastModified": 1768843661597.9524
+      "lastModified": 1768843877256.6892
+    },
+    {
+      "path": "src/categories/definitions/network/thundering-herd.yml",
+      "lastModified": 1768843877256.6873
+    },
+    {
+      "path": "src/categories/definitions/network/high-latency.yml",
+      "lastModified": 1768843877256.6372
     },
     {
       "path": "src/categories/definitions/network/packet-loss.yml",
@@ -60,32 +76,17 @@
     {
       "path": "src/categories/definitions/concurrency/timeout-missing.yml",
       "lastModified": 1768841173263.278
-    },
-    {
-      "path": "tests/categories/definitions/input.test.ts",
-      "lastModified": 1768840772126.633
-    },
-    {
-      "path": "src/categories/definitions/input/null-undefined.yml",
-      "lastModified": 1768840417814.5508
-    },
-    {
-      "path": "src/categories/definitions/input/injection-fuzzing.yml",
-      "lastModified": 1768840417814.545
-    },
-    {
-      "path": "src/categories/definitions/input/boundary-testing.yml",
-      "lastModified": 1768840417814.508
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "a0e3f64c82e313a66e01d873e7f28a602d408145",
-    "lastCommitMessage": "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
-    "lastCommitTime": 1768843296000,
-    "uncommittedChanges": 9,
+    "lastCommit": "da4cefc0aa6184974dd8551ec7257c2f20ef77d5",
+    "lastCommitMessage": "Add 3 P0 distributed system categories: network-partition, thundering-herd, high-latency",
+    "lastCommitTime": 1768843863000,
+    "uncommittedChanges": 7,
     "recentCommits": [
+      "Add 3 P0 distributed system categories: network-partition, thundering-herd, high-latency",
       "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
       "Add 3 P0 resource categories: memory-leak, file-handle-leak, connection-pool-exhaustion",
       "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing",
@@ -94,8 +95,7 @@
       "Add 8 data domain categories",
       "Add security categories: ldap-injection, ssrf, timing-attack",
       "Add security categories: csrf, xxe, command-injection, deserialization",
-      "Add first 3 security categories: sql-injection, xss, path-traversal",
-      "Implement CategoryStore with CRUD, indexing, and search"
+      "Add first 3 security categories: sql-injection, xss, path-traversal"
     ]
   },
   "completionSignals": {
@@ -118,6 +118,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768844205499,
+      "suggestion": "Create 3 P0 performance domain categories: 'memory-bloat' (unbounded memory growth), 'cpu-spin' (busy waiting/hot loops), and 'blocking-io' (sync I/O in async context). Follow the existing pattern: create YAML files in src/categories/definitions/performance/ with detection patterns for Python/TypeScript, pytest/jest templates, and 3+ examples each. Include CVEs if applicable.",
+      "accepted": false
+    },
     {
       "timestamp": 1768843437583,
       "suggestion": "Create 3 more P0 network/reliability categories: network-partition, thundering-herd, and high-latency. Follow the same pattern as the previous network categories with detection patterns for Python/TypeScript, pytest/jest templates, and 3+ examples each. Focus on distributed system failures.",
@@ -214,15 +219,10 @@
       "timestamp": 1768776478370,
       "suggestion": "Create a .cursorrules file for Pinata, a test coverage analysis tool. Include: TypeScript/Python conventions, modular architecture for taxonomy engine/CLI/dashboard, testing requirements (unit + integration), code organization (src/taxonomy, src/cli, src/templates), and patterns for extensible category system. Focus on clean interfaces between the taxonomy store, detection patterns, and test template generation.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768774951959,
-      "suggestion": "Create a .cursorrules file for Pinata. Use TypeScript with strict mode, ESLint, and Prettier. Set up conventions for schema validation (Zod), file organization (src/categories, src/core, src/cli), testing (Vitest), and documentation. Include rules for type safety, error handling patterns, and consistent naming for category/pattern/template schemas.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768843437569,
+  "lastAnalysis": 1768844205484,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

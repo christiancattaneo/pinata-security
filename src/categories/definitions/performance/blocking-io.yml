@@ -1,0 +1,495 @@
+id: blocking-io
+version: 1
+name: Blocking I/O in Async Context
+description: |
+  Detects synchronous I/O operations that block the event loop or async 
+  runtime. Blocking calls in async code prevent other tasks from running, 
+  causing timeouts and poor throughput. Use async I/O or thread pools for 
+  blocking operations.
+domain: performance
+level: unit
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-23343
+  - CVE-2020-8116
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://docs.python.org/3/library/asyncio-dev.html#running-blocking-code
+  - https://nodejs.org/en/docs/guides/dont-block-the-event-loop
+
+detectionPatterns:
+  - id: python-sync-in-async
+    type: regex
+    language: python
+    pattern: "async\\s+def.*:\\s*.*requests\\.(get|post)|async\\s+def.*time\\.sleep"
+    confidence: high
+    description: Detects sync HTTP in async function
+
+  - id: python-file-in-async
+    type: regex
+    language: python
+    pattern: "async\\s+def.*open\\(.*\\)|async\\s+def.*\\.read\\("
+    confidence: medium
+    description: Detects sync file I/O in async function
+
+  - id: python-subprocess-sync
+    type: regex
+    language: python
+    pattern: "async\\s+def.*subprocess\\.run|async\\s+def.*os\\.system"
+    confidence: high
+    description: Detects sync subprocess in async function
+
+  - id: python-db-sync-in-async
+    type: regex
+    language: python
+    pattern: "async\\s+def.*cursor\\.execute|async\\s+def.*\\.query\\("
+    confidence: medium
+    description: Detects sync DB in async function
+
+  - id: ts-sync-fs-in-handler
+    type: regex
+    language: typescript
+    pattern: "fs\\.readFileSync|fs\\.writeFileSync|fs\\.existsSync"
+    confidence: high
+    description: Detects sync fs operations
+
+  - id: ts-sync-exec
+    type: regex
+    language: typescript
+    pattern: "execSync|spawnSync|child_process\\.execSync"
+    confidence: high
+    description: Detects sync child process
+
+  - id: ts-heavy-compute
+    type: regex
+    language: typescript
+    pattern: "JSON\\.parse\\(|JSON\\.stringify\\((?!.*worker)"
+    confidence: low
+    description: Detects heavy compute (verify data size)
+
+  - id: ts-crypto-sync
+    type: regex
+    language: typescript
+    pattern: "crypto\\.pbkdf2Sync|crypto\\.scryptSync|crypto\\.randomBytes\\("
+    confidence: high
+    description: Detects sync crypto operations
+
+  - id: ts-blocking-regex
+    type: regex
+    language: typescript
+    pattern: "\\.match\\(.*\\+\\)|\\.replace\\(.*\\*.*\\*"
+    confidence: medium
+    description: Detects potentially blocking regex
+
+testTemplates:
+  - id: pytest-blocking-io
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import asyncio
+      import time
+      from unittest.mock import patch, MagicMock, AsyncMock
+      
+      class Test{{className}}BlockingIO:
+          """Blocking I/O tests for {{functionName}}"""
+          
+          @pytest.mark.asyncio
+          async def test_no_blocking_http(self, {{fixtures}}):
+              """Test HTTP calls are async"""
+              import inspect
+              
+              source = inspect.getsource({{asyncFunctionReference}})
+              
+              uses_sync_http = any(lib in source for lib in [
+                  'requests.get', 'requests.post', 'urllib.request'
+              ])
+              uses_async_http = any(lib in source for lib in [
+                  'aiohttp', 'httpx', 'async with'
+              ])
+              
+              if uses_sync_http:
+                  pytest.fail("Use async HTTP (aiohttp/httpx) in async functions")
+          
+          @pytest.mark.asyncio
+          async def test_event_loop_not_blocked(self, {{fixtures}}):
+              """Test event loop is not blocked"""
+              blocked_duration = 0
+              
+              async def monitor():
+                  nonlocal blocked_duration
+                  last = time.time()
+                  for _ in range(10):
+                      await asyncio.sleep(0.1)
+                      now = time.time()
+                      if now - last > 0.2:  # Blocked > 100ms
+                          blocked_duration += now - last
+                      last = now
+              
+              await asyncio.gather(
+                  monitor(),
+                  {{asyncFunctionCall}}()
+              )
+              
+              assert blocked_duration < 0.5, f"Event loop blocked for {blocked_duration}s"
+          
+          @pytest.mark.asyncio
+          async def test_uses_run_in_executor(self, {{fixtures}}):
+              """Test blocking calls use run_in_executor"""
+              import inspect
+              
+              source = inspect.getsource({{blockingWrapperReference}})
+              
+              uses_executor = (
+                  'run_in_executor' in source or
+                  'to_thread' in source or
+                  'ThreadPoolExecutor' in source
+              )
+              
+              assert uses_executor, "Blocking calls should use run_in_executor"
+          
+          @pytest.mark.asyncio
+          async def test_file_io_async(self, {{fixtures}}):
+              """Test file I/O is async"""
+              import inspect
+              
+              source = inspect.getsource({{fileIOReference}})
+              
+              uses_async_io = (
+                  'aiofiles' in source or
+                  'run_in_executor' in source or
+                  'async with' in source
+              )
+              
+              uses_sync_io = 'open(' in source and 'async' not in source.split('open(')[0][-20:]
+              
+              if uses_sync_io:
+                  assert uses_async_io, "Use aiofiles or run_in_executor for file I/O"
+          
+          @pytest.mark.asyncio
+          async def test_concurrent_tasks_not_serialized(self, {{fixtures}}):
+              """Test concurrent tasks run in parallel"""
+              call_times = []
+              
+              async def slow_task():
+                  start = time.time()
+                  await asyncio.sleep(0.1)
+                  call_times.append(start)
+              
+              start = time.time()
+              await {{concurrentCall}}([slow_task() for _ in range(5)])
+              elapsed = time.time() - start
+              
+              # 5 parallel 100ms tasks should take ~100ms not 500ms
+              assert elapsed < 0.3, f"Tasks serialized: {elapsed}s"
+          
+          @pytest.mark.asyncio
+          async def test_db_uses_async_driver(self, {{fixtures}}):
+              """Test database uses async driver"""
+              import inspect
+              
+              source = inspect.getsource({{dbFunctionReference}})
+              
+              uses_async_db = any(driver in source for driver in [
+                  'asyncpg', 'aiomysql', 'aiosqlite', 'motor',
+                  'await.*query', 'await.*execute'
+              ])
+              
+              uses_sync_db = any(driver in source for driver in [
+                  'psycopg2', 'pymysql', 'sqlite3'
+              ]) and 'run_in_executor' not in source
+              
+              if uses_sync_db:
+                  pytest.fail("Use async database driver or run_in_executor")
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: asyncFunctionReference
+        type: string
+        description: Async function reference
+        required: true
+      - name: asyncFunctionCall
+        type: string
+        description: Async function call
+        required: true
+      - name: blockingWrapperReference
+        type: string
+        description: Blocking wrapper reference
+        required: true
+      - name: fileIOReference
+        type: string
+        description: File I/O reference
+        required: true
+      - name: concurrentCall
+        type: string
+        description: Concurrent call
+        required: true
+      - name: dbFunctionReference
+        type: string
+        description: DB function reference
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-blocking-io
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Blocking I/O Tests', () => {
+        describe('sync fs operations', () => {
+          it('does not use sync fs methods', async () => {
+            const fs = require('fs');
+            const syncMethods = [
+              'readFileSync', 'writeFileSync', 'existsSync',
+              'mkdirSync', 'readdirSync', 'statSync'
+            ];
+            
+            const spies = syncMethods.map(method => 
+              jest.spyOn(fs, method as any)
+            );
+            
+            await {{functionCall}}();
+            
+            spies.forEach((spy, i) => {
+              expect(spy).not.toHaveBeenCalled();
+            });
+          });
+        });
+        
+        describe('event loop blocking', () => {
+          it('does not block event loop', async () => {
+            let blocked = false;
+            
+            const checkBlocking = setInterval(() => {
+              blocked = true;
+            }, 10);
+            
+            const start = Date.now();
+            await {{functionCall}}();
+            const elapsed = Date.now() - start;
+            
+            clearInterval(checkBlocking);
+            
+            // If interval didn't fire for >100ms, we blocked
+            expect(blocked || elapsed < 100).toBe(true);
+          });
+        });
+        
+        describe('heavy computation', () => {
+          it('offloads to worker for large data', async () => {
+            const workerSpy = jest.fn();
+            
+            await {{heavyComputeCall}}(workerSpy);
+            
+            expect(workerSpy).toHaveBeenCalled();
+          });
+        });
+        
+        describe('child process', () => {
+          it('uses async exec', async () => {
+            const cp = require('child_process');
+            const syncSpy = jest.spyOn(cp, 'execSync');
+            
+            await {{execCall}}();
+            
+            expect(syncSpy).not.toHaveBeenCalled();
+          });
+        });
+        
+        describe('crypto operations', () => {
+          it('uses async crypto', async () => {
+            const crypto = require('crypto');
+            const syncMethods = ['pbkdf2Sync', 'scryptSync'];
+            
+            const spies = syncMethods.map(method => 
+              jest.spyOn(crypto, method as any)
+            );
+            
+            await {{cryptoCall}}();
+            
+            spies.forEach(spy => {
+              expect(spy).not.toHaveBeenCalled();
+            });
+          });
+        });
+        
+        describe('concurrent execution', () => {
+          it('runs I/O operations concurrently', async () => {
+            const starts: number[] = [];
+            
+            const mockIO = async () => {
+              starts.push(Date.now());
+              await new Promise(r => setTimeout(r, 100));
+            };
+            
+            const start = Date.now();
+            await {{concurrentIOCall}}([mockIO, mockIO, mockIO]);
+            const elapsed = Date.now() - start;
+            
+            // Should be ~100ms not 300ms
+            expect(elapsed).toBeLessThan(200);
+          });
+        });
+        
+        describe('regex performance', () => {
+          it('does not use catastrophic regex', async () => {
+            const input = 'a'.repeat(30);
+            
+            const start = Date.now();
+            await {{regexCall}}(input);
+            const elapsed = Date.now() - start;
+            
+            expect(elapsed).toBeLessThan(100);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: heavyComputeCall
+        type: string
+        description: Heavy compute call
+        required: true
+      - name: execCall
+        type: string
+        description: Exec call
+        required: true
+      - name: cryptoCall
+        type: string
+        description: Crypto call
+        required: true
+      - name: concurrentIOCall
+        type: string
+        description: Concurrent I/O call
+        required: true
+      - name: regexCall
+        type: string
+        description: Regex call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: sync-http-in-async
+    concept: |
+      Synchronous HTTP in async function. Using requests library in async 
+      code blocks the event loop. Other coroutines cannot run until the 
+      sync call completes. Use aiohttp or httpx for async HTTP.
+    vulnerableCode: |
+      import requests
+      
+      async def fetch_user(user_id):
+          # VULNERABLE: Blocks event loop
+          response = requests.get(f"http://api/users/{user_id}")
+          return response.json()
+    testCode: |
+      import pytest
+      import asyncio
+      
+      @pytest.mark.asyncio
+      async def test_concurrent_fetches():
+          start = time.time()
+          
+          await asyncio.gather(*[
+              fetch_user(i) for i in range(10)
+          ])
+          
+          elapsed = time.time() - start
+          
+          # 10 concurrent 100ms requests should take ~100ms not 1s
+          assert elapsed < 0.3
+    language: python
+    severity: critical
+
+  - name: readfilesync-in-handler
+    concept: |
+      readFileSync in request handler. Sync file I/O blocks the Node.js 
+      event loop. During the read, no other requests can be processed.
+      Use async fs.promises or callbacks.
+    vulnerableCode: |
+      app.get('/config', (req, res) => {
+        // VULNERABLE: Blocks entire server
+        const config = fs.readFileSync('./config.json', 'utf-8');
+        res.json(JSON.parse(config));
+      });
+    testCode: |
+      describe('/config endpoint', () => {
+        it('does not use sync fs', async () => {
+          const readFileSyncSpy = jest.spyOn(fs, 'readFileSync');
+          
+          await request(app).get('/config');
+          
+          expect(readFileSyncSpy).not.toHaveBeenCalled();
+        });
+      });
+    language: typescript
+    severity: high
+    cve: CVE-2021-23343
+
+  - name: crypto-sync
+    concept: |
+      Synchronous crypto in async code. Crypto operations like pbkdf2Sync 
+      are CPU-intensive and block the event loop. Use async versions or 
+      offload to worker threads.
+    vulnerableCode: |
+      async function hashPassword(password) {
+        // VULNERABLE: Blocks for 100+ ms
+        const salt = crypto.randomBytes(16);
+        const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512');
+        return { salt, hash };
+      }
+    testCode: |
+      describe('hashPassword', () => {
+        it('uses async pbkdf2', async () => {
+          const syncSpy = jest.spyOn(crypto, 'pbkdf2Sync');
+          
+          await hashPassword('password');
+          
+          expect(syncSpy).not.toHaveBeenCalled();
+        });
+        
+        it('does not block event loop', async () => {
+          let blocked = true;
+          setTimeout(() => { blocked = false; }, 10);
+          
+          await hashPassword('password');
+          
+          expect(blocked).toBe(false);
+        });
+      });
+    language: typescript
+    severity: high
+    cve: CVE-2020-8116
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

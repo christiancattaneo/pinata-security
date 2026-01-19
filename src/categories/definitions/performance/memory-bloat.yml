@@ -1,0 +1,501 @@
+id: memory-bloat
+version: 1
+name: Memory Bloat
+description: |
+  Detects patterns causing unbounded memory growth. Includes accumulating 
+  collections, string concatenation in loops, missing pagination, and 
+  loading entire datasets into memory. Memory bloat causes OOM kills, 
+  degraded performance, and increased infrastructure costs.
+domain: performance
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-23337
+  - CVE-2020-7598
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://cwe.mitre.org/data/definitions/770.html
+  - https://docs.python.org/3/library/gc.html
+
+detectionPatterns:
+  - id: python-list-accumulate
+    type: regex
+    language: python
+    pattern: "while.*True.*\\.append\\(|for.*\\.append\\((?!.*break|.*limit)"
+    confidence: medium
+    description: Detects unbounded list accumulation
+
+  - id: python-string-concat-loop
+    type: regex
+    language: python
+    pattern: "for.*:\\s*\\w+\\s*\\+=\\s*[\"']|for.*:\\s*\\w+\\s*=\\s*\\w+\\s*\\+"
+    confidence: high
+    description: Detects string concatenation in loop
+
+  - id: python-readlines-large
+    type: regex
+    language: python
+    pattern: "\\.readlines\\(\\)|\\.read\\(\\)(?!.*chunk)"
+    confidence: medium
+    description: Detects reading entire file into memory
+
+  - id: python-fetchall-no-limit
+    type: regex
+    language: python
+    pattern: "\\.fetchall\\(\\)(?!.*LIMIT|.*limit)"
+    confidence: medium
+    description: Detects fetching all DB rows without limit
+
+  - id: python-list-comprehension-large
+    type: regex
+    language: python
+    pattern: "\\[.*for.*in.*range\\(\\d{6,}|\\[.*for.*in.*\\w+\\.all\\(\\)"
+    confidence: medium
+    description: Detects large list comprehension
+
+  - id: ts-array-accumulate
+    type: regex
+    language: typescript
+    pattern: "while.*\\.push\\(|for.*\\.push\\((?!.*break|.*limit)"
+    confidence: medium
+    description: Detects unbounded array growth
+
+  - id: ts-string-concat-loop
+    type: regex
+    language: typescript
+    pattern: "for.*\\{[^}]*\\+=\\s*[\"'`]|for.*\\{[^}]*\\+\\s*[\"'`]"
+    confidence: high
+    description: Detects string concatenation in loop
+
+  - id: ts-json-parse-large
+    type: regex
+    language: typescript
+    pattern: "JSON\\.parse\\(.*\\.body\\)|JSON\\.parse\\(.*response"
+    confidence: low
+    description: Detects parsing large JSON (verify size limit)
+
+  - id: ts-array-from-spread
+    type: regex
+    language: typescript
+    pattern: "\\[\\.\\.\\.\\w+,\\s*\\.\\.\\.\\w+\\]|Array\\.from\\(.*\\)\\.map"
+    confidence: low
+    description: Detects array spread/copy (memory duplication)
+
+testTemplates:
+  - id: pytest-memory-bloat
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import sys
+      import gc
+      import tracemalloc
+      from memory_profiler import memory_usage
+      
+      class Test{{className}}MemoryBloat:
+          """Memory bloat tests for {{functionName}}"""
+          
+          def test_memory_bounded(self, {{fixtures}}):
+              """Test memory usage is bounded"""
+              tracemalloc.start()
+              
+              {{functionCall}}(iterations={{largeIterations}})
+              
+              current, peak = tracemalloc.get_traced_memory()
+              tracemalloc.stop()
+              
+              peak_mb = peak / 1024 / 1024
+              assert peak_mb < {{maxMemoryMB}}, f"Peak memory: {peak_mb}MB"
+          
+          def test_no_string_concat_loop(self, {{fixtures}}):
+              """Test uses join instead of += for strings"""
+              import inspect
+              
+              source = inspect.getsource({{functionReference}})
+              
+              # Should use ''.join() not +=
+              has_concat_loop = (
+                  '+=' in source and 
+                  ('for ' in source or 'while ' in source)
+              )
+              
+              if has_concat_loop:
+                  assert "join(" in source, "Use ''.join() instead of += in loops"
+          
+          def test_uses_generator(self, {{fixtures}}):
+              """Test uses generators for large sequences"""
+              import inspect
+              import types
+              
+              result = {{generatorFunctionCall}}()
+              
+              assert isinstance(result, types.GeneratorType) or \
+                     hasattr(result, '__iter__'), \
+                     "Should return generator for large sequences"
+          
+          def test_paginated_query(self, {{fixtures}}):
+              """Test database queries are paginated"""
+              import inspect
+              
+              source = inspect.getsource({{queryFunctionReference}})
+              
+              has_pagination = any(kw in source.lower() for kw in [
+                  'limit', 'offset', 'page', 'cursor', 'batch'
+              ])
+              
+              assert has_pagination, "Database queries should be paginated"
+          
+          def test_streaming_file_read(self, {{fixtures}}):
+              """Test large files are read in chunks"""
+              import inspect
+              
+              source = inspect.getsource({{fileReadReference}})
+              
+              uses_streaming = any(pattern in source for pattern in [
+                  'for line in', 'iter_content', 'chunk', 
+                  'readline()', 'BufferedReader'
+              ])
+              
+              has_full_read = '.read()' in source and 'chunk' not in source
+              
+              assert uses_streaming or not has_full_read, \
+                     "Large files should be read in chunks"
+          
+          def test_gc_collectable(self, {{fixtures}}):
+              """Test objects are garbage collectable"""
+              gc.collect()
+              initial = len(gc.get_objects())
+              
+              for _ in range(100):
+                  {{functionCall}}()
+              
+              gc.collect()
+              final = len(gc.get_objects())
+              
+              growth = final - initial
+              assert growth < 1000, f"Object count grew by {growth}"
+          
+          def test_response_size_limit(self, {{fixtures}}):
+              """Test API responses have size limits"""
+              result = {{largeResponseCall}}()
+              
+              if isinstance(result, (list, dict)):
+                  import json
+                  size = len(json.dumps(result))
+                  assert size < {{maxResponseBytes}}, f"Response too large: {size} bytes"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: generatorFunctionCall
+        type: string
+        description: Generator function call
+        required: true
+      - name: queryFunctionReference
+        type: string
+        description: Query function reference
+        required: true
+      - name: fileReadReference
+        type: string
+        description: File read function reference
+        required: true
+      - name: largeResponseCall
+        type: string
+        description: Large response call
+        required: true
+      - name: largeIterations
+        type: number
+        description: Large iteration count
+        required: false
+        defaultValue: 100000
+      - name: maxMemoryMB
+        type: number
+        description: Max memory in MB
+        required: false
+        defaultValue: 100
+      - name: maxResponseBytes
+        type: number
+        description: Max response bytes
+        required: false
+        defaultValue: 10485760
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-memory-bloat
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Memory Bloat Tests', () => {
+        describe('bounded memory', () => {
+          it('memory usage is bounded', async () => {
+            const initialHeap = process.memoryUsage().heapUsed;
+            
+            await {{functionCall}}({{largeIterations}});
+            
+            if (global.gc) global.gc();
+            
+            const finalHeap = process.memoryUsage().heapUsed;
+            const growthMB = (finalHeap - initialHeap) / 1024 / 1024;
+            
+            expect(growthMB).toBeLessThan({{maxMemoryMB}});
+          });
+        });
+        
+        describe('string handling', () => {
+          it('uses array join for string building', async () => {
+            const result = await {{stringBuildCall}}(10000);
+            
+            expect(typeof result).toBe('string');
+          });
+        });
+        
+        describe('generators/iterators', () => {
+          it('returns iterator for large datasets', async () => {
+            const result = await {{iteratorCall}}();
+            
+            expect(
+              Symbol.iterator in Object(result) ||
+              Symbol.asyncIterator in Object(result) ||
+              typeof result.next === 'function'
+            ).toBe(true);
+          });
+        });
+        
+        describe('pagination', () => {
+          it('paginates large queries', async () => {
+            const mockQuery = jest.fn().mockResolvedValue([]);
+            
+            await {{queryCall}}(mockQuery);
+            
+            const callStr = JSON.stringify(mockQuery.mock.calls);
+            expect(
+              callStr.includes('limit') ||
+              callStr.includes('LIMIT') ||
+              callStr.includes('take')
+            ).toBe(true);
+          });
+        });
+        
+        describe('streaming', () => {
+          it('streams large files', async () => {
+            const chunks: number[] = [];
+            
+            await {{streamReadCall}}((chunkSize: number) => {
+              chunks.push(chunkSize);
+            });
+            
+            expect(chunks.length).toBeGreaterThan(1);
+          });
+        });
+        
+        describe('response limits', () => {
+          it('limits response size', async () => {
+            const result = await {{largeResponseCall}}();
+            
+            const size = JSON.stringify(result).length;
+            expect(size).toBeLessThan({{maxResponseBytes}});
+          });
+          
+          it('returns paginated response', async () => {
+            const result = await {{paginatedResponseCall}}();
+            
+            expect(result.nextCursor || result.hasMore !== undefined).toBeDefined();
+          });
+        });
+        
+        describe('cleanup', () => {
+          it('cleans up after processing', async () => {
+            const initialHeap = process.memoryUsage().heapUsed;
+            
+            for (let i = 0; i < 100; i++) {
+              await {{functionCall}}();
+            }
+            
+            if (global.gc) global.gc();
+            await new Promise(r => setTimeout(r, 100));
+            
+            const finalHeap = process.memoryUsage().heapUsed;
+            const growthMB = (finalHeap - initialHeap) / 1024 / 1024;
+            
+            expect(growthMB).toBeLessThan(50);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: stringBuildCall
+        type: string
+        description: String build call
+        required: true
+      - name: iteratorCall
+        type: string
+        description: Iterator call
+        required: true
+      - name: queryCall
+        type: string
+        description: Query call
+        required: true
+      - name: streamReadCall
+        type: string
+        description: Stream read call
+        required: true
+      - name: largeResponseCall
+        type: string
+        description: Large response call
+        required: true
+      - name: paginatedResponseCall
+        type: string
+        description: Paginated response call
+        required: true
+      - name: largeIterations
+        type: number
+        description: Large iterations
+        required: false
+        defaultValue: 100000
+      - name: maxMemoryMB
+        type: number
+        description: Max memory MB
+        required: false
+        defaultValue: 100
+      - name: maxResponseBytes
+        type: number
+        description: Max response bytes
+        required: false
+        defaultValue: 10485760
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: string-concat-loop
+    concept: |
+      String concatenation in loop. Each += creates a new string, copying 
+      all previous content. Building a 100KB string with += does O(n²) 
+      copies. Use ''.join() or StringBuilder pattern.
+    vulnerableCode: |
+      def build_report(items):
+          # VULNERABLE: O(n²) string copying
+          result = ""
+          for item in items:
+              result += f"- {item}\n"
+          return result
+    testCode: |
+      import pytest
+      import tracemalloc
+      
+      def test_efficient_string_build():
+          tracemalloc.start()
+          
+          items = [f"item_{i}" for i in range(10000)]
+          result = build_report(items)
+          
+          current, peak = tracemalloc.get_traced_memory()
+          tracemalloc.stop()
+          
+          # Efficient version uses < 10x item size
+          assert peak < len(result) * 10
+      
+      # Fixed version
+      def build_report_safe(items):
+          return '\n'.join(f"- {item}" for item in items)
+    language: python
+    severity: medium
+
+  - name: fetchall-no-limit
+    concept: |
+      Database fetchall without limit. Loading all rows into memory fails 
+      for large tables. Use pagination, cursors, or streaming to process 
+      large result sets.
+    vulnerableCode: |
+      def get_all_users():
+          # VULNERABLE: Loads all users into memory
+          cursor.execute("SELECT * FROM users")
+          return cursor.fetchall()
+    testCode: |
+      import pytest
+      
+      def test_paginated_users():
+          # With 1M users, fetchall would OOM
+          page = get_users_paginated(limit=100, offset=0)
+          
+          assert len(page) <= 100
+          assert hasattr(page, 'total') or hasattr(page, 'has_more')
+    language: python
+    severity: high
+    cve: CVE-2021-23337
+
+  - name: array-spread-copy
+    concept: |
+      Array spread creating copies. Spreading large arrays creates full 
+      copies in memory. Repeated spreads in loops multiply memory usage.
+      Use mutation or streaming for large arrays.
+    vulnerableCode: |
+      function processItems(batches) {
+        // VULNERABLE: Creates huge array copy
+        const all = [];
+        for (const batch of batches) {
+          all = [...all, ...batch]; // Copies entire array each time
+        }
+        return all;
+      }
+    testCode: |
+      describe('processItems', () => {
+        it('does not copy entire array', () => {
+          const batches = Array(1000).fill(null).map(() => 
+            Array(1000).fill('item')
+          );
+          
+          const before = process.memoryUsage().heapUsed;
+          const result = processItems(batches);
+          const after = process.memoryUsage().heapUsed;
+          
+          // Should not use 2x the data size
+          const dataSizeMB = (1000 * 1000 * 4) / 1024 / 1024;
+          const growthMB = (after - before) / 1024 / 1024;
+          
+          expect(growthMB).toBeLessThan(dataSizeMB * 1.5);
+        });
+      });
+    language: typescript
+    severity: medium
+    cve: CVE-2020-7598
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
