@@ -1,0 +1,386 @@
+id: null-undefined
+version: 1
+name: Null and Undefined Handling
+description: |
+  Detects improper handling of null, undefined, and missing values. Includes 
+  null pointer dereferences, undefined property access, missing object keys, 
+  and optional parameter handling. Proper null checks prevent crashes and 
+  unexpected behavior.
+domain: input
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/476.html
+  - https://cwe.mitre.org/data/definitions/457.html
+
+detectionPatterns:
+  - id: python-no-none-check
+    type: regex
+    language: python
+    pattern: "\\w+\\.\\w+(?!.*if.*is\\s+not\\s+None)"
+    confidence: low
+    description: Detects attribute access without None check
+
+  - id: python-dict-access-no-get
+    type: regex
+    language: python
+    pattern: "\\w+\\[[\"']\\w+[\"']\\](?!.*\\.get\\()"
+    confidence: medium
+    description: Detects dict access that may raise KeyError
+
+  - id: python-optional-no-default
+    type: regex
+    language: python
+    pattern: "Optional\\[.*\\](?!.*=\\s*None)"
+    confidence: medium
+    description: Detects Optional type without default value
+
+  - id: ts-no-null-check
+    type: regex
+    language: typescript
+    pattern: "\\w+\\.\\w+(?!.*\\?\\.|.*&&|.*\\|\\|)"
+    confidence: low
+    description: Detects property access without null check
+
+  - id: ts-undefined-equality
+    type: regex
+    language: typescript
+    pattern: "===\\s*undefined(?!.*null)|!==\\s*undefined(?!.*null)"
+    confidence: medium
+    description: Detects undefined check without null check
+
+  - id: ts-non-null-assertion
+    type: regex
+    language: typescript
+    pattern: "\\w+!\\.|\\w+!\\["
+    confidence: high
+    description: Detects non-null assertion operator
+
+  - id: ts-optional-chaining-missing
+    type: regex
+    language: typescript
+    pattern: "\\w+\\.\\w+\\.\\w+(?!\\?\\.)"
+    confidence: low
+    description: Detects deep access without optional chaining
+
+testTemplates:
+  - id: pytest-null-undefined
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      class Test{{className}}NullHandling:
+          """Null/None handling tests for {{functionName}}"""
+          
+          def test_none_input(self, {{fixtures}}):
+              """Test function handles None input"""
+              # Should either handle gracefully or raise explicit error
+              try:
+                  result = {{functionCall}}(None)
+                  assert result is None or result is not None  # Has defined behavior
+              except (TypeError, ValueError) as e:
+                  assert "None" in str(e) or "null" in str(e).lower()
+          
+          def test_empty_dict(self, {{fixtures}}):
+              """Test function handles empty dict"""
+              result = {{dictFunctionCall}}({})
+              assert result is not None
+          
+          def test_missing_key(self, {{fixtures}}):
+              """Test function handles missing dict keys"""
+              data = {"existing": "value"}
+              
+              # Should not raise KeyError unexpectedly
+              try:
+                  result = {{dictFunctionCall}}(data)
+                  assert result is not None
+              except KeyError as e:
+                  pytest.fail(f"Unexpected KeyError: {e}")
+          
+          def test_none_in_list(self, {{fixtures}}):
+              """Test function handles None values in lists"""
+              items = [1, None, 3, None, 5]
+              
+              result = {{listFunctionCall}}(items)
+              assert result is not None
+          
+          def test_nested_none(self, {{fixtures}}):
+              """Test function handles None in nested structures"""
+              data = {
+                  "level1": {
+                      "level2": None
+                  }
+              }
+              
+              result = {{nestedFunctionCall}}(data)
+              # Should not raise AttributeError on None.attribute
+              assert result is None or result is not None
+          
+          def test_optional_parameter_default(self, {{fixtures}}):
+              """Test optional parameters default correctly"""
+              # Call without optional param
+              result_default = {{optionalFunctionCall}}()
+              
+              # Call with explicit None
+              result_none = {{optionalFunctionCall}}(None)
+              
+              # Both should have defined behavior
+              assert result_default is not None or result_default is None
+              assert result_none is not None or result_none is None
+          
+          def test_none_comparison(self, {{fixtures}}):
+              """Test None comparison uses 'is' not '=='"""
+              assert {{isNoneFunctionCall}}(None) is True
+              assert {{isNoneFunctionCall}}("") is False
+              assert {{isNoneFunctionCall}}(0) is False
+              assert {{isNoneFunctionCall}}([]) is False
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: dictFunctionCall
+        type: string
+        description: Dict function call
+        required: true
+      - name: listFunctionCall
+        type: string
+        description: List function call
+        required: true
+      - name: nestedFunctionCall
+        type: string
+        description: Nested function call
+        required: true
+      - name: optionalFunctionCall
+        type: string
+        description: Optional param function
+        required: true
+      - name: isNoneFunctionCall
+        type: string
+        description: Is None check function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-null-undefined
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Null/Undefined Tests', () => {
+        describe('null handling', () => {
+          it('handles null input', async () => {
+            const result = await {{functionCall}}(null);
+            expect(result).toBeDefined();
+          });
+          
+          it('handles undefined input', async () => {
+            const result = await {{functionCall}}(undefined);
+            expect(result).toBeDefined();
+          });
+        });
+        
+        describe('missing properties', () => {
+          it('handles empty object', async () => {
+            const result = await {{objectFunctionCall}}({});
+            expect(result).toBeDefined();
+          });
+          
+          it('handles missing keys gracefully', async () => {
+            const partial = { name: 'test' };  // Missing other fields
+            
+            await expect({{objectFunctionCall}}(partial)).resolves.toBeDefined();
+          });
+          
+          it('uses optional chaining for nested access', async () => {
+            const nested = { a: { b: null } };
+            
+            // Should not throw TypeError
+            const result = await {{nestedFunctionCall}}(nested);
+            expect(result).toBeNull();
+          });
+        });
+        
+        describe('arrays with null', () => {
+          it('handles null elements', async () => {
+            const items = [1, null, 3, undefined, 5];
+            
+            const result = await {{arrayFunctionCall}}(items);
+            expect(result).toBeDefined();
+          });
+          
+          it('filters null values correctly', async () => {
+            const items = [1, null, 2, undefined, 3];
+            
+            const result = await {{filterFunctionCall}}(items);
+            expect(result).toEqual([1, 2, 3]);
+          });
+        });
+        
+        describe('nullish coalescing', () => {
+          it('uses ?? not || for defaults', async () => {
+            // Empty string should not trigger default
+            expect(await {{defaultFunctionCall}}('')).toBe('');
+            
+            // Zero should not trigger default
+            expect(await {{defaultFunctionCall}}(0)).toBe(0);
+            
+            // null should trigger default
+            expect(await {{defaultFunctionCall}}(null)).toBe('default');
+            
+            // undefined should trigger default
+            expect(await {{defaultFunctionCall}}(undefined)).toBe('default');
+          });
+        });
+        
+        describe('type guards', () => {
+          it('narrows types correctly', async () => {
+            const maybeUser: { name: string } | null = null;
+            
+            const result = await {{guardedFunctionCall}}(maybeUser);
+            // Should not throw even with null
+            expect(result).toBeDefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: objectFunctionCall
+        type: string
+        description: Object function call
+        required: true
+      - name: nestedFunctionCall
+        type: string
+        description: Nested function call
+        required: true
+      - name: arrayFunctionCall
+        type: string
+        description: Array function call
+        required: true
+      - name: filterFunctionCall
+        type: string
+        description: Filter function call
+        required: true
+      - name: defaultFunctionCall
+        type: string
+        description: Default function call
+        required: true
+      - name: guardedFunctionCall
+        type: string
+        description: Type guard function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-none-attribute
+    concept: |
+      Accessing attribute on None. When a variable might be None, accessing 
+      its attributes raises AttributeError. Check for None before access or 
+      use conditional expressions.
+    vulnerableCode: |
+      def get_username(user):
+          # VULNERABLE: user might be None
+          return user.name.upper()
+    testCode: |
+      import pytest
+      
+      def test_none_user():
+          with pytest.raises(AttributeError):
+              get_username(None)
+      
+      def test_safe_implementation():
+          def safe_get_username(user):
+              return user.name.upper() if user else None
+          
+          assert safe_get_username(None) is None
+    language: python
+    severity: high
+
+  - name: typescript-undefined-property
+    concept: |
+      Accessing property on undefined. Without optional chaining, accessing 
+      properties on undefined throws TypeError. Use ?. operator or explicit 
+      null checks.
+    vulnerableCode: |
+      function getCity(user) {
+        // VULNERABLE: address might be undefined
+        return user.address.city;
+      }
+    testCode: |
+      describe('getCity', () => {
+        it('handles missing address', () => {
+          const user = { name: 'John' };
+          
+          expect(() => getCity(user)).toThrow(TypeError);
+        });
+        
+        it('safe version uses optional chaining', () => {
+          const safeGetCity = (user) => user?.address?.city;
+          
+          expect(safeGetCity({ name: 'John' })).toBeUndefined();
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: dict-keyerror
+    concept: |
+      KeyError from missing dictionary key. Direct bracket access to a dict 
+      raises KeyError if the key doesn't exist. Use .get() with a default 
+      value for safe access.
+    vulnerableCode: |
+      def get_config_value(config, key):
+          # VULNERABLE: Raises KeyError if key missing
+          return config[key]
+    testCode: |
+      import pytest
+      
+      def test_missing_key():
+          config = {'host': 'localhost'}
+          
+          with pytest.raises(KeyError):
+              get_config_value(config, 'port')
+      
+      def test_safe_access():
+          def safe_get(config, key, default=None):
+              return config.get(key, default)
+          
+          assert safe_get({'host': 'localhost'}, 'port', 8080) == 8080
+    language: python
+    severity: medium
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

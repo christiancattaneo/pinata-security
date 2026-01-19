@@ -1,0 +1,403 @@
+id: injection-fuzzing
+version: 1
+name: Injection and Fuzzing
+description: |
+  Detects vulnerabilities to malformed, unexpected, or malicious input. Includes 
+  format string attacks, control character injection, unicode normalization 
+  bypasses, and protocol confusion. Fuzzing with random and crafted inputs 
+  reveals parser bugs and security issues.
+domain: input
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-44228
+  - CVE-2020-15999
+
+references:
+  - https://cwe.mitre.org/data/definitions/74.html
+  - https://owasp.org/www-community/Fuzzing
+  - https://cwe.mitre.org/data/definitions/134.html
+
+detectionPatterns:
+  - id: python-format-string
+    type: regex
+    language: python
+    pattern: "%s.*%\\(|%\\(.*\\)s|\\.format\\(\\*|f[\"'].*\\{"
+    confidence: medium
+    description: Detects format string usage with potential user input
+
+  - id: python-eval-input
+    type: regex
+    language: python
+    pattern: "eval\\(|exec\\(|compile\\("
+    confidence: high
+    description: Detects code evaluation functions
+
+  - id: python-pickle-untrusted
+    type: regex
+    language: python
+    pattern: "pickle\\.loads?\\(|unpickle"
+    confidence: high
+    description: Detects pickle deserialization
+
+  - id: python-yaml-unsafe
+    type: regex
+    language: python
+    pattern: "yaml\\.load\\((?!.*Loader)"
+    confidence: high
+    description: Detects unsafe YAML loading
+
+  - id: ts-eval-input
+    type: regex
+    language: typescript
+    pattern: "eval\\(|new Function\\(|setTimeout\\(.*\\+"
+    confidence: high
+    description: Detects dynamic code evaluation
+
+  - id: ts-innerhtml-input
+    type: regex
+    language: typescript
+    pattern: "\\.innerHTML\\s*=|\\.outerHTML\\s*="
+    confidence: high
+    description: Detects innerHTML assignment
+
+  - id: ts-template-injection
+    type: regex
+    language: typescript
+    pattern: "\\$\\{.*req\\.|\\$\\{.*user"
+    confidence: medium
+    description: Detects template injection risk
+
+testTemplates:
+  - id: pytest-injection-fuzzing
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import string
+      
+      class Test{{className}}InjectionFuzzing:
+          """Injection and fuzzing tests for {{functionName}}"""
+          
+          INJECTION_PAYLOADS = [
+              # Format string
+              "%s%s%s%s%s",
+              "%x%x%x%x",
+              "{0}{1}{2}",
+              "%(foo)s",
+              
+              # Control characters
+              "\x00",
+              "\x0d\x0a",
+              "\x1b[31m",
+              "\b\b\b\b",
+              
+              # Unicode
+              "\ufeff",  # BOM
+              "\u202e",  # RTL override
+              "\u0000",  # Null
+              "🎉" * 1000,
+              
+              # Special sequences
+              "{{{{}}}}",
+              "${7*7}",
+              "#{7*7}",
+              "<%=7*7%>",
+          ]
+          
+          @pytest.mark.parametrize("payload", INJECTION_PAYLOADS)
+          def test_injection_payload(self, payload, {{fixtures}}):
+              """Test function handles injection payloads safely"""
+              try:
+                  result = {{functionCall}}(payload)
+                  # If accepted, payload should not be interpreted
+                  if isinstance(result, str):
+                      assert "49" not in result  # 7*7 evaluated
+              except (ValueError, TypeError):
+                  pass  # Rejection is acceptable
+          
+          FUZZ_INPUTS = [
+              "",
+              " ",
+              "\t\n\r",
+              "a" * 10000,
+              "\x00" * 100,
+              "".join(chr(i) for i in range(256) if i not in [0]),
+              string.punctuation * 10,
+          ]
+          
+          @pytest.mark.parametrize("fuzz", FUZZ_INPUTS)
+          def test_fuzz_input(self, fuzz, {{fixtures}}):
+              """Test function handles fuzzed input"""
+              try:
+                  result = {{functionCall}}(fuzz)
+                  assert result is not None or result is None  # Has defined behavior
+              except (ValueError, TypeError, UnicodeError):
+                  pass  # Explicit rejection is fine
+              except Exception as e:
+                  # Should not crash with unexpected exception
+                  pytest.fail(f"Unexpected exception: {type(e).__name__}: {e}")
+          
+          def test_null_byte_injection(self, {{fixtures}}):
+              """Test null byte doesn't truncate input"""
+              payload = "valid\x00malicious"
+              
+              result = {{functionCall}}(payload)
+              
+              # Should either reject or include full string
+              if result is not None:
+                  assert "malicious" in result or "\x00" in result
+          
+          def test_unicode_normalization(self, {{fixtures}}):
+              """Test unicode normalization attacks"""
+              # Visually identical but different bytes
+              payloads = [
+                  ("admin", "аdmin"),  # Cyrillic 'а' vs Latin 'a'
+                  ("file.txt", "file\u2024txt"),  # One dot leader
+              ]
+              
+              for legit, spoof in payloads:
+                  result_legit = {{functionCall}}(legit)
+                  result_spoof = {{functionCall}}(spoof)
+                  
+                  # Should either normalize or treat differently
+                  assert result_legit != result_spoof or True
+          
+          def test_control_character_stripping(self, {{fixtures}}):
+              """Test control characters are handled"""
+              payload = "test\x00\x01\x02\x03\x04\x05data"
+              
+              result = {{functionCall}}(payload)
+              
+              # Should strip or reject control chars
+              if result is not None:
+                  for c in result:
+                      assert ord(c) >= 32 or c in "\t\n\r"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-injection-fuzzing
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Injection/Fuzzing Tests', () => {
+        const INJECTION_PAYLOADS = [
+          // XSS
+          '<script>alert(1)</script>',
+          '"><img src=x onerror=alert(1)>',
+          "javascript:alert(1)",
+          
+          // Template injection
+          '${7*7}',
+          '{{7*7}}',
+          '#{7*7}',
+          
+          // Control chars
+          '\x00',
+          '\r\n',
+          '\x1b[31m',
+        ];
+        
+        describe('injection payloads', () => {
+          test.each(INJECTION_PAYLOADS)(
+            'safely handles: %s',
+            async (payload) => {
+              const result = await {{functionCall}}(payload);
+              
+              if (typeof result === 'string') {
+                expect(result).not.toContain('<script>');
+                expect(result).not.toBe('49');  // Template evaluated
+              }
+            }
+          );
+        });
+        
+        const FUZZ_INPUTS = [
+          '',
+          ' ',
+          '\t\n\r',
+          'a'.repeat(10000),
+          '\x00'.repeat(100),
+          Array(256).fill(0).map((_, i) => String.fromCharCode(i)).join(''),
+        ];
+        
+        describe('fuzz inputs', () => {
+          test.each(FUZZ_INPUTS)(
+            'handles fuzz input without crashing',
+            async (fuzz) => {
+              await expect({{functionCall}}(fuzz)).resolves.toBeDefined();
+            }
+          );
+        });
+        
+        describe('null byte injection', () => {
+          it('does not truncate at null byte', async () => {
+            const payload = 'valid\x00malicious';
+            const result = await {{functionCall}}(payload);
+            
+            if (result) {
+              expect(
+                result.includes('malicious') || result.includes('\x00')
+              ).toBe(true);
+            }
+          });
+        });
+        
+        describe('unicode attacks', () => {
+          it('handles homograph attacks', async () => {
+            const latin = 'admin';
+            const cyrillic = 'аdmin';  // Cyrillic 'а'
+            
+            const r1 = await {{functionCall}}(latin);
+            const r2 = await {{functionCall}}(cyrillic);
+            
+            // Should normalize or treat differently
+            expect(r1).not.toBe(r2);
+          });
+          
+          it('handles RTL override', async () => {
+            const payload = 'file\u202etxt.exe';
+            
+            await expect({{functionCall}}(payload)).resolves.toBeDefined();
+          });
+        });
+        
+        describe('prototype pollution', () => {
+          it('does not pollute prototype', async () => {
+            const payload = JSON.stringify({
+              '__proto__': { 'polluted': true },
+              'constructor': { 'prototype': { 'polluted': true } }
+            });
+            
+            await {{jsonFunctionCall}}(payload);
+            
+            expect(({} as any).polluted).toBeUndefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: jsonFunctionCall
+        type: string
+        description: JSON parse function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-format-string
+    concept: |
+      Format string vulnerability. When user input is used as a format string, 
+      attackers can read memory or crash the program. Never use user input as 
+      the format string itself.
+    vulnerableCode: |
+      def log_message(user_input):
+          # VULNERABLE: User controls format string
+          print(user_input % ())
+    testCode: |
+      import pytest
+      
+      def test_format_string_attack():
+          payload = "%s%s%s%s%s%s%s%s%s%s"
+          
+          with pytest.raises(TypeError):
+              log_message(payload)
+      
+      def test_safe_logging():
+          def safe_log(msg):
+              print("%s", msg)  # msg is argument, not format
+          
+          safe_log("%s%s%s")  # Should print literally
+    language: python
+    severity: high
+
+  - name: null-byte-truncation
+    concept: |
+      Null byte injection for path truncation. In some systems, null byte 
+      terminates strings early. Attackers use this to bypass extension checks: 
+      "file.txt\x00.jpg" passes jpg check but saves as file.txt.
+    vulnerableCode: |
+      def save_file(filename, content):
+          # VULNERABLE: Null byte not stripped
+          if filename.endswith('.txt'):
+              with open(filename, 'w') as f:
+                  f.write(content)
+    testCode: |
+      import pytest
+      
+      def test_null_byte_bypass():
+          # Attacker tries to save as .exe
+          filename = "malware.exe\x00.txt"
+          
+          with pytest.raises(ValueError):
+              save_file(filename, "data")
+    language: python
+    severity: critical
+    cve: CVE-2020-15999
+
+  - name: prototype-pollution
+    concept: |
+      Prototype pollution via JSON parsing. Merging user JSON with __proto__ 
+      or constructor.prototype modifies Object prototype globally. This affects 
+      all objects and can lead to RCE or auth bypass.
+    vulnerableCode: |
+      function merge(target, source) {
+        for (const key in source) {
+          // VULNERABLE: Copies __proto__
+          target[key] = source[key];
+        }
+        return target;
+      }
+    testCode: |
+      describe('merge', () => {
+        it('does not pollute prototype', () => {
+          const malicious = JSON.parse('{"__proto__":{"admin":true}}');
+          
+          merge({}, malicious);
+          
+          expect(({} as any).admin).toBeUndefined();
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2021-44228
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

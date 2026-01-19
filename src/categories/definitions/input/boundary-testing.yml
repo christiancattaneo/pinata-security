@@ -1,0 +1,421 @@
+id: boundary-testing
+version: 1
+name: Boundary Testing
+description: |
+  Detects missing boundary condition tests for numeric limits, string lengths, 
+  array sizes, and edge values. Off-by-one errors, integer overflows, and 
+  buffer overflows often occur at boundaries. Test at min, max, min-1, max+1, 
+  zero, negative, and typical values.
+domain: input
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/129.html
+  - https://cwe.mitre.org/data/definitions/190.html
+  - https://en.wikipedia.org/wiki/Boundary_testing
+
+detectionPatterns:
+  - id: python-range-access
+    type: regex
+    language: python
+    pattern: "\\[\\w+\\]|\\[\\w+\\s*-\\s*1\\]|\\[\\w+\\s*\\+\\s*1\\]"
+    confidence: low
+    description: Detects array index access (verify boundary checks)
+
+  - id: python-comparison-boundary
+    type: regex
+    language: python
+    pattern: "if\\s+\\w+\\s*[<>]=?\\s*\\d+|if\\s+\\d+\\s*[<>]=?\\s*\\w+"
+    confidence: low
+    description: Detects numeric comparisons (verify off-by-one)
+
+  - id: python-slice-operation
+    type: regex
+    language: python
+    pattern: "\\[:\\d+\\]|\\[\\d+:\\]|\\[-\\d+:\\]"
+    confidence: low
+    description: Detects slice operations (verify bounds)
+
+  - id: python-loop-range
+    type: regex
+    language: python
+    pattern: "for\\s+\\w+\\s+in\\s+range\\("
+    confidence: low
+    description: Detects range loops (verify inclusive/exclusive)
+
+  - id: ts-array-access
+    type: regex
+    language: typescript
+    pattern: "\\[\\w+\\]|\\[\\.length\\s*-\\s*1\\]"
+    confidence: low
+    description: Detects array index access
+
+  - id: ts-comparison-boundary
+    type: regex
+    language: typescript
+    pattern: "if\\s*\\(.*[<>]=?\\s*\\d+|\\w+\\s*[<>]=?\\s*\\w+\\.length"
+    confidence: low
+    description: Detects numeric/length comparisons
+
+  - id: ts-substring
+    type: regex
+    language: typescript
+    pattern: "\\.substring\\s*\\(|\\.slice\\s*\\(|\\.substr\\s*\\("
+    confidence: low
+    description: Detects string slicing operations
+
+testTemplates:
+  - id: pytest-boundary-testing
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import sys
+      
+      class Test{{className}}Boundary:
+          """Boundary tests for {{functionName}}"""
+          
+          # Integer boundaries
+          INT_BOUNDARIES = [
+              0,
+              1,
+              -1,
+              sys.maxsize,
+              -sys.maxsize - 1,
+              2**31 - 1,  # INT32_MAX
+              -2**31,     # INT32_MIN
+              2**31,      # INT32_MAX + 1
+          ]
+          
+          @pytest.mark.parametrize("value", INT_BOUNDARIES)
+          def test_integer_boundaries(self, value, {{fixtures}}):
+              """Test function handles integer boundary values"""
+              try:
+                  result = {{functionCall}}(value)
+                  assert result is not None
+              except (ValueError, OverflowError) as e:
+                  # Explicit rejection is acceptable
+                  assert "out of range" in str(e).lower() or "overflow" in str(e).lower()
+          
+          def test_off_by_one_min(self, {{fixtures}}):
+              """Test at minimum valid value and below"""
+              min_val = {{minValue}}
+              
+              # At minimum should work
+              result_at = {{functionCall}}(min_val)
+              assert result_at is not None
+              
+              # Below minimum should fail
+              with pytest.raises((ValueError, IndexError)):
+                  {{functionCall}}(min_val - 1)
+          
+          def test_off_by_one_max(self, {{fixtures}}):
+              """Test at maximum valid value and above"""
+              max_val = {{maxValue}}
+              
+              # At maximum should work
+              result_at = {{functionCall}}(max_val)
+              assert result_at is not None
+              
+              # Above maximum should fail
+              with pytest.raises((ValueError, IndexError)):
+                  {{functionCall}}(max_val + 1)
+          
+          def test_string_length_boundaries(self, {{fixtures}}):
+              """Test string length limits"""
+              max_length = {{maxLength}}
+              
+              # Empty string
+              assert {{stringFunctionCall}}("") is not None
+              
+              # At limit
+              at_limit = "x" * max_length
+              assert {{stringFunctionCall}}(at_limit) is not None
+              
+              # Over limit
+              over_limit = "x" * (max_length + 1)
+              with pytest.raises(ValueError):
+                  {{stringFunctionCall}}(over_limit)
+          
+          def test_array_index_boundaries(self, {{fixtures}}):
+              """Test array access at boundaries"""
+              arr = [1, 2, 3, 4, 5]
+              
+              # Valid indices
+              assert {{arrayAccessCall}}(arr, 0) == 1      # First
+              assert {{arrayAccessCall}}(arr, 4) == 5      # Last
+              assert {{arrayAccessCall}}(arr, -1) == 5     # Last via negative
+              
+              # Invalid indices
+              with pytest.raises(IndexError):
+                  {{arrayAccessCall}}(arr, 5)   # One past end
+              with pytest.raises(IndexError):
+                  {{arrayAccessCall}}(arr, -6)  # One before start
+          
+          def test_zero_and_negative(self, {{fixtures}}):
+              """Test zero and negative value handling"""
+              # Zero
+              result_zero = {{functionCall}}(0)
+              assert result_zero is not None
+              
+              # Negative (may or may not be valid)
+              try:
+                  result_neg = {{functionCall}}(-1)
+                  assert result_neg is not None
+              except ValueError:
+                  pass  # Rejection is acceptable
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: stringFunctionCall
+        type: string
+        description: String function call
+        required: true
+      - name: arrayAccessCall
+        type: string
+        description: Array access function
+        required: true
+      - name: minValue
+        type: number
+        description: Minimum valid value
+        required: false
+        defaultValue: 0
+      - name: maxValue
+        type: number
+        description: Maximum valid value
+        required: false
+        defaultValue: 100
+      - name: maxLength
+        type: number
+        description: Maximum string length
+        required: false
+        defaultValue: 255
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-boundary-testing
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Boundary Tests', () => {
+        const INT_BOUNDARIES = [
+          0, 1, -1,
+          Number.MAX_SAFE_INTEGER,
+          Number.MIN_SAFE_INTEGER,
+          Number.MAX_VALUE,
+          Number.MIN_VALUE,
+        ];
+        
+        describe('integer boundaries', () => {
+          test.each(INT_BOUNDARIES)('handles value: %d', async (value) => {
+            const result = await {{functionCall}}(value);
+            expect(result).toBeDefined();
+          });
+        });
+        
+        describe('off-by-one errors', () => {
+          const MIN = {{minValue}};
+          const MAX = {{maxValue}};
+          
+          it('accepts value at minimum', async () => {
+            await expect({{functionCall}}(MIN)).resolves.toBeDefined();
+          });
+          
+          it('rejects value below minimum', async () => {
+            await expect({{functionCall}}(MIN - 1)).rejects.toThrow();
+          });
+          
+          it('accepts value at maximum', async () => {
+            await expect({{functionCall}}(MAX)).resolves.toBeDefined();
+          });
+          
+          it('rejects value above maximum', async () => {
+            await expect({{functionCall}}(MAX + 1)).rejects.toThrow();
+          });
+        });
+        
+        describe('string length boundaries', () => {
+          const MAX_LENGTH = {{maxLength}};
+          
+          it('accepts empty string', async () => {
+            await expect({{stringFunctionCall}}('')).resolves.toBeDefined();
+          });
+          
+          it('accepts string at limit', async () => {
+            const atLimit = 'x'.repeat(MAX_LENGTH);
+            await expect({{stringFunctionCall}}(atLimit)).resolves.toBeDefined();
+          });
+          
+          it('rejects string over limit', async () => {
+            const overLimit = 'x'.repeat(MAX_LENGTH + 1);
+            await expect({{stringFunctionCall}}(overLimit)).rejects.toThrow();
+          });
+        });
+        
+        describe('array boundaries', () => {
+          const arr = [1, 2, 3, 4, 5];
+          
+          it('accesses first element', async () => {
+            expect(await {{arrayAccessCall}}(arr, 0)).toBe(1);
+          });
+          
+          it('accesses last element', async () => {
+            expect(await {{arrayAccessCall}}(arr, arr.length - 1)).toBe(5);
+          });
+          
+          it('rejects index past end', async () => {
+            await expect({{arrayAccessCall}}(arr, arr.length)).rejects.toThrow();
+          });
+          
+          it('rejects negative index beyond start', async () => {
+            await expect({{arrayAccessCall}}(arr, -arr.length - 1)).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: stringFunctionCall
+        type: string
+        description: String function call
+        required: true
+      - name: arrayAccessCall
+        type: string
+        description: Array access function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+      - name: minValue
+        type: number
+        description: Minimum value
+        required: false
+        defaultValue: 0
+      - name: maxValue
+        type: number
+        description: Maximum value
+        required: false
+        defaultValue: 100
+      - name: maxLength
+        type: number
+        description: Max string length
+        required: false
+        defaultValue: 255
+
+examples:
+  - name: off-by-one-loop
+    concept: |
+      Off-by-one error in loop bounds. Using < vs <= or starting at 0 vs 1 
+      causes loops to iterate one too few or too many times. Test at exact 
+      boundary values.
+    vulnerableCode: |
+      def process_items(items, count):
+          # VULNERABLE: Off-by-one, processes count+1 items
+          for i in range(count + 1):  # Should be range(count)
+              process(items[i])
+    testCode: |
+      import pytest
+      
+      def test_processes_exact_count():
+          items = [1, 2, 3, 4, 5]
+          processed = []
+          
+          process_items(items, 3)
+          
+          assert len(processed) == 3
+      
+      def test_at_array_boundary():
+          items = [1, 2, 3]
+          
+          # Should not raise IndexError
+          process_items(items, len(items))
+    language: python
+    severity: medium
+
+  - name: array-index-overflow
+    concept: |
+      Array index beyond bounds. Accessing array[length] is always invalid 
+      since arrays are 0-indexed. The last valid index is length-1.
+    vulnerableCode: |
+      function getLastItem(arr) {
+        // VULNERABLE: arr.length is past the end
+        return arr[arr.length];  // Should be arr.length - 1
+      }
+    testCode: |
+      describe('getLastItem', () => {
+        it('returns last element', () => {
+          expect(getLastItem([1, 2, 3])).toBe(3);
+        });
+        
+        it('handles single element array', () => {
+          expect(getLastItem([42])).toBe(42);
+        });
+        
+        it('throws on empty array', () => {
+          expect(() => getLastItem([])).toThrow();
+        });
+      });
+    language: typescript
+    severity: medium
+
+  - name: integer-overflow-multiplication
+    concept: |
+      Integer overflow in multiplication. Multiplying values near MAX_INT can 
+      overflow, wrapping to negative or losing precision. Check before 
+      arithmetic or use safe math libraries.
+    vulnerableCode: |
+      def calculate_total(quantity, price_cents):
+          # VULNERABLE: Can overflow with large values
+          return quantity * price_cents
+    testCode: |
+      import pytest
+      
+      def test_large_multiplication():
+          # Test values that could overflow 32-bit int
+          quantity = 1000000
+          price = 2000000
+          
+          result = calculate_total(quantity, price)
+          assert result == 2000000000000
+      
+      def test_max_int_boundary():
+          import sys
+          result = calculate_total(sys.maxsize, 1)
+          assert result == sys.maxsize
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

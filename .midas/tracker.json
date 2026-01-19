@@ -1,31 +1,48 @@
 {
-  "lastUpdated": "2026-01-19T16:03:18.482Z",
+  "lastUpdated": "2026-01-19T16:39:21.189Z",
   "recentFiles": [
     {
-      "path": "tests/categories/definitions/concurrency.test.ts",
-      "lastModified": 1768838587922.481
+      "path": "tests/categories/definitions/input.test.ts",
+      "lastModified": 1768840749237.3604
     },
     {
-      "path": "src/categories/definitions/concurrency/thread-safety.yml",
-      "lastModified": 1768838563546.01
+      "path": "src/categories/definitions/input/null-undefined.yml",
+      "lastModified": 1768840417814.5508
+    },
+    {
+      "path": "src/categories/definitions/input/injection-fuzzing.yml",
+      "lastModified": 1768840417814.545
+    },
+    {
+      "path": "src/categories/definitions/input/boundary-testing.yml",
+      "lastModified": 1768840417814.508
+    },
+    {
+      "path": "tests/categories/definitions/concurrency.test.ts",
+      "lastModified": 1768838615618.467
     },
     {
       "path": "src/categories/definitions/concurrency/deadlock.yml",
-      "lastModified": 1768838515400.2063
+      "lastModified": 1768838615618.458
+    },
+    {
+      "path": "src/categories/definitions/concurrency/thread-safety.yml",
+      "lastModified": 1768838615618.4375
     },
     {
       "path": "src/categories/definitions/concurrency/race-condition.yml",
-      "lastModified": 1768838464962.7268
+      "lastModified": 1768838615618.3743
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "0248eb1046aba4d0c971ae90cd34b956e3b04ce1",
-    "lastCommitMessage": "Add 8 data domain categories",
-    "lastCommitTime": 1768800449000,
+    "lastCommit": "ca1288e6ae0dc32a0f13e2e0db5069d84163b734",
+    "lastCommitMessage": "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
+    "lastCommitTime": 1768838601000,
     "uncommittedChanges": 7,
     "recentCommits": [
+      "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
       "Add 8 data domain categories",
       "Add security categories: ldap-injection, ssrf, timing-attack",
       "Add security categories: csrf, xxe, command-injection, deserialization",
@@ -54,6 +71,16 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768838891989,
+      "suggestion": "Add the remaining 3 P0 categories for concurrency domain: timeout-missing, retry-storm, and idempotency-missing. Create YAML definition files in src/categories/definitions/concurrency/ following the pattern of existing categories like race-condition.yml",
+      "accepted": false
+    },
+    {
+      "timestamp": 1768838679450,
+      "suggestion": "Create 3 input domain categories for pinata: 'boundary-testing' (test numeric/string limits), 'null-undefined' (missing value handling), and 'injection-fuzzing' (malformed input). Each needs YAML with id, metadata, 3+ detection patterns, test templates for pytest/jest, and 3+ examples with vulnerable/test code.",
+      "accepted": false
+    },
     {
       "timestamp": 1768837504185,
       "suggestion": "Create concurrency domain categories. Start with race-condition, deadlock, and thread-safety categories. Each needs: YAML definition with metadata, 3+ detection patterns for Python/TypeScript, test templates for pytest/jest, and 3+ real-world examples. Place in src/categories/definitions/concurrency/",
@@ -145,15 +172,10 @@
       "timestamp": 1768773069610,
       "suggestion": "Create a PRD for Pinata testing framework. Define the problem (teams missing critical test categories), target users (developers, QA engineers), success metrics (coverage percentage, adoption rate), and scope. Include requirements for category organization, examples per category, searchability, and integration patterns. Address how to handle the identified gaps in network/distributed systems, database integrity, time handling, auth, and observability.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768772376153,
-      "suggestion": "Create a brainlift.md file that synthesizes the research findings. Extract key differences between the AI models, identify which features/capabilities matter most for this project, and document any architectural decisions or constraints discovered during research. Include a comparison matrix if helpful.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768837504168,
+  "lastAnalysis": 1768838891973,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }
