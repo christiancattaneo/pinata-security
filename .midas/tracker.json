@@ -1,21 +1,37 @@
 {
-  "lastUpdated": "2026-01-19T16:46:01.252Z",
+  "lastUpdated": "2026-01-19T17:08:51.588Z",
   "recentFiles": [
     {
-      "path": "tests/categories/definitions/concurrency.test.ts",
-      "lastModified": 1768841149830.1633
+      "path": "tests/categories/definitions/resource.test.ts",
+      "lastModified": 1768842520709.2034
     },
     {
-      "path": "src/categories/definitions/concurrency/idempotency-missing.yml",
-      "lastModified": 1768841115109.0999
+      "path": "src/categories/definitions/resource/connection-pool-exhaustion.yml",
+      "lastModified": 1768842489203.7197
+    },
+    {
+      "path": "src/categories/definitions/resource/file-handle-leak.yml",
+      "lastModified": 1768842432361.5452
+    },
+    {
+      "path": "src/categories/definitions/resource/memory-leak.yml",
+      "lastModified": 1768842378514.4272
+    },
+    {
+      "path": "tests/categories/definitions/concurrency.test.ts",
+      "lastModified": 1768841173277.9963
     },
     {
       "path": "src/categories/definitions/concurrency/retry-storm.yml",
-      "lastModified": 1768841051605.1484
+      "lastModified": 1768841173263.4817
+    },
+    {
+      "path": "src/categories/definitions/concurrency/idempotency-missing.yml",
+      "lastModified": 1768841173263.4536
     },
     {
       "path": "src/categories/definitions/concurrency/timeout-missing.yml",
-      "lastModified": 1768840981025.7039
+      "lastModified": 1768841173263.278
     },
     {
       "path": "tests/categories/definitions/input.test.ts",
@@ -32,28 +48,17 @@
     {
       "path": "src/categories/definitions/input/boundary-testing.yml",
       "lastModified": 1768840417814.508
-    },
-    {
-      "path": "src/categories/definitions/concurrency/deadlock.yml",
-      "lastModified": 1768838615618.458
-    },
-    {
-      "path": "src/categories/definitions/concurrency/thread-safety.yml",
-      "lastModified": 1768838615618.4375
-    },
-    {
-      "path": "src/categories/definitions/concurrency/race-condition.yml",
-      "lastModified": 1768838615618.3743
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "8d9914b0cd74d1d199446754612e5aa0ebf239e2",
-    "lastCommitMessage": "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
-    "lastCommitTime": 1768840761000,
+    "lastCommit": "af0480960b45462a9216944727f0d4b3c1a988bf",
+    "lastCommitMessage": "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing",
+    "lastCommitTime": 1768841162000,
     "uncommittedChanges": 7,
     "recentCommits": [
+      "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing",
       "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
       "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
       "Add 8 data domain categories",
@@ -84,6 +89,16 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768842446332,
+      "suggestion": "Implement the remaining resource management category definitions. Create YAML files for: file-descriptor-leak, connection-pool-exhaustion, cpu-throttling, and disk-quota-exceeded. Each should have detection patterns for Python/TypeScript, test templates for pytest/jest, and 3+ examples.",
+      "accepted": false
+    },
+    {
+      "timestamp": 1768841228867,
+      "suggestion": "Create 3 P0 resource domain categories: memory-leak, file-handle-leak, and connection-pool-exhaustion. Each should have detection patterns for Python/TypeScript, pytest/jest templates, and 3+ real-world examples showing vulnerable code and tests.",
+      "accepted": false
+    },
     {
       "timestamp": 1768838891989,
       "suggestion": "Add the remaining 3 P0 categories for concurrency domain: timeout-missing, retry-storm, and idempotency-missing. Create YAML definition files in src/categories/definitions/concurrency/ following the pattern of existing categories like race-condition.yml",
@@ -175,20 +190,10 @@
       "timestamp": 1768773808475,
       "suggestion": "Complete the PRD Success Metrics section. Include: adoption metrics (WAU targets, integration milestones), quality metrics (incident reduction %, coverage improvement), business metrics (time saved, ROI). Add sections for: Core Features (test category browser, coverage analyzer, CI/CD integration), Technical Requirements (language support, performance targets), and Timeline/Milestones.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768773680337,
-      "suggestion": "Complete the PRD for Pinata. Add sections for: 1) Complete the Success Metrics (adoption, quality, business), 2) Feature Requirements (core capabilities, UI/CLI interface, integrations), 3) Technical Approach (architecture, data model, extensibility), 4) Constraints (performance targets, compatibility requirements), and 5) Timeline with MVP scope. Focus on how Pinata will deliver comprehensive test category coverage through both a CLI tool and potential web interface.",
-      "accepted": false
-    },
-    {
-      "timestamp": 1768773069610,
-      "suggestion": "Create a PRD for Pinata testing framework. Define the problem (teams missing critical test categories), target users (developers, QA engineers), success metrics (coverage percentage, adoption rate), and scope. Include requirements for category organization, examples per category, searchability, and integration patterns. Address how to handle the identified gaps in network/distributed systems, database integrity, time handling, auth, and observability.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768838891973,
+  "lastAnalysis": 1768842446314,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

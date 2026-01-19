@@ -1,0 +1,481 @@
+id: connection-pool-exhaustion
+version: 1
+name: Connection Pool Exhaustion
+description: |
+  Detects connection pool leaks and exhaustion. Database connections, HTTP 
+  clients, and other pooled resources not returned to the pool cause exhaustion.
+  Symptoms include hung requests, timeouts, and application freezes. Always 
+  return connections and use pool limits.
+domain: resource
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-23358
+  - CVE-2019-10744
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://cwe.mitre.org/data/definitions/410.html
+  - https://docs.sqlalchemy.org/en/14/core/pooling.html
+
+detectionPatterns:
+  - id: python-db-no-close
+    type: regex
+    language: python
+    pattern: "connection\\s*=.*connect\\((?!.*\\.close\\(|.*with)"
+    confidence: high
+    description: Detects DB connection without close
+
+  - id: python-cursor-no-close
+    type: regex
+    language: python
+    pattern: "cursor\\s*=.*\\.cursor\\(\\)(?!.*\\.close\\(|.*with)"
+    confidence: high
+    description: Detects cursor without close
+
+  - id: python-pool-no-limit
+    type: regex
+    language: python
+    pattern: "create_engine\\((?!.*pool_size|.*max_overflow)"
+    confidence: medium
+    description: Detects SQLAlchemy engine without pool limits
+
+  - id: python-session-no-close
+    type: regex
+    language: python
+    pattern: "Session\\(\\)|sessionmaker\\((?!.*\\.close\\(|.*with)"
+    confidence: medium
+    description: Detects ORM session without close
+
+  - id: python-redis-no-pool
+    type: regex
+    language: python
+    pattern: "redis\\.Redis\\((?!.*connection_pool)"
+    confidence: medium
+    description: Detects Redis without connection pool
+
+  - id: ts-pg-no-release
+    type: regex
+    language: typescript
+    pattern: "pool\\.connect\\(\\)(?!.*\\.release\\(|.*finally)"
+    confidence: high
+    description: Detects pg pool client without release
+
+  - id: ts-mysql-no-release
+    type: regex
+    language: typescript
+    pattern: "pool\\.getConnection\\((?!.*\\.release\\(|.*finally)"
+    confidence: high
+    description: Detects mysql pool without release
+
+  - id: ts-prisma-disconnect
+    type: regex
+    language: typescript
+    pattern: "new\\s+PrismaClient\\((?!.*\\$disconnect)"
+    confidence: medium
+    description: Detects Prisma without disconnect
+
+  - id: ts-http-agent-no-limit
+    type: regex
+    language: typescript
+    pattern: "new\\s+https?\\.Agent\\((?!.*maxSockets)"
+    confidence: medium
+    description: Detects HTTP agent without connection limit
+
+testTemplates:
+  - id: pytest-connection-pool
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      import time
+      from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+      
+      class Test{{className}}ConnectionPool:
+          """Connection pool exhaustion tests for {{functionName}}"""
+          
+          def test_connections_returned(self, {{fixtures}}):
+              """Test connections are returned to pool"""
+              pool_size = {{poolSize}}
+              
+              # Use all connections
+              for _ in range(pool_size * 2):
+                  {{functionCall}}()
+              
+              # Should still be able to get connection
+              result = {{functionCall}}()
+              assert result is not None
+          
+          def test_connection_released_on_error(self, {{fixtures}}):
+              """Test connections released even on error"""
+              pool_size = {{poolSize}}
+              
+              for _ in range(pool_size * 2):
+                  try:
+                      {{errorFunctionCall}}()
+                  except Exception:
+                      pass
+              
+              # Pool should not be exhausted
+              result = {{functionCall}}()
+              assert result is not None
+          
+          def test_pool_has_limits(self, {{fixtures}}):
+              """Test pool has size limits"""
+              pool = {{getPoolCall}}()
+              
+              assert hasattr(pool, 'maxsize') or hasattr(pool, 'size')
+              max_size = getattr(pool, 'maxsize', None) or getattr(pool, 'size', None)
+              assert max_size is not None and max_size > 0
+          
+          def test_concurrent_pool_access(self, {{fixtures}}):
+              """Test pool handles concurrent access"""
+              errors = []
+              
+              def worker():
+                  try:
+                      for _ in range(10):
+                          {{functionCall}}()
+                  except Exception as e:
+                      errors.append(str(e))
+              
+              threads = [threading.Thread(target=worker) for _ in range(20)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join(timeout=30)
+              
+              pool_errors = [e for e in errors if 'pool' in e.lower() or 'connection' in e.lower()]
+              assert len(pool_errors) == 0, f"Pool errors: {pool_errors}"
+          
+          def test_pool_timeout_behavior(self, {{fixtures}}):
+              """Test pool behavior when exhausted"""
+              pool_size = {{poolSize}}
+              
+              # Hold all connections
+              held_connections = []
+              for _ in range(pool_size):
+                  conn = {{acquireConnectionCall}}()
+                  held_connections.append(conn)
+              
+              # Next acquire should timeout or queue
+              with pytest.raises(Exception) as exc_info:
+                  {{acquireConnectionCall}}(timeout=1)
+              
+              assert 'timeout' in str(exc_info.value).lower() or 'pool' in str(exc_info.value).lower()
+              
+              # Release connections
+              for conn in held_connections:
+                  {{releaseConnectionCall}}(conn)
+          
+          def test_uses_context_manager(self, {{fixtures}}):
+              """Test uses context manager for connection"""
+              import inspect
+              
+              source = inspect.getsource({{functionReference}})
+              
+              has_with = (
+                  'with ' in source and 
+                  ('connection' in source.lower() or 'session' in source.lower() or 'cursor' in source.lower())
+              )
+              
+              assert has_with, "Should use context manager for connections"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: errorFunctionCall
+        type: string
+        description: Error function call
+        required: true
+      - name: getPoolCall
+        type: string
+        description: Get pool call
+        required: true
+      - name: acquireConnectionCall
+        type: string
+        description: Acquire connection call
+        required: true
+      - name: releaseConnectionCall
+        type: string
+        description: Release connection call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: poolSize
+        type: number
+        description: Pool size
+        required: false
+        defaultValue: 10
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-connection-pool
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Connection Pool Tests', () => {
+        describe('connection release', () => {
+          it('returns connections to pool', async () => {
+            const POOL_SIZE = {{poolSize}};
+            
+            // Use more than pool size
+            for (let i = 0; i < POOL_SIZE * 2; i++) {
+              await {{functionCall}}();
+            }
+            
+            // Should still work
+            await expect({{functionCall}}()).resolves.toBeDefined();
+          });
+          
+          it('releases on error', async () => {
+            const POOL_SIZE = {{poolSize}};
+            
+            for (let i = 0; i < POOL_SIZE * 2; i++) {
+              try {
+                await {{errorFunctionCall}}();
+              } catch {}
+            }
+            
+            // Pool not exhausted
+            await expect({{functionCall}}()).resolves.toBeDefined();
+          });
+        });
+        
+        describe('pool configuration', () => {
+          it('has connection limit', async () => {
+            const pool = await {{getPoolCall}}();
+            
+            expect(pool.options?.max || pool.config?.connectionLimit).toBeGreaterThan(0);
+          });
+          
+          it('has acquire timeout', async () => {
+            const pool = await {{getPoolCall}}();
+            
+            expect(
+              pool.options?.acquireTimeoutMillis || 
+              pool.config?.acquireTimeout ||
+              pool.options?.connectionTimeoutMillis
+            ).toBeDefined();
+          });
+        });
+        
+        describe('concurrent access', () => {
+          it('handles concurrent requests', async () => {
+            const promises = Array(50).fill(null).map(() => {{functionCall}}());
+            
+            const results = await Promise.allSettled(promises);
+            const failures = results.filter(r => r.status === 'rejected');
+            
+            expect(failures.length).toBe(0);
+          });
+        });
+        
+        describe('pool exhaustion', () => {
+          it('queues or times out when exhausted', async () => {
+            const POOL_SIZE = {{poolSize}};
+            const heldClients: any[] = [];
+            
+            // Exhaust pool
+            for (let i = 0; i < POOL_SIZE; i++) {
+              const client = await {{acquireCall}}();
+              heldClients.push(client);
+            }
+            
+            // Next should timeout
+            await expect(
+              Promise.race([
+                {{acquireCall}}(),
+                new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('timeout')), 1000)
+                )
+              ])
+            ).rejects.toThrow();
+            
+            // Release
+            for (const client of heldClients) {
+              await {{releaseCall}}(client);
+            }
+          });
+        });
+        
+        describe('cleanup', () => {
+          it('closes pool on shutdown', async () => {
+            const pool = await {{getPoolCall}}();
+            
+            await {{shutdownCall}}();
+            
+            // Pool should be closed
+            await expect({{functionCall}}()).rejects.toThrow();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: errorFunctionCall
+        type: string
+        description: Error function call
+        required: true
+      - name: getPoolCall
+        type: string
+        description: Get pool call
+        required: true
+      - name: acquireCall
+        type: string
+        description: Acquire call
+        required: true
+      - name: releaseCall
+        type: string
+        description: Release call
+        required: true
+      - name: shutdownCall
+        type: string
+        description: Shutdown call
+        required: true
+      - name: poolSize
+        type: number
+        description: Pool size
+        required: false
+        defaultValue: 10
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: pg-client-no-release
+    concept: |
+      PostgreSQL pool client not released. After pool.connect(), the client 
+      must be released back to the pool. Forgetting release() exhausts the 
+      pool, causing all subsequent queries to hang.
+    vulnerableCode: |
+      const pool = new Pool({ max: 10 });
+      
+      async function query(sql) {
+        // VULNERABLE: Client never released
+        const client = await pool.connect();
+        return client.query(sql);
+      }
+    testCode: |
+      describe('query', () => {
+        it('releases client to pool', async () => {
+          const releaseSpy = jest.fn();
+          const mockClient = { query: jest.fn(), release: releaseSpy };
+          
+          pool.connect = jest.fn().mockResolvedValue(mockClient);
+          
+          await query('SELECT 1');
+          
+          expect(releaseSpy).toHaveBeenCalled();
+        });
+        
+        it('releases on error', async () => {
+          const releaseSpy = jest.fn();
+          const mockClient = { 
+            query: jest.fn().mockRejectedValue(new Error('fail')),
+            release: releaseSpy 
+          };
+          
+          pool.connect = jest.fn().mockResolvedValue(mockClient);
+          
+          await expect(query('BAD SQL')).rejects.toThrow();
+          expect(releaseSpy).toHaveBeenCalled();
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: sqlalchemy-session-leak
+    concept: |
+      SQLAlchemy session not closed. Sessions hold database connections. Not 
+      closing sessions after use exhausts the connection pool. Use context 
+      managers or scoped_session.
+    vulnerableCode: |
+      from sqlalchemy.orm import Session
+      
+      def get_users():
+          # VULNERABLE: Session never closed
+          session = Session(engine)
+          users = session.query(User).all()
+          return users
+    testCode: |
+      import pytest
+      
+      def test_session_closed():
+          close_spy = MagicMock()
+          
+          with patch.object(Session, 'close', close_spy):
+              get_users()
+          
+          assert close_spy.called
+      
+      # Fixed version
+      def get_users_safe():
+          with Session(engine) as session:
+              return session.query(User).all()
+    language: python
+    severity: critical
+    cve: CVE-2021-23358
+
+  - name: redis-connection-leak
+    concept: |
+      Redis connections not pooled. Creating a new Redis() for each operation 
+      opens a new connection. Without a pool, connections accumulate until the 
+      server refuses new connections.
+    vulnerableCode: |
+      def get_cached_value(key):
+          # VULNERABLE: New connection each call
+          r = redis.Redis(host='localhost', port=6379)
+          return r.get(key)
+    testCode: |
+      import pytest
+      import redis
+      
+      def test_uses_connection_pool():
+          pool = redis.ConnectionPool(host='localhost', port=6379, max_connections=10)
+          
+          for _ in range(100):
+              r = redis.Redis(connection_pool=pool)
+              r.get('key')
+          
+          # All connections should be from pool
+          assert pool._created_connections <= 10
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

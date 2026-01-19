@@ -1,0 +1,437 @@
+id: file-handle-leak
+version: 1
+name: File Handle Leak
+description: |
+  Detects file handles not properly closed after use. Leaked handles exhaust 
+  OS file descriptor limits, causing "too many open files" errors. Always use 
+  context managers (with statement) or try/finally to ensure handles are closed.
+domain: resource
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-14343
+  - CVE-2019-9948
+
+references:
+  - https://cwe.mitre.org/data/definitions/775.html
+  - https://cwe.mitre.org/data/definitions/404.html
+  - https://docs.python.org/3/tutorial/inputoutput.html#reading-and-writing-files
+
+detectionPatterns:
+  - id: python-open-no-with
+    type: regex
+    language: python
+    pattern: "\\w+\\s*=\\s*open\\([^)]+\\)(?!.*\\.close\\(|.*with)"
+    confidence: high
+    description: Detects open() without context manager
+
+  - id: python-file-no-close
+    type: regex
+    language: python
+    pattern: "open\\(.*\\)(?!.*close\\(\\)|.*with\\s)"
+    confidence: medium
+    description: Detects file open without close
+
+  - id: python-tempfile-no-cleanup
+    type: regex
+    language: python
+    pattern: "tempfile\\.(?:mktemp|mkstemp|NamedTemporaryFile)(?!.*delete=True|.*with)"
+    confidence: medium
+    description: Detects temp files without cleanup
+
+  - id: python-socket-no-close
+    type: regex
+    language: python
+    pattern: "socket\\.socket\\((?!.*\\.close\\(|.*with)"
+    confidence: high
+    description: Detects socket without close
+
+  - id: ts-fs-open-no-close
+    type: regex
+    language: typescript
+    pattern: "fs\\.open(?:Sync)?\\((?!.*close)"
+    confidence: high
+    description: Detects fs.open without close
+
+  - id: ts-createreadstream-no-destroy
+    type: regex
+    language: typescript
+    pattern: "createReadStream\\(|createWriteStream\\((?!.*\\.destroy\\(|.*\\.close\\()"
+    confidence: medium
+    description: Detects streams without destroy
+
+  - id: ts-file-handle-var
+    type: regex
+    language: typescript
+    pattern: "const\\s+\\w+\\s*=\\s*await\\s+fs\\.promises\\.open"
+    confidence: medium
+    description: Detects file handle storage (verify close)
+
+testTemplates:
+  - id: pytest-file-handle-leak
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import os
+      import resource
+      import tempfile
+      
+      class Test{{className}}FileHandleLeak:
+          """File handle leak tests for {{functionName}}"""
+          
+          def get_open_fds(self):
+              """Count open file descriptors"""
+              import subprocess
+              pid = os.getpid()
+              try:
+                  result = subprocess.run(
+                      ['lsof', '-p', str(pid)],
+                      capture_output=True,
+                      text=True
+                  )
+                  return len(result.stdout.strip().split('\n'))
+              except:
+                  return len(os.listdir(f'/proc/{pid}/fd'))
+          
+          def test_no_fd_leak(self, {{fixtures}}):
+              """Test file descriptors are not leaked"""
+              initial_fds = self.get_open_fds()
+              
+              for _ in range(100):
+                  {{functionCall}}()
+              
+              final_fds = self.get_open_fds()
+              leaked = final_fds - initial_fds
+              
+              assert leaked < 5, f"Leaked {leaked} file descriptors"
+          
+          def test_uses_context_manager(self, {{fixtures}}):
+              """Test file operations use context managers"""
+              import inspect
+              
+              source = inspect.getsource({{functionReference}})
+              
+              # Check for with statement with file operations
+              has_with = 'with open(' in source or 'with Path(' in source
+              
+              assert has_with, "Should use context manager for file operations"
+          
+          def test_handles_closed_on_error(self, {{fixtures}}):
+              """Test handles are closed even on error"""
+              initial_fds = self.get_open_fds()
+              
+              for _ in range(50):
+                  try:
+                      {{errorProneCall}}()
+                  except Exception:
+                      pass
+              
+              final_fds = self.get_open_fds()
+              leaked = final_fds - initial_fds
+              
+              assert leaked < 5, f"Leaked {leaked} fds on error path"
+          
+          def test_temp_files_cleaned(self, {{fixtures}}):
+              """Test temporary files are removed"""
+              temp_dir = tempfile.gettempdir()
+              initial_temps = set(os.listdir(temp_dir))
+              
+              for _ in range(10):
+                  {{tempFileCall}}()
+              
+              final_temps = set(os.listdir(temp_dir))
+              new_temps = final_temps - initial_temps
+              
+              assert len(new_temps) == 0, f"Temp files not cleaned: {new_temps}"
+          
+          def test_fd_limit_not_reached(self, {{fixtures}}):
+              """Test operation doesn't exhaust fd limit"""
+              soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+              
+              # Run many iterations
+              for i in range(1000):
+                  try:
+                      {{functionCall}}()
+                  except OSError as e:
+                      if 'Too many open files' in str(e):
+                          pytest.fail(f"FD exhaustion at iteration {i}")
+                      raise
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: errorProneCall
+        type: string
+        description: Error prone call
+        required: true
+      - name: tempFileCall
+        type: string
+        description: Temp file call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-file-handle-leak
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import * as fs from 'fs';
+      import * as os from 'os';
+      import * as path from 'path';
+      
+      describe('{{className}} File Handle Leak Tests', () => {
+        describe('handle cleanup', () => {
+          it('closes file handles after use', async () => {
+            const closeSpy = jest.fn();
+            const originalOpen = fs.promises.open;
+            
+            (fs.promises.open as jest.Mock) = jest.fn().mockImplementation(async (...args) => {
+              const handle = await originalOpen(...args);
+              const originalClose = handle.close.bind(handle);
+              handle.close = async () => {
+                closeSpy();
+                return originalClose();
+              };
+              return handle;
+            });
+            
+            await {{functionCall}}();
+            
+            expect(closeSpy).toHaveBeenCalled();
+            
+            fs.promises.open = originalOpen;
+          });
+        });
+        
+        describe('stream cleanup', () => {
+          it('destroys streams on completion', async () => {
+            const destroySpy = jest.fn();
+            const originalCreateReadStream = fs.createReadStream;
+            
+            (fs.createReadStream as any) = (...args: any[]) => {
+              const stream = originalCreateReadStream(...args);
+              const originalDestroy = stream.destroy.bind(stream);
+              stream.destroy = (...dArgs: any[]) => {
+                destroySpy();
+                return originalDestroy(...dArgs);
+              };
+              return stream;
+            };
+            
+            await {{streamFunctionCall}}();
+            
+            expect(destroySpy).toHaveBeenCalled();
+            
+            (fs.createReadStream as any) = originalCreateReadStream;
+          });
+          
+          it('destroys streams on error', async () => {
+            const destroySpy = jest.fn();
+            
+            await expect({{errorStreamCall}}()).rejects.toThrow();
+            
+            // Stream should still be destroyed
+          });
+        });
+        
+        describe('temp files', () => {
+          it('cleans up temp files', async () => {
+            const tempDir = os.tmpdir();
+            const before = fs.readdirSync(tempDir);
+            
+            await {{tempFunctionCall}}();
+            
+            const after = fs.readdirSync(tempDir);
+            const newFiles = after.filter(f => !before.includes(f));
+            
+            expect(newFiles.length).toBe(0);
+          });
+        });
+        
+        describe('error handling', () => {
+          it('closes handles on error', async () => {
+            const handles: fs.promises.FileHandle[] = [];
+            const originalOpen = fs.promises.open;
+            
+            (fs.promises.open as jest.Mock) = jest.fn().mockImplementation(async (...args) => {
+              const handle = await originalOpen(...args);
+              handles.push(handle);
+              return handle;
+            });
+            
+            try {
+              await {{errorFunctionCall}}();
+            } catch {}
+            
+            // Verify all handles were closed
+            for (const handle of handles) {
+              await expect(handle.read(Buffer.alloc(1), 0, 1, 0)).rejects.toThrow();
+            }
+            
+            fs.promises.open = originalOpen;
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: streamFunctionCall
+        type: string
+        description: Stream function call
+        required: true
+      - name: errorStreamCall
+        type: string
+        description: Error stream call
+        required: true
+      - name: tempFunctionCall
+        type: string
+        description: Temp function call
+        required: true
+      - name: errorFunctionCall
+        type: string
+        description: Error function call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-open-no-close
+    concept: |
+      File opened without close or context manager. If an exception occurs 
+      between open() and close(), the file handle leaks. Always use 'with' 
+      statement for automatic cleanup.
+    vulnerableCode: |
+      def read_config(path):
+          # VULNERABLE: No close, leaks on exception
+          f = open(path, 'r')
+          data = json.load(f)
+          f.close()  # Never reached if json.load fails
+          return data
+    testCode: |
+      import pytest
+      import os
+      
+      def test_handle_closed_on_error():
+          initial_fds = len(os.listdir(f'/proc/{os.getpid()}/fd'))
+          
+          for _ in range(100):
+              try:
+                  read_config('invalid.json')
+              except:
+                  pass
+          
+          final_fds = len(os.listdir(f'/proc/{os.getpid()}/fd'))
+          assert final_fds - initial_fds < 5
+      
+      # Fixed version
+      def read_config_safe(path):
+          with open(path, 'r') as f:
+              return json.load(f)
+    language: python
+    severity: high
+
+  - name: nodejs-stream-no-destroy
+    concept: |
+      Node.js stream not destroyed. Streams hold file handles until explicitly 
+      destroyed or the process ends. On error, streams must be destroyed to 
+      release resources.
+    vulnerableCode: |
+      async function processFile(path) {
+        // VULNERABLE: Stream not destroyed on error
+        const stream = fs.createReadStream(path);
+        
+        for await (const chunk of stream) {
+          if (chunk.includes('error')) {
+            throw new Error('Bad data');  // Stream leaks
+          }
+        }
+      }
+    testCode: |
+      describe('processFile', () => {
+        it('destroys stream on error', async () => {
+          const destroySpy = jest.fn();
+          
+          try {
+            await processFile('error.txt');
+          } catch {}
+          
+          expect(destroySpy).toHaveBeenCalled();
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: temp-file-not-deleted
+    concept: |
+      Temporary files not deleted. tempfile.mktemp() creates a path but not the 
+      file; the path can be hijacked. tempfile.mkstemp() creates the file but 
+      doesn't auto-delete. Use NamedTemporaryFile with delete=True or cleanup.
+    vulnerableCode: |
+      import tempfile
+      
+      def process_upload(data):
+          # VULNERABLE: Temp file never deleted
+          fd, path = tempfile.mkstemp()
+          os.write(fd, data)
+          os.close(fd)
+          
+          result = process(path)
+          # path is never unlinked
+          return result
+    testCode: |
+      import pytest
+      import tempfile
+      import os
+      
+      def test_temp_cleaned():
+          temp_dir = tempfile.gettempdir()
+          before = set(os.listdir(temp_dir))
+          
+          process_upload(b'data')
+          
+          after = set(os.listdir(temp_dir))
+          new_temps = after - before
+          
+          assert len(new_temps) == 0
+    language: python
+    severity: medium
+    cve: CVE-2020-14343
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
