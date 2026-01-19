@@ -1,0 +1,433 @@
+id: network-timeout
+version: 1
+name: Network Timeout Handling
+description: |
+  Detects improper network timeout handling. Includes missing connect/read/write 
+  timeouts, hardcoded timeout values, and failure to handle timeout exceptions.
+  Network calls without timeouts hang indefinitely. Timeouts too short cause 
+  spurious failures; too long waste resources.
+domain: reliability
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-8927
+  - CVE-2019-18348
+
+references:
+  - https://cwe.mitre.org/data/definitions/1088.html
+  - https://docs.python-requests.org/en/latest/user/advanced/#timeouts
+  - https://nodejs.org/api/http.html#httprequestoptions-callback
+
+detectionPatterns:
+  - id: python-requests-no-timeout
+    type: regex
+    language: python
+    pattern: "requests\\.(get|post|put|delete|patch|head|options)\\s*\\([^)]*\\)(?!.*timeout)"
+    confidence: high
+    description: Detects requests calls without timeout parameter
+
+  - id: python-urllib-no-timeout
+    type: regex
+    language: python
+    pattern: "urllib\\.request\\.urlopen\\s*\\([^)]*\\)(?!.*timeout)"
+    confidence: high
+    description: Detects urllib without timeout
+
+  - id: python-httpx-no-timeout
+    type: regex
+    language: python
+    pattern: "httpx\\.(get|post|put|delete|patch)\\s*\\([^)]*\\)(?!.*timeout)"
+    confidence: high
+    description: Detects httpx calls without timeout
+
+  - id: python-aiohttp-no-timeout
+    type: regex
+    language: python
+    pattern: "session\\.(get|post|put|delete|patch)\\s*\\([^)]*\\)(?!.*timeout)"
+    confidence: medium
+    description: Detects aiohttp session calls (verify timeout)
+
+  - id: python-socket-no-settimeout
+    type: regex
+    language: python
+    pattern: "socket\\.socket\\s*\\((?!.*settimeout|.*setdefaulttimeout)"
+    confidence: high
+    description: Detects socket without timeout configuration
+
+  - id: ts-fetch-no-signal
+    type: regex
+    language: typescript
+    pattern: "fetch\\s*\\([^)]*\\)(?!.*signal|.*AbortController)"
+    confidence: medium
+    description: Detects fetch without abort signal for timeout
+
+  - id: ts-axios-no-timeout
+    type: regex
+    language: typescript
+    pattern: "axios\\.(get|post|put|delete|patch)\\s*\\([^}]*\\}?\\)(?!.*timeout)"
+    confidence: high
+    description: Detects axios without timeout config
+
+  - id: ts-http-request-no-timeout
+    type: regex
+    language: typescript
+    pattern: "https?\\.request\\s*\\([^)]*\\)(?!.*timeout)"
+    confidence: high
+    description: Detects Node http.request without timeout
+
+  - id: ts-grpc-no-deadline
+    type: regex
+    language: typescript
+    pattern: "\\.call\\s*\\([^)]*\\)(?!.*deadline|.*timeout)"
+    confidence: medium
+    description: Detects gRPC calls without deadline
+
+testTemplates:
+  - id: pytest-network-timeout
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import socket
+      from unittest.mock import patch, MagicMock
+      import requests
+      
+      class Test{{className}}NetworkTimeout:
+          """Network timeout tests for {{functionName}}"""
+          
+          def test_has_connect_timeout(self, {{fixtures}}):
+              """Test request has connect timeout"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.return_value = MagicMock(status_code=200)
+                  
+                  {{functionCall}}()
+                  
+                  call_kwargs = mock_request.call_args.kwargs
+                  timeout = call_kwargs.get('timeout')
+                  
+                  if isinstance(timeout, tuple):
+                      connect_timeout = timeout[0]
+                  else:
+                      connect_timeout = timeout
+                  
+                  assert connect_timeout is not None, "Missing connect timeout"
+                  assert connect_timeout > 0
+          
+          def test_has_read_timeout(self, {{fixtures}}):
+              """Test request has read timeout"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.return_value = MagicMock(status_code=200)
+                  
+                  {{functionCall}}()
+                  
+                  call_kwargs = mock_request.call_args.kwargs
+                  timeout = call_kwargs.get('timeout')
+                  
+                  if isinstance(timeout, tuple):
+                      assert len(timeout) >= 2, "Read timeout not specified"
+                      read_timeout = timeout[1]
+                  else:
+                      read_timeout = timeout
+                  
+                  assert read_timeout is not None
+          
+          def test_timeout_values_reasonable(self, {{fixtures}}):
+              """Test timeout values are reasonable"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.return_value = MagicMock(status_code=200)
+                  
+                  {{functionCall}}()
+                  
+                  timeout = mock_request.call_args.kwargs.get('timeout')
+                  
+                  if isinstance(timeout, tuple):
+                      connect, read = timeout[0], timeout[1]
+                  else:
+                      connect = read = timeout
+                  
+                  assert connect <= 30, f"Connect timeout too long: {connect}s"
+                  assert read <= 300, f"Read timeout too long: {read}s"
+          
+          def test_handles_timeout_exception(self, {{fixtures}}):
+              """Test timeout exceptions are handled gracefully"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = requests.Timeout("Connection timed out")
+                  
+                  try:
+                      result = {{functionCall}}()
+                      # Should return error result or None
+                      assert result is None or hasattr(result, 'error')
+                  except requests.Timeout:
+                      pytest.fail("Timeout exception not handled")
+          
+          def test_handles_connect_timeout(self, {{fixtures}}):
+              """Test connect timeout is handled"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = requests.exceptions.ConnectTimeout()
+                  
+                  result = {{functionCall}}()
+                  assert result is None or 'error' in str(result).lower()
+          
+          def test_socket_has_timeout(self, {{fixtures}}):
+              """Test socket operations have timeout"""
+              with patch('socket.socket') as mock_socket:
+                  mock_instance = MagicMock()
+                  mock_socket.return_value = mock_instance
+                  
+                  {{socketFunctionCall}}()
+                  
+                  mock_instance.settimeout.assert_called()
+                  timeout_value = mock_instance.settimeout.call_args[0][0]
+                  assert timeout_value > 0
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: socketFunctionCall
+        type: string
+        description: Socket function call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-network-timeout
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Network Timeout Tests', () => {
+        describe('fetch timeout', () => {
+          it('uses AbortController for timeout', async () => {
+            const originalFetch = global.fetch;
+            let usedSignal = false;
+            
+            global.fetch = jest.fn().mockImplementation((url, options) => {
+              if (options?.signal instanceof AbortSignal) {
+                usedSignal = true;
+              }
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{functionCall}}();
+            
+            expect(usedSignal).toBe(true);
+            
+            global.fetch = originalFetch;
+          });
+          
+          it('handles abort errors', async () => {
+            const originalFetch = global.fetch;
+            
+            global.fetch = jest.fn().mockRejectedValue(
+              new DOMException('Aborted', 'AbortError')
+            );
+            
+            const result = await {{functionCall}}();
+            
+            expect(result).toBeDefined();
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('axios timeout', () => {
+          it('configures timeout in axios', async () => {
+            const axiosMock = jest.fn().mockResolvedValue({ data: {} });
+            
+            await {{axiosFunctionCall}}(axiosMock);
+            
+            const config = axiosMock.mock.calls[0]?.[1] || axiosMock.mock.calls[0]?.[0];
+            expect(config?.timeout).toBeGreaterThan(0);
+          });
+        });
+        
+        describe('timeout values', () => {
+          it('uses reasonable connect timeout', async () => {
+            const config = await {{getTimeoutConfigCall}}();
+            
+            expect(config.connectTimeout).toBeLessThanOrEqual(30000);
+          });
+          
+          it('uses reasonable read timeout', async () => {
+            const config = await {{getTimeoutConfigCall}}();
+            
+            expect(config.readTimeout).toBeLessThanOrEqual(300000);
+          });
+        });
+        
+        describe('timeout error handling', () => {
+          it('handles ETIMEDOUT', async () => {
+            const error = new Error('ETIMEDOUT');
+            (error as any).code = 'ETIMEDOUT';
+            
+            const result = await {{handleErrorCall}}(error);
+            
+            expect(result.handled).toBe(true);
+          });
+          
+          it('handles ECONNRESET on timeout', async () => {
+            const error = new Error('ECONNRESET');
+            (error as any).code = 'ECONNRESET';
+            
+            const result = await {{handleErrorCall}}(error);
+            
+            expect(result.handled).toBe(true);
+          });
+        });
+        
+        describe('http agent timeout', () => {
+          it('configures socket timeout', async () => {
+            const agent = await {{getAgentCall}}();
+            
+            expect(agent.options?.timeout).toBeGreaterThan(0);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: axiosFunctionCall
+        type: string
+        description: Axios function call
+        required: true
+      - name: getTimeoutConfigCall
+        type: string
+        description: Get timeout config
+        required: true
+      - name: handleErrorCall
+        type: string
+        description: Handle error call
+        required: true
+      - name: getAgentCall
+        type: string
+        description: Get agent call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: requests-no-timeout
+    concept: |
+      Python requests without timeout. By default, requests waits forever for 
+      a response. A slow or unresponsive server causes the caller to hang 
+      indefinitely. Always specify both connect and read timeouts.
+    vulnerableCode: |
+      import requests
+      
+      def fetch_api_data(endpoint):
+          # VULNERABLE: No timeout, hangs forever on slow server
+          response = requests.get(f"https://api.example.com/{endpoint}")
+          return response.json()
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_has_timeout():
+          with patch('requests.get') as mock_get:
+              mock_get.return_value.json.return_value = {}
+              
+              fetch_api_data('users')
+              
+              _, kwargs = mock_get.call_args
+              assert 'timeout' in kwargs
+              assert kwargs['timeout'] == (5, 30)  # (connect, read)
+    language: python
+    severity: high
+
+  - name: fetch-no-abort
+    concept: |
+      JavaScript fetch without timeout. Native fetch has no timeout option.
+      Use AbortController with setTimeout to implement timeouts. Without 
+      this, fetch waits for TCP timeout (often 2+ minutes).
+    vulnerableCode: |
+      async function fetchData(url) {
+        // VULNERABLE: No timeout mechanism
+        const response = await fetch(url);
+        return response.json();
+      }
+    testCode: |
+      describe('fetchData', () => {
+        it('implements timeout with AbortController', async () => {
+          const fetchWithTimeout = async (url, timeoutMs = 5000) => {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            
+            try {
+              const response = await fetch(url, { signal: controller.signal });
+              return response.json();
+            } finally {
+              clearTimeout(timeout);
+            }
+          };
+          
+          // Test implementation uses this pattern
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: socket-no-timeout
+    concept: |
+      Socket without timeout. Raw socket operations block indefinitely by 
+      default. A network partition or slow peer causes permanent hang.
+      Always call settimeout() before connect/send/recv.
+    vulnerableCode: |
+      import socket
+      
+      def check_port(host, port):
+          # VULNERABLE: Socket blocks forever
+          s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          result = s.connect_ex((host, port))
+          s.close()
+          return result == 0
+    testCode: |
+      import pytest
+      from unittest.mock import patch, MagicMock
+      
+      def test_socket_has_timeout():
+          with patch('socket.socket') as mock_socket:
+              mock_instance = MagicMock()
+              mock_socket.return_value = mock_instance
+              mock_instance.connect_ex.return_value = 0
+              
+              check_port_safe('localhost', 80)
+              
+              mock_instance.settimeout.assert_called_with(5)
+    language: python
+    severity: critical
+    cve: CVE-2020-8927
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

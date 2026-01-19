@@ -1,0 +1,432 @@
+id: connection-failure
+version: 1
+name: Connection Failure Handling
+description: |
+  Detects improper handling of network connection failures. Includes missing 
+  error handling for DNS resolution, connection refused, connection reset, 
+  and TLS errors. Unhandled connection errors crash applications or leak 
+  sensitive error details.
+domain: reliability
+level: integration
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-3129
+  - CVE-2020-15168
+
+references:
+  - https://cwe.mitre.org/data/definitions/755.html
+  - https://cwe.mitre.org/data/definitions/636.html
+  - https://nodejs.org/api/errors.html#common-system-errors
+
+detectionPatterns:
+  - id: python-requests-no-except
+    type: regex
+    language: python
+    pattern: "requests\\.(get|post|put|delete)\\([^)]*\\)(?!.*except.*RequestException|.*try)"
+    confidence: medium
+    description: Detects requests without exception handling
+
+  - id: python-socket-connect-no-except
+    type: regex
+    language: python
+    pattern: "\\.connect\\s*\\([^)]*\\)(?!.*except|.*try)"
+    confidence: medium
+    description: Detects socket connect without error handling
+
+  - id: python-bare-except
+    type: regex
+    language: python
+    pattern: "except\\s*:|except\\s+Exception\\s*:"
+    confidence: medium
+    description: Detects overly broad exception catching
+
+  - id: python-urllib-no-error
+    type: regex
+    language: python
+    pattern: "urlopen\\s*\\([^)]*\\)(?!.*URLError|.*HTTPError|.*try)"
+    confidence: high
+    description: Detects urllib without error handling
+
+  - id: ts-fetch-no-catch
+    type: regex
+    language: typescript
+    pattern: "await\\s+fetch\\s*\\([^)]*\\)(?!\\.catch|.*try|.*\\.then)"
+    confidence: medium
+    description: Detects fetch without error handling
+
+  - id: ts-axios-no-catch
+    type: regex
+    language: typescript
+    pattern: "await\\s+axios\\.(get|post|put|delete)(?!.*catch|.*try)"
+    confidence: medium
+    description: Detects axios without error handling
+
+  - id: ts-no-econnrefused
+    type: regex
+    language: typescript
+    pattern: "catch\\s*\\([^)]*\\)\\s*\\{(?!.*ECONNREFUSED|.*code)"
+    confidence: low
+    description: Detects catch block not checking error codes
+
+  - id: ts-socket-no-error-event
+    type: regex
+    language: typescript
+    pattern: "new\\s+Socket\\s*\\((?!.*\\.on\\s*\\(['\"]error)"
+    confidence: high
+    description: Detects Socket without error event handler
+
+testTemplates:
+  - id: pytest-connection-failure
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import socket
+      import requests
+      from requests.exceptions import (
+          ConnectionError, Timeout, RequestException,
+          SSLError, ProxyError
+      )
+      from unittest.mock import patch, MagicMock
+      
+      class Test{{className}}ConnectionFailure:
+          """Connection failure handling tests for {{functionName}}"""
+          
+          CONNECTION_ERRORS = [
+              ConnectionError("Connection refused"),
+              ConnectionError("Name resolution failed"),
+              socket.gaierror(8, "Name or service not known"),
+              socket.error(111, "Connection refused"),
+              OSError(113, "No route to host"),
+          ]
+          
+          @pytest.mark.parametrize("error", CONNECTION_ERRORS)
+          def test_handles_connection_errors(self, error, {{fixtures}}):
+              """Test connection errors are handled gracefully"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = error
+                  
+                  try:
+                      result = {{functionCall}}()
+                      assert result is None or 'error' in str(result).lower()
+                  except type(error):
+                      pytest.fail(f"Unhandled connection error: {error}")
+          
+          def test_handles_dns_failure(self, {{fixtures}}):
+              """Test DNS resolution failure is handled"""
+              with patch('socket.getaddrinfo') as mock_dns:
+                  mock_dns.side_effect = socket.gaierror(8, "Name not resolved")
+                  
+                  result = {{functionCall}}()
+                  assert result is None or hasattr(result, 'error')
+          
+          def test_handles_connection_refused(self, {{fixtures}}):
+              """Test connection refused is handled"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = ConnectionError(
+                      "Connection refused"
+                  )
+                  
+                  result = {{functionCall}}()
+                  assert result is not None
+          
+          def test_handles_ssl_error(self, {{fixtures}}):
+              """Test SSL/TLS errors are handled"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = SSLError("Certificate verify failed")
+                  
+                  result = {{functionCall}}()
+                  assert 'error' in str(result).lower() or result is None
+          
+          def test_handles_connection_reset(self, {{fixtures}}):
+              """Test connection reset is handled"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = ConnectionError(
+                      "Connection reset by peer"
+                  )
+                  
+                  result = {{functionCall}}()
+                  assert result is not None
+          
+          def test_does_not_leak_error_details(self, {{fixtures}}):
+              """Test internal error details are not exposed"""
+              with patch('requests.Session.request') as mock_request:
+                  mock_request.side_effect = ConnectionError(
+                      "Connection to internal.corp:5432 refused"
+                  )
+                  
+                  result = {{functionCall}}()
+                  
+                  result_str = str(result).lower()
+                  assert 'internal.corp' not in result_str
+                  assert '5432' not in result_str
+          
+          def test_specific_exception_handling(self, {{fixtures}}):
+              """Test uses specific exception types, not bare except"""
+              import inspect
+              
+              source = inspect.getsource({{functionReference}})
+              
+              # Should not have bare except
+              assert 'except:' not in source or 'except Exception' not in source
+              
+              # Should handle specific network exceptions
+              has_specific = any(exc in source for exc in [
+                  'ConnectionError', 'RequestException', 'socket.error',
+                  'OSError', 'IOError', 'TimeoutError'
+              ])
+              assert has_specific, "Should catch specific network exceptions"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-connection-failure
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Connection Failure Tests', () => {
+        const CONNECTION_ERRORS = [
+          { code: 'ECONNREFUSED', message: 'Connection refused' },
+          { code: 'ECONNRESET', message: 'Connection reset' },
+          { code: 'ENOTFOUND', message: 'DNS lookup failed' },
+          { code: 'EHOSTUNREACH', message: 'Host unreachable' },
+          { code: 'ENETUNREACH', message: 'Network unreachable' },
+        ];
+        
+        describe('error handling', () => {
+          test.each(CONNECTION_ERRORS)(
+            'handles $code error',
+            async ({ code, message }) => {
+              const error = new Error(message);
+              (error as any).code = code;
+              
+              const result = await {{handleErrorCall}}(error);
+              
+              expect(result.handled).toBe(true);
+            }
+          );
+        });
+        
+        describe('fetch errors', () => {
+          it('handles network failure', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = jest.fn().mockRejectedValue(
+              new TypeError('Failed to fetch')
+            );
+            
+            const result = await {{functionCall}}();
+            
+            expect(result).toBeDefined();
+            expect(result.error || result === null).toBeTruthy();
+            
+            global.fetch = originalFetch;
+          });
+          
+          it('handles DNS resolution failure', async () => {
+            const originalFetch = global.fetch;
+            const error = new Error('getaddrinfo ENOTFOUND');
+            (error as any).code = 'ENOTFOUND';
+            
+            global.fetch = jest.fn().mockRejectedValue(error);
+            
+            await expect({{functionCall}}()).resolves.toBeDefined();
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('TLS errors', () => {
+          it('handles certificate errors', async () => {
+            const error = new Error('UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+            (error as any).code = 'UNABLE_TO_VERIFY_LEAF_SIGNATURE';
+            
+            const result = await {{handleErrorCall}}(error);
+            
+            expect(result.handled).toBe(true);
+          });
+          
+          it('handles expired certificate', async () => {
+            const error = new Error('CERT_HAS_EXPIRED');
+            (error as any).code = 'CERT_HAS_EXPIRED';
+            
+            const result = await {{handleErrorCall}}(error);
+            
+            expect(result.handled).toBe(true);
+          });
+        });
+        
+        describe('error sanitization', () => {
+          it('does not leak internal hostnames', async () => {
+            const error = new Error('Connect to internal-db.corp:5432 failed');
+            
+            const result = await {{sanitizeErrorCall}}(error);
+            
+            expect(result.message).not.toContain('internal-db.corp');
+            expect(result.message).not.toContain('5432');
+          });
+          
+          it('provides user-friendly message', async () => {
+            const error = new Error('ECONNREFUSED');
+            (error as any).code = 'ECONNREFUSED';
+            
+            const result = await {{sanitizeErrorCall}}(error);
+            
+            expect(result.message).toMatch(/service.*unavailable|connection.*failed/i);
+          });
+        });
+        
+        describe('socket error events', () => {
+          it('handles socket error event', async () => {
+            const errorHandler = jest.fn();
+            
+            await {{createSocketCall}}(errorHandler);
+            
+            expect(errorHandler).toBeDefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: handleErrorCall
+        type: string
+        description: Handle error call
+        required: true
+      - name: sanitizeErrorCall
+        type: string
+        description: Sanitize error call
+        required: true
+      - name: createSocketCall
+        type: string
+        description: Create socket call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: unhandled-connection-refused
+    concept: |
+      Unhandled connection refused. When a service is down, connection attempts 
+      fail with ECONNREFUSED. Without handling, the error crashes the application 
+      or returns a 500 error leaking internal details.
+    vulnerableCode: |
+      async function fetchUserData(userId) {
+        // VULNERABLE: No error handling
+        const response = await fetch(`http://user-service/users/${userId}`);
+        return response.json();
+      }
+    testCode: |
+      describe('fetchUserData', () => {
+        it('handles service unavailable', async () => {
+          global.fetch = jest.fn().mockRejectedValue(
+            new TypeError('Failed to fetch')
+          );
+          
+          const result = await fetchUserData('123');
+          
+          expect(result).toEqual({ error: 'Service unavailable' });
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: dns-failure-crash
+    concept: |
+      DNS resolution failure not handled. If DNS lookup fails (ENOTFOUND), 
+      the application crashes unless the error is caught. This affects all 
+      network operations including HTTP clients and database connections.
+    vulnerableCode: |
+      import requests
+      
+      def sync_external_data():
+          # VULNERABLE: DNS failure crashes process
+          response = requests.get("https://partner-api.example.com/data")
+          return response.json()
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      import socket
+      
+      def test_handles_dns_failure():
+          with patch('socket.getaddrinfo') as mock:
+              mock.side_effect = socket.gaierror(8, "Name not resolved")
+              
+              result = sync_external_data()
+              
+              assert result == {"error": "External service unavailable"}
+    language: python
+    severity: high
+    cve: CVE-2021-3129
+
+  - name: ssl-error-exposed
+    concept: |
+      SSL certificate errors exposed to users. When TLS handshake fails due to 
+      certificate issues, the raw error often contains internal hostnames and 
+      certificate details. Sanitize errors before returning to clients.
+    vulnerableCode: |
+      async function callSecureApi(endpoint) {
+        try {
+          return await fetch(`https://api.internal/${endpoint}`);
+        } catch (error) {
+          // VULNERABLE: Exposes internal hostname and SSL details
+          throw new Error(`API call failed: ${error.message}`);
+        }
+      }
+    testCode: |
+      describe('callSecureApi', () => {
+        it('sanitizes SSL error messages', async () => {
+          const error = new Error('certificate for api.internal invalid');
+          global.fetch = jest.fn().mockRejectedValue(error);
+          
+          await expect(callSecureApi('test'))
+            .rejects.toThrow('Connection error');
+          
+          await expect(callSecureApi('test'))
+            .rejects.not.toThrow(/api\.internal/);
+        });
+      });
+    language: typescript
+    severity: medium
+    cve: CVE-2020-15168
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

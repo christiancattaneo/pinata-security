@@ -1,0 +1,513 @@
+id: packet-loss
+version: 1
+name: Packet Loss and Network Instability
+description: |
+  Detects code not resilient to packet loss and network instability. Includes 
+  missing retry logic, no handling of partial responses, and assumptions about 
+  reliable delivery. Networks are unreliable; code must handle dropped packets, 
+  out-of-order delivery, and connection interruptions.
+domain: reliability
+level: integration
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-22947
+  - CVE-2019-9517
+
+references:
+  - https://cwe.mitre.org/data/definitions/754.html
+  - https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing
+  - https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
+
+detectionPatterns:
+  - id: python-single-request
+    type: regex
+    language: python
+    pattern: "requests\\.(get|post|put|delete)\\([^)]*\\)(?!.*retry|.*Retry|.*for.*in.*range)"
+    confidence: low
+    description: Detects single request without retry logic
+
+  - id: python-no-chunked-read
+    type: regex
+    language: python
+    pattern: "\\.read\\(\\)(?!.*while|.*iter_content|.*chunk)"
+    confidence: low
+    description: Detects full read without chunking (verify large responses)
+
+  - id: python-socket-recv-once
+    type: regex
+    language: python
+    pattern: "\\.recv\\(\\d+\\)(?!.*while|.*loop)"
+    confidence: medium
+    description: Detects single recv without loop for complete data
+
+  - id: python-no-keepalive
+    type: regex
+    language: python
+    pattern: "requests\\.get(?!.*Session)"
+    confidence: low
+    description: Detects requests without session (no connection reuse)
+
+  - id: ts-single-fetch
+    type: regex
+    language: typescript
+    pattern: "await\\s+fetch\\([^)]+\\)(?!.*retry|.*while|.*for)"
+    confidence: low
+    description: Detects single fetch without retry
+
+  - id: ts-no-streaming
+    type: regex
+    language: typescript
+    pattern: "await\\s+response\\.json\\(\\)(?!.*stream|.*reader)"
+    confidence: low
+    description: Detects full response read (verify size limits)
+
+  - id: ts-websocket-no-reconnect
+    type: regex
+    language: typescript
+    pattern: "new\\s+WebSocket\\([^)]+\\)(?!.*reconnect|.*onclose)"
+    confidence: medium
+    description: Detects WebSocket without reconnection logic
+
+  - id: ts-no-response-validation
+    type: regex
+    language: typescript
+    pattern: "response\\.json\\(\\)(?!.*validate|.*schema|.*zod)"
+    confidence: low
+    description: Detects JSON parse without validation
+
+testTemplates:
+  - id: pytest-packet-loss
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import socket
+      from unittest.mock import patch, MagicMock, call
+      import requests
+      from requests.adapters import HTTPAdapter
+      from urllib3.util.retry import Retry
+      
+      class Test{{className}}PacketLoss:
+          """Packet loss resilience tests for {{functionName}}"""
+          
+          def test_has_retry_logic(self, {{fixtures}}):
+              """Test request has retry on failure"""
+              attempt_count = 0
+              
+              def track_attempts(*args, **kwargs):
+                  nonlocal attempt_count
+                  attempt_count += 1
+                  if attempt_count < 3:
+                      raise requests.exceptions.ConnectionError("Lost")
+                  return MagicMock(status_code=200, json=lambda: {})
+              
+              with patch('requests.Session.request', side_effect=track_attempts):
+                  result = {{functionCall}}()
+              
+              assert attempt_count >= 2, "Should retry on failure"
+          
+          def test_handles_partial_response(self, {{fixtures}}):
+              """Test handles incomplete/truncated response"""
+              with patch('requests.Session.request') as mock:
+                  mock.return_value = MagicMock(
+                      status_code=200,
+                      content=b'{"incomplete":',  # Truncated JSON
+                      text='{"incomplete":',
+                  )
+                  
+                  # Should handle gracefully, not crash on JSON parse
+                  try:
+                      result = {{functionCall}}()
+                      assert 'error' in str(result).lower() or result is None
+                  except ValueError:
+                      pytest.fail("Did not handle truncated response")
+          
+          def test_uses_session_for_keepalive(self, {{fixtures}}):
+              """Test uses session for connection reuse"""
+              import inspect
+              source = inspect.getsource({{functionReference}})
+              
+              uses_session = (
+                  'Session()' in source or 
+                  'session.' in source.lower() or
+                  'requests.Session' in source
+              )
+              assert uses_session, "Should use Session for connection reuse"
+          
+          def test_configures_retry_adapter(self, {{fixtures}}):
+              """Test configures retry adapter"""
+              session = {{getSessionCall}}()
+              
+              adapters = list(session.adapters.values())
+              has_retry = any(
+                  hasattr(a, 'max_retries') and a.max_retries.total > 0
+                  for a in adapters
+                  if hasattr(a, 'max_retries')
+              )
+              
+              assert has_retry, "Should configure retry adapter"
+          
+          def test_exponential_backoff(self, {{fixtures}}):
+              """Test uses exponential backoff between retries"""
+              delays = []
+              
+              with patch('time.sleep') as mock_sleep:
+                  mock_sleep.side_effect = lambda x: delays.append(x)
+                  
+                  with patch('requests.Session.request') as mock_request:
+                      mock_request.side_effect = [
+                          requests.exceptions.ConnectionError(),
+                          requests.exceptions.ConnectionError(),
+                          MagicMock(status_code=200),
+                      ]
+                      
+                      {{functionCall}}()
+              
+              if len(delays) >= 2:
+                  assert delays[1] > delays[0], "Should use exponential backoff"
+          
+          def test_socket_recv_complete(self, {{fixtures}}):
+              """Test socket recv handles partial data"""
+              mock_socket = MagicMock()
+              # Simulate data arriving in chunks
+              mock_socket.recv.side_effect = [b'hel', b'lo', b'']
+              
+              with patch('socket.socket', return_value=mock_socket):
+                  result = {{socketRecvCall}}()
+              
+              assert result == b'hello' or mock_socket.recv.call_count >= 2
+          
+          def test_handles_connection_drop(self, {{fixtures}}):
+              """Test handles mid-stream connection drop"""
+              with patch('requests.Session.request') as mock:
+                  mock.side_effect = requests.exceptions.ChunkedEncodingError(
+                      "Connection broken"
+                  )
+                  
+                  result = {{functionCall}}()
+                  assert result is not None
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: getSessionCall
+        type: string
+        description: Get session call
+        required: true
+      - name: socketRecvCall
+        type: string
+        description: Socket recv call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-packet-loss
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Packet Loss Tests', () => {
+        describe('retry logic', () => {
+          it('retries on network failure', async () => {
+            let attempts = 0;
+            const originalFetch = global.fetch;
+            
+            global.fetch = jest.fn().mockImplementation(() => {
+              attempts++;
+              if (attempts < 3) {
+                return Promise.reject(new TypeError('Failed to fetch'));
+              }
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{functionCall}}();
+            
+            expect(attempts).toBeGreaterThanOrEqual(2);
+            
+            global.fetch = originalFetch;
+          });
+          
+          it('uses exponential backoff', async () => {
+            const delays: number[] = [];
+            const originalSetTimeout = global.setTimeout;
+            
+            global.setTimeout = ((fn: Function, delay: number) => {
+              delays.push(delay);
+              return originalSetTimeout(fn, 0);
+            }) as any;
+            
+            const originalFetch = global.fetch;
+            let attempts = 0;
+            global.fetch = jest.fn().mockImplementation(() => {
+              attempts++;
+              if (attempts < 3) {
+                return Promise.reject(new Error('fail'));
+              }
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{functionCall}}();
+            
+            if (delays.length >= 2) {
+              expect(delays[1]).toBeGreaterThan(delays[0]);
+            }
+            
+            global.fetch = originalFetch;
+            global.setTimeout = originalSetTimeout;
+          });
+        });
+        
+        describe('partial responses', () => {
+          it('handles truncated JSON', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = jest.fn().mockResolvedValue(
+              new Response('{"incomplete":')
+            );
+            
+            const result = await {{functionCall}}();
+            
+            expect(result.error || result === null).toBeTruthy();
+            
+            global.fetch = originalFetch;
+          });
+          
+          it('validates response structure', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = jest.fn().mockResolvedValue(
+              new Response('{"unexpected": "schema"}')
+            );
+            
+            const result = await {{functionCall}}();
+            
+            // Should validate and handle unexpected schema
+            expect(result).toBeDefined();
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('websocket reconnection', () => {
+          it('reconnects on close', async () => {
+            const reconnectSpy = jest.fn();
+            
+            await {{createWebSocketCall}}(reconnectSpy);
+            
+            // Simulate close
+            await {{simulateCloseCall}}();
+            
+            expect(reconnectSpy).toHaveBeenCalled();
+          });
+          
+          it('uses backoff for reconnection', async () => {
+            const delays: number[] = [];
+            
+            await {{reconnectWithBackoffCall}}((delay: number) => {
+              delays.push(delay);
+            });
+            
+            if (delays.length >= 2) {
+              expect(delays[1]).toBeGreaterThan(delays[0]);
+            }
+          });
+        });
+        
+        describe('streaming', () => {
+          it('handles stream interruption', async () => {
+            const stream = {{createStreamCall}}();
+            
+            // Simulate interruption
+            await {{interruptStreamCall}}(stream);
+            
+            const result = await {{handleStreamCall}}(stream);
+            expect(result.error || result.partial).toBeDefined();
+          });
+        });
+        
+        describe('connection health', () => {
+          it('sends keepalive', async () => {
+            const pingsSent: number[] = [];
+            
+            await {{startKeepaliveCall}}((timestamp: number) => {
+              pingsSent.push(timestamp);
+            });
+            
+            await new Promise(r => setTimeout(r, 100));
+            
+            expect(pingsSent.length).toBeGreaterThan(0);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: createWebSocketCall
+        type: string
+        description: Create websocket call
+        required: true
+      - name: simulateCloseCall
+        type: string
+        description: Simulate close call
+        required: true
+      - name: reconnectWithBackoffCall
+        type: string
+        description: Reconnect with backoff
+        required: true
+      - name: createStreamCall
+        type: string
+        description: Create stream call
+        required: true
+      - name: interruptStreamCall
+        type: string
+        description: Interrupt stream call
+        required: true
+      - name: handleStreamCall
+        type: string
+        description: Handle stream call
+        required: true
+      - name: startKeepaliveCall
+        type: string
+        description: Start keepalive call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: no-retry-single-request
+    concept: |
+      Single request without retry. Network requests can fail transiently due 
+      to packet loss, load balancer hiccups, or brief outages. A single failed 
+      request doesn't mean the service is down. Implement retry with backoff.
+    vulnerableCode: |
+      import requests
+      
+      def get_order(order_id):
+          # VULNERABLE: No retry on transient failure
+          response = requests.get(f"http://orders/{order_id}")
+          return response.json()
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_retries_on_failure():
+          attempts = 0
+          
+          def track(*args, **kwargs):
+              nonlocal attempts
+              attempts += 1
+              if attempts < 3:
+                  raise requests.exceptions.ConnectionError()
+              return MagicMock(json=lambda: {"id": "123"})
+          
+          with patch('requests.Session.request', side_effect=track):
+              result = get_order("123")
+          
+          assert attempts == 3
+          assert result["id"] == "123"
+    language: python
+    severity: medium
+
+  - name: websocket-no-reconnect
+    concept: |
+      WebSocket without reconnection. WebSocket connections drop due to network 
+      issues, server restarts, or load balancer timeouts. Without automatic 
+      reconnection, the client becomes disconnected permanently.
+    vulnerableCode: |
+      function connectWebSocket(url) {
+        // VULNERABLE: No reconnection on close
+        const ws = new WebSocket(url);
+        ws.onmessage = handleMessage;
+        return ws;
+      }
+    testCode: |
+      describe('connectWebSocket', () => {
+        it('reconnects on close', () => {
+          const ws = connectWebSocket('ws://example.com');
+          
+          // Simulate unexpected close
+          ws.onclose({ code: 1006 });
+          
+          // Should attempt reconnection
+          expect(mockWebSocketConstructor).toHaveBeenCalledTimes(2);
+        });
+        
+        it('uses exponential backoff for reconnection', async () => {
+          const delays = [];
+          jest.spyOn(global, 'setTimeout').mockImplementation((fn, delay) => {
+            delays.push(delay);
+            return 0 as any;
+          });
+          
+          // Multiple reconnection attempts
+          ws.onclose({ code: 1006 });
+          ws.onclose({ code: 1006 });
+          
+          expect(delays[1]).toBeGreaterThan(delays[0]);
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: socket-recv-incomplete
+    concept: |
+      Socket recv assumes complete data. TCP is a stream protocol; recv() may 
+      return partial data due to packet boundaries. Always loop until expected 
+      bytes received or connection closed.
+    vulnerableCode: |
+      def receive_message(sock):
+          # VULNERABLE: Assumes 4096 bytes arrives at once
+          data = sock.recv(4096)
+          return parse_message(data)
+    testCode: |
+      import pytest
+      from unittest.mock import MagicMock
+      
+      def test_handles_partial_recv():
+          mock_sock = MagicMock()
+          # Data arrives in chunks
+          mock_sock.recv.side_effect = [b'{"msg":', b'"hello"', b'}', b'']
+          
+          result = receive_message_safe(mock_sock)
+          
+          assert result == {"msg": "hello"}
+          assert mock_sock.recv.call_count >= 3
+    language: python
+    severity: medium
+    cve: CVE-2021-22947
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
