@@ -1,0 +1,426 @@
+id: deadlock
+version: 1
+name: Deadlock
+description: |
+  Detects deadlock vulnerabilities where threads or processes wait indefinitely 
+  for resources held by each other. Includes lock ordering issues, nested lock 
+  acquisition, and database transaction deadlocks. Deadlocks cause application 
+  hangs and require careful lock ordering or timeout mechanisms.
+domain: concurrency
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/833.html
+  - https://en.wikipedia.org/wiki/Deadlock
+  - https://docs.oracle.com/javase/tutorial/essential/concurrency/deadlock.html
+
+detectionPatterns:
+  - id: python-nested-locks
+    type: regex
+    language: python
+    pattern: "with\\s+\\w+lock.*:.*with\\s+\\w+lock"
+    confidence: high
+    description: Detects nested lock acquisition
+
+  - id: python-multiple-acquire
+    type: regex
+    language: python
+    pattern: "\\.acquire\\(\\).*\\.acquire\\(\\)"
+    confidence: high
+    description: Detects multiple lock acquisitions
+
+  - id: python-lock-no-timeout
+    type: regex
+    language: python
+    pattern: "\\.acquire\\(\\)(?!.*timeout)"
+    confidence: medium
+    description: Detects lock acquire without timeout
+
+  - id: python-rlock-missing
+    type: regex
+    language: python
+    pattern: "Lock\\(\\)(?!.*RLock)"
+    confidence: low
+    description: Detects Lock usage (consider RLock for reentrant)
+
+  - id: ts-async-mutex-nested
+    type: regex
+    language: typescript
+    pattern: "await\\s+\\w+\\.acquire.*await\\s+\\w+\\.acquire"
+    confidence: high
+    description: Detects nested async mutex acquisition
+
+  - id: ts-promise-circular
+    type: regex
+    language: typescript
+    pattern: "await\\s+\\w+\\s*;.*await\\s+\\w+"
+    confidence: low
+    description: Detects multiple awaits (verify no circular deps)
+
+  - id: ts-database-transaction
+    type: regex
+    language: typescript
+    pattern: "transaction.*transaction|BEGIN.*BEGIN"
+    confidence: high
+    description: Detects nested database transactions
+
+testTemplates:
+  - id: pytest-deadlock
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      import time
+      
+      class Test{{className}}Deadlock:
+          """Deadlock tests for {{functionName}}"""
+          
+          def test_no_deadlock_under_contention(self, {{fixtures}}):
+              """Test no deadlock with concurrent lock acquisition"""
+              completed = []
+              errors = []
+              timeout = 5
+              
+              def worker(worker_id):
+                  try:
+                      result = {{functionCall}}(worker_id)
+                      completed.append(worker_id)
+                  except Exception as e:
+                      errors.append(str(e))
+              
+              threads = [threading.Thread(target=worker, args=(i,)) for i in range(10)]
+              start = time.time()
+              
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join(timeout=timeout)
+              
+              elapsed = time.time() - start
+              
+              # All should complete without deadlock
+              assert len(completed) == 10, f"Possible deadlock: only {len(completed)}/10 completed"
+              assert elapsed < timeout, f"Timeout suggests deadlock"
+          
+          def test_lock_ordering(self, {{fixtures}}):
+              """Test consistent lock ordering prevents deadlock"""
+              results = []
+              
+              def task_a():
+                  {{lockAFirstCall}}()
+                  results.append('A')
+              
+              def task_b():
+                  {{lockBFirstCall}}()
+                  results.append('B')
+              
+              t1 = threading.Thread(target=task_a)
+              t2 = threading.Thread(target=task_b)
+              
+              t1.start()
+              t2.start()
+              
+              t1.join(timeout=2)
+              t2.join(timeout=2)
+              
+              assert len(results) == 2, "Deadlock detected in lock ordering"
+          
+          def test_lock_timeout(self, {{fixtures}}):
+              """Test lock acquisition has timeout"""
+              lock_held = threading.Event()
+              
+              def holder():
+                  {{acquireLockCall}}()
+                  lock_held.set()
+                  time.sleep(10)
+                  {{releaseLockCall}}()
+              
+              holder_thread = threading.Thread(target=holder)
+              holder_thread.start()
+              lock_held.wait()
+              
+              # Should timeout, not block forever
+              start = time.time()
+              result = {{tryAcquireCall}}(timeout=1)
+              elapsed = time.time() - start
+              
+              assert elapsed < 2, "Lock should timeout, not block"
+              assert result is False, "Should return False on timeout"
+          
+          def test_reentrant_safe(self, {{fixtures}}):
+              """Test reentrant lock acquisition is safe"""
+              def recursive_function(depth=3):
+                  {{acquireLockCall}}()
+                  if depth > 0:
+                      recursive_function(depth - 1)
+                  {{releaseLockCall}}()
+              
+              # Should not deadlock on reentrant acquisition
+              recursive_function()
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: lockAFirstCall
+        type: string
+        description: Lock A first function
+        required: true
+      - name: lockBFirstCall
+        type: string
+        description: Lock B first function
+        required: true
+      - name: acquireLockCall
+        type: string
+        description: Acquire lock function
+        required: true
+      - name: releaseLockCall
+        type: string
+        description: Release lock function
+        required: true
+      - name: tryAcquireCall
+        type: string
+        description: Try acquire with timeout
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-deadlock
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Deadlock', () => {
+        jest.setTimeout(10000);
+        
+        describe('contention handling', () => {
+          it('completes all operations under contention', async () => {
+            const promises = Array(10).fill(null).map((_, i) => 
+              {{functionCall}}(i)
+            );
+            
+            const results = await Promise.race([
+              Promise.all(promises),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Deadlock timeout')), 5000)
+              ),
+            ]);
+            
+            expect(results).toHaveLength(10);
+          });
+        });
+        
+        describe('lock timeout', () => {
+          it('returns error on lock timeout instead of hanging', async () => {
+            // First acquire should succeed
+            const lock = await {{acquireLockCall}}();
+            
+            // Second acquire should timeout, not hang
+            await expect(
+              {{acquireLockWithTimeoutCall}}(100)
+            ).rejects.toThrow('timeout');
+            
+            await {{releaseLockCall}}(lock);
+          });
+        });
+        
+        describe('database transactions', () => {
+          it('handles transaction deadlock gracefully', async () => {
+            const results = await Promise.allSettled([
+              {{transactionACall}}(),
+              {{transactionBCall}}(),
+            ]);
+            
+            // At least one should succeed, failed one should retry
+            const successes = results.filter(r => r.status === 'fulfilled');
+            expect(successes.length).toBeGreaterThanOrEqual(1);
+          });
+          
+          it('uses consistent lock ordering', async () => {
+            // Both functions should acquire locks in same order
+            const [r1, r2] = await Promise.all([
+              {{orderedLockCall}}(['A', 'B']),
+              {{orderedLockCall}}(['A', 'B']),
+            ]);
+            
+            expect(r1).toBeDefined();
+            expect(r2).toBeDefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: acquireLockCall
+        type: string
+        description: Acquire lock function
+        required: true
+      - name: acquireLockWithTimeoutCall
+        type: string
+        description: Acquire with timeout
+        required: true
+      - name: releaseLockCall
+        type: string
+        description: Release lock function
+        required: true
+      - name: transactionACall
+        type: string
+        description: Transaction A function
+        required: true
+      - name: transactionBCall
+        type: string
+        description: Transaction B function
+        required: true
+      - name: orderedLockCall
+        type: string
+        description: Ordered lock function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-lock-ordering
+    concept: |
+      Deadlock from inconsistent lock ordering. Thread A acquires lock1 then lock2, 
+      while Thread B acquires lock2 then lock1. If both acquire their first lock 
+      simultaneously, deadlock occurs. Always acquire locks in consistent order.
+    vulnerableCode: |
+      lock1 = threading.Lock()
+      lock2 = threading.Lock()
+      
+      def task_a():
+          with lock1:  # Gets lock1
+              time.sleep(0.1)
+              with lock2:  # Waits for lock2
+                  pass
+      
+      def task_b():
+          with lock2:  # Gets lock2
+              time.sleep(0.1)
+              with lock1:  # Waits for lock1 - DEADLOCK
+                  pass
+    testCode: |
+      import threading
+      
+      def test_no_deadlock():
+          completed = []
+          
+          t1 = threading.Thread(target=task_a)
+          t2 = threading.Thread(target=task_b)
+          
+          t1.start()
+          t2.start()
+          
+          t1.join(timeout=2)
+          t2.join(timeout=2)
+          
+          assert not t1.is_alive() and not t2.is_alive()
+    language: python
+    severity: critical
+
+  - name: database-transaction-deadlock
+    concept: |
+      Database deadlock from conflicting row locks. Two transactions update rows 
+      in opposite order. Transaction A locks row 1, Transaction B locks row 2, 
+      then each tries to lock the other's row. Use consistent ordering or retry.
+    vulnerableCode: |
+      async function transferA() {
+        await db.transaction(async (tx) => {
+          await tx.update('accounts', { id: 1 }, { balance: 100 });
+          await delay(100);
+          await tx.update('accounts', { id: 2 }, { balance: 200 });
+        });
+      }
+      
+      async function transferB() {
+        await db.transaction(async (tx) => {
+          await tx.update('accounts', { id: 2 }, { balance: 300 });
+          await delay(100);
+          await tx.update('accounts', { id: 1 }, { balance: 400 });  // DEADLOCK
+        });
+      }
+    testCode: |
+      describe('transfer deadlock', () => {
+        it('handles deadlock with retry', async () => {
+          const results = await Promise.allSettled([
+            transferA(),
+            transferB(),
+          ]);
+          
+          // Should retry and succeed
+          const successes = results.filter(r => r.status === 'fulfilled');
+          expect(successes.length).toBe(2);
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: async-mutex-deadlock
+    concept: |
+      Deadlock with async mutexes. Even in single-threaded JavaScript, async 
+      mutexes can deadlock if acquired in inconsistent order across different 
+      async functions.
+    vulnerableCode: |
+      const mutexA = new Mutex();
+      const mutexB = new Mutex();
+      
+      async function operationX() {
+        const releaseA = await mutexA.acquire();
+        await delay(10);
+        const releaseB = await mutexB.acquire();  // Waits
+        releaseB();
+        releaseA();
+      }
+      
+      async function operationY() {
+        const releaseB = await mutexB.acquire();
+        await delay(10);
+        const releaseA = await mutexA.acquire();  // DEADLOCK
+        releaseA();
+        releaseB();
+      }
+    testCode: |
+      describe('async mutex deadlock', () => {
+        it('uses consistent lock ordering', async () => {
+          await Promise.race([
+            Promise.all([operationX(), operationY()]),
+            delay(1000).then(() => { throw new Error('Deadlock'); }),
+          ]);
+        });
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

@@ -1,0 +1,423 @@
+id: race-condition
+version: 1
+name: Race Condition
+description: |
+  Detects race conditions where concurrent execution leads to unpredictable 
+  behavior. Includes time-of-check-time-of-use (TOCTOU), read-modify-write 
+  races, and signal handler races. Race conditions cause data corruption, 
+  security vulnerabilities, and intermittent failures.
+domain: concurrency
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-4034
+  - CVE-2016-5195
+  - CVE-2020-8835
+
+references:
+  - https://cwe.mitre.org/data/definitions/362.html
+  - https://cwe.mitre.org/data/definitions/367.html
+  - https://en.wikipedia.org/wiki/Time-of-check_to_time-of-use
+
+detectionPatterns:
+  - id: python-toctou-file
+    type: regex
+    language: python
+    pattern: "if\\s+(os\\.path\\.exists|os\\.path\\.isfile|os\\.access).*:.*open\\("
+    confidence: high
+    description: Detects file TOCTOU (check then open)
+
+  - id: python-non-atomic-increment
+    type: regex
+    language: python
+    pattern: "\\w+\\s*\\+=\\s*1|\\w+\\s*=\\s*\\w+\\s*\\+\\s*1"
+    confidence: low
+    description: Detects non-atomic increment (verify locking)
+    negativePattern: "with\\s+\\w*lock|Lock\\(\\)|atomic"
+
+  - id: python-shared-state-no-lock
+    type: regex
+    language: python
+    pattern: "global\\s+\\w+|self\\.\\w+\\s*="
+    confidence: low
+    description: Detects shared state modification (verify thread-safety)
+
+  - id: python-signal-handler
+    type: regex
+    language: python
+    pattern: "signal\\.signal\\s*\\("
+    confidence: medium
+    description: Detects signal handlers (verify async-signal-safety)
+
+  - id: ts-async-shared-state
+    type: regex
+    language: typescript
+    pattern: "let\\s+\\w+.*await.*\\w+\\s*="
+    confidence: medium
+    description: Detects shared state modified across awaits
+
+  - id: ts-check-then-act
+    type: regex
+    language: typescript
+    pattern: "if\\s*\\(.*exists.*\\).*\\{.*create|if\\s*\\(!.*\\).*\\{"
+    confidence: medium
+    description: Detects check-then-act pattern
+
+  - id: ts-promise-race-unsafe
+    type: regex
+    language: typescript
+    pattern: "Promise\\.all.*\\w+\\s*\\+=|await.*\\w+\\+\\+"
+    confidence: high
+    description: Detects concurrent modification in promises
+
+testTemplates:
+  - id: pytest-race-condition
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      import time
+      from concurrent.futures import ThreadPoolExecutor
+      
+      class Test{{className}}RaceCondition:
+          """Race condition tests for {{functionName}}"""
+          
+          def test_concurrent_modification(self, {{fixtures}}):
+              """Test concurrent access doesn't corrupt data"""
+              errors = []
+              results = []
+              
+              def worker():
+                  for _ in range(100):
+                      try:
+                          result = {{functionCall}}()
+                          results.append(result)
+                      except Exception as e:
+                          errors.append(str(e))
+              
+              threads = [threading.Thread(target=worker) for _ in range(10)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              assert len(errors) == 0, f"Errors during concurrent access: {errors[:5]}"
+          
+          def test_toctou_resistance(self, {{fixtures}}):
+              """Test time-of-check-time-of-use is prevented"""
+              created = []
+              
+              def create_if_not_exists():
+                  if not {{existsCall}}():
+                      time.sleep(0.001)  # Widen race window
+                      result = {{createCall}}()
+                      created.append(result)
+              
+              threads = [threading.Thread(target=create_if_not_exists) for _ in range(10)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # Only one should succeed
+              successes = [c for c in created if c is not None]
+              assert len(successes) <= 1, "TOCTOU vulnerability detected"
+          
+          def test_atomic_operations(self, {{fixtures}}):
+              """Test operations are atomic"""
+              initial = {{getValueCall}}()
+              iterations = 1000
+              num_threads = 10
+              
+              def increment():
+                  for _ in range(iterations):
+                      {{atomicIncrementCall}}()
+              
+              with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                  futures = [executor.submit(increment) for _ in range(num_threads)]
+                  for f in futures:
+                      f.result()
+              
+              expected = initial + (iterations * num_threads)
+              actual = {{getValueCall}}()
+              assert actual == expected, f"Lost updates: expected {expected}, got {actual}"
+          
+          def test_read_consistency(self, {{fixtures}}):
+              """Test reads are consistent during writes"""
+              inconsistencies = []
+              stop = threading.Event()
+              
+              def writer():
+                  while not stop.is_set():
+                      {{writeCall}}({"a": 1, "b": 2, "sum": 3})
+                      {{writeCall}}({"a": 10, "b": 20, "sum": 30})
+              
+              def reader():
+                  for _ in range(1000):
+                      data = {{readCall}}()
+                      if data["a"] + data["b"] != data["sum"]:
+                          inconsistencies.append(data)
+              
+              writer_thread = threading.Thread(target=writer)
+              reader_threads = [threading.Thread(target=reader) for _ in range(5)]
+              
+              writer_thread.start()
+              for t in reader_threads:
+                  t.start()
+              for t in reader_threads:
+                  t.join()
+              stop.set()
+              writer_thread.join()
+              
+              assert len(inconsistencies) == 0, f"Read inconsistencies: {inconsistencies[:5]}"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: existsCall
+        type: string
+        description: Exists check function
+        required: true
+      - name: createCall
+        type: string
+        description: Create function
+        required: true
+      - name: getValueCall
+        type: string
+        description: Get value function
+        required: true
+      - name: atomicIncrementCall
+        type: string
+        description: Atomic increment function
+        required: true
+      - name: writeCall
+        type: string
+        description: Write function
+        required: true
+      - name: readCall
+        type: string
+        description: Read function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-race-condition
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Race Condition', () => {
+        describe('concurrent modification', () => {
+          it('handles concurrent access safely', async () => {
+            const errors: Error[] = [];
+            
+            const promises = Array(100).fill(null).map(async () => {
+              try {
+                await {{functionCall}}();
+              } catch (e) {
+                errors.push(e as Error);
+              }
+            });
+            
+            await Promise.all(promises);
+            expect(errors).toHaveLength(0);
+          });
+          
+          it('maintains data integrity under load', async () => {
+            const initial = await {{getValueCall}}();
+            const iterations = 100;
+            
+            const promises = Array(iterations).fill(null).map(() => 
+              {{atomicIncrementCall}}()
+            );
+            
+            await Promise.all(promises);
+            
+            const final = await {{getValueCall}}();
+            expect(final).toBe(initial + iterations);
+          });
+        });
+        
+        describe('check-then-act', () => {
+          it('uses atomic create-if-not-exists', async () => {
+            const key = 'unique_' + Date.now();
+            
+            const creates = Array(10).fill(null).map(() => 
+              {{createIfNotExistsCall}}(key)
+            );
+            
+            const results = await Promise.allSettled(creates);
+            const successes = results.filter(r => r.status === 'fulfilled');
+            
+            expect(successes.length).toBe(1);
+          });
+        });
+        
+        describe('async state', () => {
+          it('does not leak state between async operations', async () => {
+            const results = await Promise.all([
+              {{isolatedCall}}('request1'),
+              {{isolatedCall}}('request2'),
+              {{isolatedCall}}('request3'),
+            ]);
+            
+            expect(results[0]).toContain('request1');
+            expect(results[1]).toContain('request2');
+            expect(results[2]).toContain('request3');
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: getValueCall
+        type: string
+        description: Get value function
+        required: true
+      - name: atomicIncrementCall
+        type: string
+        description: Atomic increment function
+        required: true
+      - name: createIfNotExistsCall
+        type: string
+        description: Atomic create function
+        required: true
+      - name: isolatedCall
+        type: string
+        description: Isolated operation function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-toctou-file
+    concept: |
+      TOCTOU in file operations. Checking if a file exists then opening it 
+      creates a race window. Another process could create/delete the file 
+      between check and use. Use atomic operations or handle errors.
+    vulnerableCode: |
+      def safe_write(path, data):
+          # VULNERABLE: TOCTOU race condition
+          if not os.path.exists(path):
+              with open(path, 'w') as f:
+                  f.write(data)
+    testCode: |
+      import pytest
+      import threading
+      
+      def test_toctou():
+          results = []
+          
+          def writer():
+              safe_write('/tmp/test', 'data')
+              results.append('created')
+          
+          threads = [threading.Thread(target=writer) for _ in range(10)]
+          for t in threads:
+              t.start()
+          for t in threads:
+              t.join()
+          
+          # Only one should succeed
+          assert results.count('created') == 1
+    language: python
+    severity: high
+    cve: CVE-2021-4034
+
+  - name: javascript-async-race
+    concept: |
+      Race condition in async JavaScript. State read before an await may be 
+      stale after the await returns. Other async operations can modify shared 
+      state during the suspension.
+    vulnerableCode: |
+      let balance = 1000;
+      
+      async function withdraw(amount) {
+        // VULNERABLE: balance may change during await
+        if (balance >= amount) {
+          await processPayment();
+          balance -= amount;
+          return true;
+        }
+        return false;
+      }
+    testCode: |
+      describe('withdraw race', () => {
+        it('prevents double-spend', async () => {
+          balance = 100;
+          
+          const [r1, r2] = await Promise.all([
+            withdraw(100),
+            withdraw(100),
+          ]);
+          
+          expect(r1 !== r2).toBe(true);
+          expect(balance).toBeGreaterThanOrEqual(0);
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: dirty-cow
+    concept: |
+      Dirty COW (CVE-2016-5195) race condition. The Linux kernel copy-on-write 
+      mechanism had a race between the check for write access and the actual 
+      write. This allowed privilege escalation by writing to read-only files.
+    vulnerableCode: |
+      # This is a kernel-level vulnerability, shown for education
+      # The race was between madvise(MADV_DONTNEED) and write()
+      # allowing writes to read-only memory mappings
+    testCode: |
+      import pytest
+      
+      def test_readonly_file_protected():
+          """Verify read-only files cannot be written"""
+          import os
+          import tempfile
+          
+          with tempfile.NamedTemporaryFile(delete=False) as f:
+              path = f.name
+          
+          os.chmod(path, 0o444)
+          
+          with pytest.raises(PermissionError):
+              with open(path, 'w') as f:
+                  f.write('data')
+    language: python
+    severity: critical
+    cve: CVE-2016-5195
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

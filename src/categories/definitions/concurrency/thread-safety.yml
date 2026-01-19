@@ -1,0 +1,395 @@
+id: thread-safety
+version: 1
+name: Thread Safety
+description: |
+  Detects thread-safety violations where code is not safe for concurrent 
+  execution. Includes unsafe singleton patterns, mutable shared state, 
+  non-thread-safe collections, and lazy initialization races. Thread-unsafe 
+  code causes data corruption and crashes in concurrent environments.
+domain: concurrency
+level: unit
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+references:
+  - https://cwe.mitre.org/data/definitions/366.html
+  - https://cwe.mitre.org/data/definitions/543.html
+  - https://docs.python.org/3/library/threading.html
+
+detectionPatterns:
+  - id: python-mutable-default
+    type: regex
+    language: python
+    pattern: "def\\s+\\w+\\(.*=\\s*\\[\\]|def\\s+\\w+\\(.*=\\s*\\{\\}"
+    confidence: high
+    description: Detects mutable default arguments (thread-unsafe)
+
+  - id: python-class-variable-mutable
+    type: regex
+    language: python
+    pattern: "class\\s+\\w+:.*\\n\\s+\\w+\\s*=\\s*\\[\\]|class\\s+\\w+:.*\\n\\s+\\w+\\s*=\\s*\\{\\}"
+    confidence: high
+    description: Detects mutable class variables (shared across instances)
+
+  - id: python-global-dict-list
+    type: regex
+    language: python
+    pattern: "^[A-Z_]+\\s*=\\s*\\{\\}|^[A-Z_]+\\s*=\\s*\\[\\]"
+    confidence: medium
+    description: Detects global mutable state
+
+  - id: python-lazy-init-no-lock
+    type: regex
+    language: python
+    pattern: "if\\s+self\\._\\w+\\s+is\\s+None:.*self\\._\\w+\\s*="
+    confidence: high
+    description: Detects lazy initialization without locking
+
+  - id: ts-singleton-unsafe
+    type: regex
+    language: typescript
+    pattern: "static\\s+instance.*if.*!.*instance"
+    confidence: high
+    description: Detects unsafe singleton pattern
+
+  - id: ts-module-state
+    type: regex
+    language: typescript
+    pattern: "^let\\s+\\w+\\s*=|^var\\s+\\w+\\s*="
+    confidence: medium
+    description: Detects module-level mutable state
+
+  - id: ts-prototype-modification
+    type: regex
+    language: typescript
+    pattern: "\\.prototype\\.\\w+\\s*="
+    confidence: high
+    description: Detects prototype modification (globally visible)
+
+testTemplates:
+  - id: pytest-thread-safety
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      from concurrent.futures import ThreadPoolExecutor
+      
+      class Test{{className}}ThreadSafety:
+          """Thread safety tests for {{functionName}}"""
+          
+          def test_concurrent_instance_creation(self, {{fixtures}}):
+              """Test concurrent object creation is safe"""
+              instances = []
+              
+              def create():
+                  instance = {{createInstanceCall}}()
+                  instances.append(id(instance))
+              
+              threads = [threading.Thread(target=create) for _ in range(100)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # All should be unique instances
+              assert len(set(instances)) == 100
+          
+          def test_singleton_thread_safety(self, {{fixtures}}):
+              """Test singleton returns same instance from all threads"""
+              instances = []
+              
+              def get_singleton():
+                  instance = {{getSingletonCall}}()
+                  instances.append(id(instance))
+              
+              threads = [threading.Thread(target=get_singleton) for _ in range(100)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # All should be same instance
+              assert len(set(instances)) == 1
+          
+          def test_no_mutable_default_sharing(self, {{fixtures}}):
+              """Test mutable defaults don't leak between calls"""
+              result1 = {{functionWithDefaultCall}}()
+              result1.append('a')
+              
+              result2 = {{functionWithDefaultCall}}()
+              
+              assert 'a' not in result2, "Mutable default is shared"
+          
+          def test_collection_thread_safety(self, {{fixtures}}):
+              """Test collection operations are thread-safe"""
+              errors = []
+              
+              def modify():
+                  for i in range(100):
+                      try:
+                          {{addToCollectionCall}}(i)
+                          {{removeFromCollectionCall}}(i)
+                      except (RuntimeError, KeyError) as e:
+                          errors.append(str(e))
+              
+              with ThreadPoolExecutor(max_workers=10) as executor:
+                  futures = [executor.submit(modify) for _ in range(10)]
+                  for f in futures:
+                      f.result()
+              
+              assert len(errors) == 0, f"Collection errors: {errors[:5]}"
+          
+          def test_lazy_init_thread_safety(self, {{fixtures}}):
+              """Test lazy initialization is thread-safe"""
+              results = []
+              
+              def access():
+                  value = {{getLazyValueCall}}()
+                  results.append(value)
+              
+              threads = [threading.Thread(target=access) for _ in range(100)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # All should get same value
+              assert len(set(results)) == 1
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: createInstanceCall
+        type: string
+        description: Create instance function
+        required: true
+      - name: getSingletonCall
+        type: string
+        description: Get singleton function
+        required: true
+      - name: functionWithDefaultCall
+        type: string
+        description: Function with default arg
+        required: true
+      - name: addToCollectionCall
+        type: string
+        description: Add to collection function
+        required: true
+      - name: removeFromCollectionCall
+        type: string
+        description: Remove from collection
+        required: true
+      - name: getLazyValueCall
+        type: string
+        description: Get lazy value function
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-thread-safety
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Thread Safety', () => {
+        describe('singleton pattern', () => {
+          it('returns same instance from concurrent calls', async () => {
+            const instances = await Promise.all(
+              Array(100).fill(null).map(() => {{getSingletonCall}}())
+            );
+            
+            const uniqueIds = new Set(instances.map(i => i.id));
+            expect(uniqueIds.size).toBe(1);
+          });
+        });
+        
+        describe('module state isolation', () => {
+          it('does not share state between requests', async () => {
+            const results = await Promise.all([
+              {{processRequestCall}}({ id: 'req1' }),
+              {{processRequestCall}}({ id: 'req2' }),
+              {{processRequestCall}}({ id: 'req3' }),
+            ]);
+            
+            expect(results[0].requestId).toBe('req1');
+            expect(results[1].requestId).toBe('req2');
+            expect(results[2].requestId).toBe('req3');
+          });
+        });
+        
+        describe('async-safe collections', () => {
+          it('handles concurrent modifications', async () => {
+            const operations = Array(100).fill(null).map((_, i) => 
+              i % 2 === 0 
+                ? {{addCall}}(i)
+                : {{removeCall}}(i - 1)
+            );
+            
+            await expect(Promise.all(operations)).resolves.not.toThrow();
+          });
+        });
+        
+        describe('lazy initialization', () => {
+          it('initializes exactly once', async () => {
+            let initCount = 0;
+            const mockInit = jest.fn(() => {
+              initCount++;
+              return { value: 'initialized' };
+            });
+            
+            const results = await Promise.all(
+              Array(10).fill(null).map(() => {{getLazyCall}}(mockInit))
+            );
+            
+            expect(initCount).toBe(1);
+            expect(results.every(r => r.value === 'initialized')).toBe(true);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: getSingletonCall
+        type: string
+        description: Get singleton function
+        required: true
+      - name: processRequestCall
+        type: string
+        description: Process request function
+        required: true
+      - name: addCall
+        type: string
+        description: Add function
+        required: true
+      - name: removeCall
+        type: string
+        description: Remove function
+        required: true
+      - name: getLazyCall
+        type: string
+        description: Get lazy function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: python-mutable-default
+    concept: |
+      Mutable default argument bug. Python evaluates default arguments once at 
+      function definition. A mutable default (list/dict) is shared across all 
+      calls, causing unexpected behavior and thread-safety issues.
+    vulnerableCode: |
+      def add_item(item, items=[]):  # VULNERABLE
+          items.append(item)
+          return items
+      
+      # add_item('a') returns ['a']
+      # add_item('b') returns ['a', 'b'] - unexpected!
+    testCode: |
+      def test_no_shared_default():
+          result1 = add_item('a')
+          result2 = add_item('b')
+          
+          assert result1 == ['a']
+          assert result2 == ['b']  # Should not include 'a'
+    language: python
+    severity: high
+
+  - name: lazy-singleton-race
+    concept: |
+      Lazy singleton initialization race. Double-checked locking without proper 
+      synchronization can return partially constructed objects. Use thread-safe 
+      initialization patterns.
+    vulnerableCode: |
+      class Config:
+          _instance = None
+          
+          @classmethod
+          def get_instance(cls):
+              # VULNERABLE: Race between check and assignment
+              if cls._instance is None:
+                  cls._instance = cls._load_config()
+              return cls._instance
+    testCode: |
+      import threading
+      
+      def test_singleton_thread_safe():
+          instances = []
+          
+          def get():
+              instances.append(id(Config.get_instance()))
+          
+          threads = [threading.Thread(target=get) for _ in range(100)]
+          for t in threads:
+              t.start()
+          for t in threads:
+              t.join()
+          
+          assert len(set(instances)) == 1
+    language: python
+    severity: medium
+
+  - name: nodejs-module-state
+    concept: |
+      Shared module state in Node.js. Module-level variables are shared across 
+      all requests in a Node.js server. State written by one request is visible 
+      to others, causing data leaks and race conditions.
+    vulnerableCode: |
+      // VULNERABLE: Module-level state shared across requests
+      let currentUser = null;
+      
+      export function setUser(user) {
+        currentUser = user;
+      }
+      
+      export async function doAction() {
+        await someAsyncOperation();
+        // currentUser may have changed!
+        return { user: currentUser };
+      }
+    testCode: |
+      describe('module state', () => {
+        it('isolates state per request', async () => {
+          const [r1, r2] = await Promise.all([
+            (async () => {
+              setUser({ id: 1 });
+              await delay(10);
+              return doAction();
+            })(),
+            (async () => {
+              setUser({ id: 2 });
+              return doAction();
+            })(),
+          ]);
+          
+          expect(r1.user.id).toBe(1);
+          expect(r2.user.id).toBe(2);
+        });
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
