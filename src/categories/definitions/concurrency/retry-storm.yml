@@ -1,0 +1,490 @@
+id: retry-storm
+version: 1
+name: Retry Storm
+description: |
+  Detects retry logic vulnerable to retry storms. When services fail, aggressive 
+  retries from many clients can overwhelm recovering systems. Implement exponential 
+  backoff with jitter, circuit breakers, and retry budgets to prevent cascading 
+  failures.
+domain: concurrency
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-23017
+
+references:
+  - https://aws.amazon.com/builders-library/timeouts-retries-and-backoff-with-jitter/
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://docs.microsoft.com/en-us/azure/architecture/patterns/retry
+
+detectionPatterns:
+  - id: python-retry-no-backoff
+    type: regex
+    language: python
+    pattern: "while.*retry|for.*range.*retry(?!.*sleep|.*backoff)"
+    confidence: high
+    description: Detects retry loops without backoff
+
+  - id: python-fixed-delay-retry
+    type: regex
+    language: python
+    pattern: "time\\.sleep\\(\\d+\\).*retry|retry.*time\\.sleep\\(\\d+\\)"
+    confidence: medium
+    description: Detects fixed delay retries (no exponential backoff)
+
+  - id: python-infinite-retry
+    type: regex
+    language: python
+    pattern: "while\\s+True.*retry|retries\\s*=\\s*-1"
+    confidence: high
+    description: Detects potentially infinite retry loops
+
+  - id: python-no-jitter
+    type: regex
+    language: python
+    pattern: "backoff.*\\*\\s*2(?!.*random|.*jitter)"
+    confidence: medium
+    description: Detects exponential backoff without jitter
+
+  - id: ts-retry-no-backoff
+    type: regex
+    language: typescript
+    pattern: "while.*retry|for.*retry(?!.*setTimeout|.*delay)"
+    confidence: high
+    description: Detects retry loops without delay
+
+  - id: ts-immediate-retry
+    type: regex
+    language: typescript
+    pattern: "catch.*\\{[^}]*retry|retry\\(\\)(?!.*delay|.*backoff)"
+    confidence: high
+    description: Detects immediate retry on error
+
+  - id: ts-fixed-timeout-retry
+    type: regex
+    language: typescript
+    pattern: "setTimeout\\([^,]+,\\s*\\d+\\).*retry"
+    confidence: medium
+    description: Detects fixed timeout retries
+
+  - id: ts-no-max-retries
+    type: regex
+    language: typescript
+    pattern: "async.*retry(?!.*maxRetries|.*limit|.*count)"
+    confidence: medium
+    description: Detects retry without max limit
+
+testTemplates:
+  - id: pytest-retry-storm
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import random
+      from unittest.mock import patch, MagicMock
+      
+      class Test{{className}}RetryStorm:
+          """Retry storm prevention tests for {{functionName}}"""
+          
+          def test_exponential_backoff(self, {{fixtures}}):
+              """Test retry delays increase exponentially"""
+              delays = []
+              
+              with patch('time.sleep') as mock_sleep:
+                  mock_sleep.side_effect = lambda x: delays.append(x)
+                  
+                  with patch('{{targetModule}}.{{operationName}}') as mock_op:
+                      mock_op.side_effect = Exception("Service unavailable")
+                      
+                      try:
+                          {{functionCall}}()
+                      except Exception:
+                          pass
+              
+              assert len(delays) >= 2, "Should retry at least twice"
+              
+              for i in range(1, len(delays)):
+                  assert delays[i] >= delays[i-1], f"Delay should increase: {delays}"
+          
+          def test_has_jitter(self, {{fixtures}}):
+              """Test backoff includes jitter to prevent thundering herd"""
+              delay_sets = []
+              
+              for _ in range(5):
+                  delays = []
+                  
+                  with patch('time.sleep') as mock_sleep:
+                      mock_sleep.side_effect = lambda x: delays.append(x)
+                      
+                      with patch('{{targetModule}}.{{operationName}}') as mock_op:
+                          mock_op.side_effect = Exception("Fail")
+                          
+                          try:
+                              {{functionCall}}()
+                          except Exception:
+                              pass
+                  
+                  delay_sets.append(tuple(delays))
+              
+              # With jitter, delay sequences should vary
+              unique_sequences = len(set(delay_sets))
+              assert unique_sequences > 1, "No jitter detected - all retry patterns identical"
+          
+          def test_max_retries_limit(self, {{fixtures}}):
+              """Test retries have a maximum limit"""
+              call_count = 0
+              
+              with patch('{{targetModule}}.{{operationName}}') as mock_op:
+                  def count_calls(*args, **kwargs):
+                      nonlocal call_count
+                      call_count += 1
+                      raise Exception("Always fail")
+                  
+                  mock_op.side_effect = count_calls
+                  
+                  try:
+                      {{functionCall}}()
+                  except Exception:
+                      pass
+              
+              assert call_count <= {{maxRetries}}, f"Too many retries: {call_count}"
+          
+          def test_circuit_breaker(self, {{fixtures}}):
+              """Test circuit breaker prevents retry storms"""
+              failures = []
+              
+              with patch('{{targetModule}}.{{operationName}}') as mock_op:
+                  mock_op.side_effect = Exception("Service down")
+                  
+                  for i in range(20):
+                      try:
+                          {{functionCall}}()
+                      except Exception as e:
+                          failures.append((i, str(e)))
+              
+              # After circuit opens, should fail fast
+              late_failures = [f for f in failures if f[0] > 10]
+              if late_failures:
+                  # Should see "circuit open" type errors, not original errors
+                  assert any('circuit' in str(f[1]).lower() or 'breaker' in str(f[1]).lower() 
+                           for f in late_failures), "Circuit breaker not detected"
+          
+          def test_retry_budget(self, {{fixtures}}):
+              """Test retry budget limits total retries across requests"""
+              total_attempts = 0
+              
+              with patch('{{targetModule}}.{{operationName}}') as mock_op:
+                  def track_attempts(*args, **kwargs):
+                      nonlocal total_attempts
+                      total_attempts += 1
+                      raise Exception("Fail")
+                  
+                  mock_op.side_effect = track_attempts
+                  
+                  # Make many concurrent requests
+                  for _ in range(10):
+                      try:
+                          {{functionCall}}()
+                      except Exception:
+                          pass
+              
+              # Total should be bounded (not 10 requests × max retries each)
+              assert total_attempts < 10 * {{maxRetries}}, "No retry budget detected"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: targetModule
+        type: string
+        description: Module containing the operation
+        required: true
+      - name: operationName
+        type: string
+        description: Operation being retried
+        required: true
+      - name: maxRetries
+        type: number
+        description: Maximum retry count
+        required: false
+        defaultValue: 5
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-retry-storm
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Retry Storm Tests', () => {
+        describe('exponential backoff', () => {
+          it('increases delay between retries', async () => {
+            const delays: number[] = [];
+            const originalSetTimeout = global.setTimeout;
+            
+            global.setTimeout = ((fn: Function, delay: number) => {
+              delays.push(delay);
+              return originalSetTimeout(fn, 0);
+            }) as any;
+            
+            try {
+              await {{functionCall}}();
+            } catch {}
+            
+            global.setTimeout = originalSetTimeout;
+            
+            for (let i = 1; i < delays.length; i++) {
+              expect(delays[i]).toBeGreaterThanOrEqual(delays[i - 1]);
+            }
+          });
+        });
+        
+        describe('jitter', () => {
+          it('adds randomness to prevent thundering herd', async () => {
+            const delaySets: number[][] = [];
+            
+            for (let run = 0; run < 5; run++) {
+              const delays: number[] = [];
+              const originalSetTimeout = global.setTimeout;
+              
+              global.setTimeout = ((fn: Function, delay: number) => {
+                delays.push(delay);
+                return originalSetTimeout(fn, 0);
+              }) as any;
+              
+              try {
+                await {{functionCall}}();
+              } catch {}
+              
+              global.setTimeout = originalSetTimeout;
+              delaySets.push(delays);
+            }
+            
+            const uniquePatterns = new Set(delaySets.map(d => d.join(',')));
+            expect(uniquePatterns.size).toBeGreaterThan(1);
+          });
+        });
+        
+        describe('max retries', () => {
+          it('limits retry attempts', async () => {
+            let attempts = 0;
+            
+            const mockOperation = jest.fn().mockImplementation(() => {
+              attempts++;
+              throw new Error('Always fail');
+            });
+            
+            try {
+              await {{retryableCall}}(mockOperation);
+            } catch {}
+            
+            expect(attempts).toBeLessThanOrEqual({{maxRetries}});
+          });
+        });
+        
+        describe('circuit breaker', () => {
+          it('opens after threshold failures', async () => {
+            const errors: string[] = [];
+            
+            for (let i = 0; i < 20; i++) {
+              try {
+                await {{circuitBreakerCall}}();
+              } catch (e) {
+                errors.push((e as Error).message);
+              }
+            }
+            
+            const circuitOpenErrors = errors.filter(e => 
+              e.toLowerCase().includes('circuit') || 
+              e.toLowerCase().includes('open')
+            );
+            
+            expect(circuitOpenErrors.length).toBeGreaterThan(0);
+          });
+          
+          it('allows requests after reset timeout', async () => {
+            // Trigger circuit open
+            for (let i = 0; i < 10; i++) {
+              try { await {{circuitBreakerCall}}(); } catch {}
+            }
+            
+            // Wait for reset
+            await new Promise(r => setTimeout(r, {{circuitResetMs}}));
+            
+            // Should allow half-open state
+            const result = await {{circuitBreakerCall}}();
+            expect(result).toBeDefined();
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: retryableCall
+        type: string
+        description: Retryable function call
+        required: true
+      - name: circuitBreakerCall
+        type: string
+        description: Circuit breaker function
+        required: true
+      - name: maxRetries
+        type: number
+        description: Max retry count
+        required: false
+        defaultValue: 5
+      - name: circuitResetMs
+        type: number
+        description: Circuit reset time ms
+        required: false
+        defaultValue: 5000
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: immediate-retry-loop
+    concept: |
+      Immediate retry without backoff. When a service fails, retrying immediately 
+      adds load during recovery. Hundreds of clients retrying simultaneously 
+      creates a retry storm that prevents recovery.
+    vulnerableCode: |
+      def fetch_with_retry(url, max_retries=3):
+          # VULNERABLE: No delay between retries
+          for attempt in range(max_retries):
+              try:
+                  return requests.get(url)
+              except Exception:
+                  continue
+          raise Exception("All retries failed")
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_has_backoff():
+          delays = []
+          
+          with patch('time.sleep') as mock_sleep:
+              mock_sleep.side_effect = lambda x: delays.append(x)
+              
+              with patch('requests.get') as mock_get:
+                  mock_get.side_effect = Exception("Fail")
+                  
+                  try:
+                      fetch_with_retry('http://example.com')
+                  except:
+                      pass
+          
+          assert len(delays) > 0, "No backoff delay"
+          assert delays[-1] > delays[0], "Not exponential"
+    language: python
+    severity: high
+
+  - name: fixed-delay-retry
+    concept: |
+      Fixed delay retry. Using the same delay for all retries causes clients to 
+      synchronize and hit the service at the same time after each delay period.
+      Add jitter to spread out retry attempts.
+    vulnerableCode: |
+      async function fetchWithRetry(url, maxRetries = 3) {
+        for (let i = 0; i < maxRetries; i++) {
+          try {
+            return await fetch(url);
+          } catch (e) {
+            // VULNERABLE: Fixed 1 second delay
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+        throw new Error('All retries failed');
+      }
+    testCode: |
+      describe('fetchWithRetry', () => {
+        it('uses exponential backoff with jitter', async () => {
+          const delays = [];
+          const origSetTimeout = global.setTimeout;
+          
+          global.setTimeout = (fn, delay) => {
+            delays.push(delay);
+            return origSetTimeout(fn, 0);
+          };
+          
+          await fetchWithRetry('http://fail.example.com');
+          
+          // Check delays increase
+          for (let i = 1; i < delays.length; i++) {
+            expect(delays[i]).toBeGreaterThan(delays[i-1]);
+          }
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: no-circuit-breaker
+    concept: |
+      Missing circuit breaker. Without a circuit breaker, retries continue even 
+      when a service is completely down. Circuit breakers fail fast after a 
+      threshold, giving the service time to recover.
+    vulnerableCode: |
+      class ApiClient:
+          def call_api(self):
+              # VULNERABLE: No circuit breaker
+              for _ in range(5):
+                  try:
+                      return self._make_request()
+                  except Exception:
+                      time.sleep(1)
+              raise Exception("API unavailable")
+    testCode: |
+      import pytest
+      
+      def test_circuit_breaker_opens():
+          client = ApiClient()
+          failures = 0
+          circuit_open_errors = 0
+          
+          for _ in range(20):
+              try:
+                  client.call_api()
+              except Exception as e:
+                  failures += 1
+                  if 'circuit' in str(e).lower():
+                      circuit_open_errors += 1
+          
+          # After threshold, should fail fast
+          assert circuit_open_errors > 0
+    language: python
+    severity: critical
+    cve: CVE-2021-23017
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

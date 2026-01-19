@@ -1,9 +1,25 @@
 {
-  "lastUpdated": "2026-01-19T16:39:21.189Z",
+  "lastUpdated": "2026-01-19T16:46:01.252Z",
   "recentFiles": [
     {
+      "path": "tests/categories/definitions/concurrency.test.ts",
+      "lastModified": 1768841149830.1633
+    },
+    {
+      "path": "src/categories/definitions/concurrency/idempotency-missing.yml",
+      "lastModified": 1768841115109.0999
+    },
+    {
+      "path": "src/categories/definitions/concurrency/retry-storm.yml",
+      "lastModified": 1768841051605.1484
+    },
+    {
+      "path": "src/categories/definitions/concurrency/timeout-missing.yml",
+      "lastModified": 1768840981025.7039
+    },
+    {
       "path": "tests/categories/definitions/input.test.ts",
-      "lastModified": 1768840749237.3604
+      "lastModified": 1768840772126.633
     },
     {
       "path": "src/categories/definitions/input/null-undefined.yml",
@@ -16,10 +32,6 @@
     {
       "path": "src/categories/definitions/input/boundary-testing.yml",
       "lastModified": 1768840417814.508
-    },
-    {
-      "path": "tests/categories/definitions/concurrency.test.ts",
-      "lastModified": 1768838615618.467
     },
     {
       "path": "src/categories/definitions/concurrency/deadlock.yml",
@@ -37,11 +49,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "ca1288e6ae0dc32a0f13e2e0db5069d84163b734",
-    "lastCommitMessage": "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
-    "lastCommitTime": 1768838601000,
+    "lastCommit": "8d9914b0cd74d1d199446754612e5aa0ebf239e2",
+    "lastCommitMessage": "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
+    "lastCommitTime": 1768840761000,
     "uncommittedChanges": 7,
     "recentCommits": [
+      "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
       "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
       "Add 8 data domain categories",
       "Add security categories: ldap-injection, ssrf, timing-attack",

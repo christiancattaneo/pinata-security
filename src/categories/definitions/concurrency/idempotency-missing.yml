@@ -1,0 +1,465 @@
+id: idempotency-missing
+version: 1
+name: Missing Idempotency
+description: |
+  Detects operations that are not idempotent but should be. Network retries, 
+  queue redelivery, and user double-clicks can cause operations to run multiple 
+  times. Non-idempotent operations lead to duplicate charges, double posts, 
+  and data corruption.
+domain: concurrency
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2019-1010268
+
+references:
+  - https://stripe.com/docs/api/idempotent_requests
+  - https://cwe.mitre.org/data/definitions/1289.html
+  - https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/
+
+detectionPatterns:
+  - id: python-insert-no-key
+    type: regex
+    language: python
+    pattern: "\\.insert\\((?!.*idempotency|.*upsert|.*on_conflict)"
+    confidence: medium
+    description: Detects insert without idempotency key
+
+  - id: python-counter-increment
+    type: regex
+    language: python
+    pattern: "\\+=\\s*1|counter\\s*\\+|increment\\("
+    confidence: low
+    description: Detects counter increments (verify idempotency)
+
+  - id: python-payment-no-idem
+    type: regex
+    language: python
+    pattern: "charge|payment|transfer(?!.*idempotency)"
+    confidence: high
+    description: Detects payment operations without idempotency
+
+  - id: python-email-send
+    type: regex
+    language: python
+    pattern: "send_email|send_mail|smtp\\.send(?!.*already_sent|.*idempotency)"
+    confidence: medium
+    description: Detects email sending (verify deduplication)
+
+  - id: ts-post-no-idem-key
+    type: regex
+    language: typescript
+    pattern: "fetch.*POST|axios\\.post(?!.*[Ii]dempotency)"
+    confidence: medium
+    description: Detects POST without idempotency header
+
+  - id: ts-create-no-upsert
+    type: regex
+    language: typescript
+    pattern: "\\.create\\((?!.*upsert|.*findOrCreate)"
+    confidence: medium
+    description: Detects create without upsert
+
+  - id: ts-counter-update
+    type: regex
+    language: typescript
+    pattern: "\\+\\+|\\+=\\s*1|\\$inc"
+    confidence: low
+    description: Detects counter updates (verify idempotency)
+
+  - id: ts-webhook-no-dedup
+    type: regex
+    language: typescript
+    pattern: "webhook|callback(?!.*processed|.*idempotent|.*dedup)"
+    confidence: medium
+    description: Detects webhook handlers (verify deduplication)
+
+testTemplates:
+  - id: pytest-idempotency
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import uuid
+      from unittest.mock import patch, MagicMock
+      
+      class Test{{className}}Idempotency:
+          """Idempotency tests for {{functionName}}"""
+          
+          def test_duplicate_request_same_result(self, {{fixtures}}):
+              """Test identical requests produce same result"""
+              idempotency_key = str(uuid.uuid4())
+              
+              result1 = {{functionCall}}(idempotency_key=idempotency_key)
+              result2 = {{functionCall}}(idempotency_key=idempotency_key)
+              
+              assert result1 == result2, "Duplicate requests produced different results"
+          
+          def test_duplicate_request_single_effect(self, {{fixtures}}):
+              """Test duplicate requests only execute side effect once"""
+              effect_count = 0
+              
+              def track_effect():
+                  nonlocal effect_count
+                  effect_count += 1
+              
+              with patch('{{targetModule}}.{{sideEffectName}}', side_effect=track_effect):
+                  idempotency_key = str(uuid.uuid4())
+                  
+                  {{functionCall}}(idempotency_key=idempotency_key)
+                  {{functionCall}}(idempotency_key=idempotency_key)
+              
+              assert effect_count == 1, f"Side effect ran {effect_count} times"
+          
+          def test_accepts_idempotency_key(self, {{fixtures}}):
+              """Test function accepts idempotency key parameter"""
+              import inspect
+              
+              sig = inspect.signature({{functionReference}})
+              param_names = list(sig.parameters.keys())
+              
+              assert any('idempotency' in p.lower() or 'idem' in p.lower() 
+                        for p in param_names), "No idempotency key parameter"
+          
+          def test_upsert_behavior(self, {{fixtures}}):
+              """Test create operation uses upsert pattern"""
+              data = {"id": "test-123", "value": "initial"}
+              
+              # First call creates
+              result1 = {{createCall}}(data)
+              
+              # Second call updates or returns existing
+              result2 = {{createCall}}(data)
+              
+              assert result1["id"] == result2["id"], "Should return same entity"
+          
+          def test_concurrent_duplicates(self, {{fixtures}}):
+              """Test concurrent duplicate requests are handled"""
+              import threading
+              
+              results = []
+              errors = []
+              idempotency_key = str(uuid.uuid4())
+              
+              def make_request():
+                  try:
+                      result = {{functionCall}}(idempotency_key=idempotency_key)
+                      results.append(result)
+                  except Exception as e:
+                      errors.append(str(e))
+              
+              threads = [threading.Thread(target=make_request) for _ in range(5)]
+              for t in threads:
+                  t.start()
+              for t in threads:
+                  t.join()
+              
+              # All should succeed with same result OR conflict errors
+              if len(errors) == 0:
+                  unique_results = set(str(r) for r in results)
+                  assert len(unique_results) == 1, "Different results for same key"
+          
+          def test_payment_idempotency(self, {{fixtures}}):
+              """Test payment operations are idempotent"""
+              payment_id = str(uuid.uuid4())
+              amount = 100
+              
+              with patch('{{targetModule}}.process_payment') as mock_payment:
+                  mock_payment.return_value = {"status": "success"}
+                  
+                  {{paymentCall}}(payment_id, amount)
+                  {{paymentCall}}(payment_id, amount)
+              
+              assert mock_payment.call_count == 1, "Payment processed multiple times"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference for inspection
+        required: true
+      - name: targetModule
+        type: string
+        description: Target module
+        required: true
+      - name: sideEffectName
+        type: string
+        description: Side effect function name
+        required: true
+      - name: createCall
+        type: string
+        description: Create/upsert function call
+        required: true
+      - name: paymentCall
+        type: string
+        description: Payment function call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-idempotency
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      import { v4 as uuidv4 } from 'uuid';
+      
+      describe('{{className}} Idempotency Tests', () => {
+        describe('duplicate requests', () => {
+          it('returns same result for same idempotency key', async () => {
+            const idempotencyKey = uuidv4();
+            
+            const result1 = await {{functionCall}}({ idempotencyKey });
+            const result2 = await {{functionCall}}({ idempotencyKey });
+            
+            expect(result1).toEqual(result2);
+          });
+          
+          it('executes side effect only once', async () => {
+            const sideEffect = jest.fn();
+            const idempotencyKey = uuidv4();
+            
+            await {{functionCall}}({ idempotencyKey, onExecute: sideEffect });
+            await {{functionCall}}({ idempotencyKey, onExecute: sideEffect });
+            
+            expect(sideEffect).toHaveBeenCalledTimes(1);
+          });
+        });
+        
+        describe('POST requests', () => {
+          it('includes Idempotency-Key header', async () => {
+            const originalFetch = global.fetch;
+            let headers: Headers | undefined;
+            
+            global.fetch = jest.fn().mockImplementation((url, options) => {
+              headers = new Headers(options?.headers);
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{httpPostCall}}();
+            
+            expect(headers?.get('Idempotency-Key')).toBeDefined();
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('upsert pattern', () => {
+          it('creates or updates without duplicate', async () => {
+            const data = { id: 'test-123', value: 'data' };
+            
+            const result1 = await {{upsertCall}}(data);
+            const result2 = await {{upsertCall}}(data);
+            
+            expect(result1.id).toBe(result2.id);
+          });
+        });
+        
+        describe('webhook deduplication', () => {
+          it('ignores duplicate webhook events', async () => {
+            const processedCount = { value: 0 };
+            const eventId = 'evt_123';
+            
+            const handler = async (event: { id: string }) => {
+              processedCount.value++;
+              return {{webhookCall}}(event);
+            };
+            
+            await handler({ id: eventId });
+            await handler({ id: eventId });
+            
+            // Second call should be no-op
+            expect(processedCount.value).toBe(2);
+          });
+          
+          it('tracks processed event IDs', async () => {
+            const eventId = 'evt_456';
+            
+            await {{webhookCall}}({ id: eventId });
+            
+            const isProcessed = await {{checkProcessedCall}}(eventId);
+            expect(isProcessed).toBe(true);
+          });
+        });
+        
+        describe('concurrent duplicates', () => {
+          it('handles race condition on same key', async () => {
+            const idempotencyKey = uuidv4();
+            
+            const results = await Promise.allSettled([
+              {{functionCall}}({ idempotencyKey }),
+              {{functionCall}}({ idempotencyKey }),
+              {{functionCall}}({ idempotencyKey }),
+            ]);
+            
+            const fulfilled = results.filter(r => r.status === 'fulfilled');
+            
+            // All should succeed with same result
+            const values = fulfilled.map(r => (r as PromiseFulfilledResult<any>).value);
+            const uniqueValues = new Set(values.map(v => JSON.stringify(v)));
+            
+            expect(uniqueValues.size).toBe(1);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: httpPostCall
+        type: string
+        description: HTTP POST function
+        required: true
+      - name: upsertCall
+        type: string
+        description: Upsert function call
+        required: true
+      - name: webhookCall
+        type: string
+        description: Webhook handler
+        required: true
+      - name: checkProcessedCall
+        type: string
+        description: Check processed function
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: payment-double-charge
+    concept: |
+      Double charge from non-idempotent payment. Network timeouts cause client 
+      retries. Without an idempotency key, each retry creates a new charge. 
+      Always use idempotency keys for payment operations.
+    vulnerableCode: |
+      def charge_customer(customer_id, amount):
+          # VULNERABLE: No idempotency key
+          return stripe.Charge.create(
+              customer=customer_id,
+              amount=amount,
+              currency='usd'
+          )
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_payment_has_idempotency():
+          with patch('stripe.Charge.create') as mock_charge:
+              mock_charge.return_value = {'id': 'ch_123'}
+              
+              charge_customer_safe('cust_1', 1000, idempotency_key='order_123')
+              charge_customer_safe('cust_1', 1000, idempotency_key='order_123')
+              
+              # Should only create one charge
+              assert mock_charge.call_count == 1
+      
+      def test_different_keys_different_charges():
+          with patch('stripe.Charge.create') as mock_charge:
+              mock_charge.return_value = {'id': 'ch_123'}
+              
+              charge_customer_safe('cust_1', 1000, idempotency_key='order_1')
+              charge_customer_safe('cust_1', 1000, idempotency_key='order_2')
+              
+              assert mock_charge.call_count == 2
+    language: python
+    severity: critical
+
+  - name: webhook-double-processing
+    concept: |
+      Double processing of webhook events. Webhooks can be redelivered due to 
+      timeouts or errors. Without deduplication, the same order/payment gets 
+      processed multiple times.
+    vulnerableCode: |
+      app.post('/webhook', async (req, res) => {
+        const event = req.body;
+        
+        // VULNERABLE: No deduplication check
+        await processOrder(event.data);
+        
+        res.sendStatus(200);
+      });
+    testCode: |
+      describe('webhook handler', () => {
+        it('deduplicates events', async () => {
+          const processedOrders = [];
+          
+          const event = { id: 'evt_123', data: { orderId: 'order_1' } };
+          
+          await webhookHandler(event);
+          await webhookHandler(event);
+          
+          expect(processedOrders.filter(o => o === 'order_1')).toHaveLength(1);
+        });
+        
+        it('stores processed event IDs', async () => {
+          const event = { id: 'evt_456', data: {} };
+          
+          await webhookHandler(event);
+          
+          const stored = await redis.get('processed:evt_456');
+          expect(stored).toBeTruthy();
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: insert-without-upsert
+    concept: |
+      Database insert without upsert. When a create operation is retried, a 
+      plain INSERT creates duplicates. Use INSERT ON CONFLICT (upsert) or 
+      check-then-insert with unique constraints.
+    vulnerableCode: |
+      def create_user(email, name):
+          # VULNERABLE: Retry creates duplicate
+          cursor.execute(
+              "INSERT INTO users (email, name) VALUES (%s, %s)",
+              (email, name)
+          )
+    testCode: |
+      import pytest
+      
+      def test_upsert_behavior():
+          # First call creates
+          create_user_safe('test@example.com', 'Test')
+          
+          # Second call updates or is no-op
+          create_user_safe('test@example.com', 'Test Updated')
+          
+          count = cursor.execute("SELECT COUNT(*) FROM users WHERE email = %s", ('test@example.com',))
+          assert count == 1
+    language: python
+    severity: high
+    cve: CVE-2019-1010268
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

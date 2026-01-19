@@ -32,9 +32,21 @@ describe("Concurrency Category Definitions", () => {
       expect(store.has("thread-safety")).toBe(true);
     });
 
-    it("loads exactly 3 concurrency categories", () => {
+    it("loads timeout-missing category", () => {
+      expect(store.has("timeout-missing")).toBe(true);
+    });
+
+    it("loads retry-storm category", () => {
+      expect(store.has("retry-storm")).toBe(true);
+    });
+
+    it("loads idempotency-missing category", () => {
+      expect(store.has("idempotency-missing")).toBe(true);
+    });
+
+    it("loads exactly 6 concurrency categories", () => {
       const categories = store.byDomain("concurrency");
-      expect(categories).toHaveLength(3);
+      expect(categories).toHaveLength(6);
     });
   });
 
@@ -130,6 +142,90 @@ describe("Concurrency Category Definitions", () => {
     });
   });
 
+  describe("timeout-missing category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("timeout-missing");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("concurrency");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for requests without timeout", () => {
+      const result = store.get("timeout-missing");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("timeout") || p.id.includes("requests"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("timeout-missing");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
+  describe("retry-storm category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("retry-storm");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("concurrency");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for retry without backoff", () => {
+      const result = store.get("retry-storm");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("retry") || p.id.includes("backoff"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("retry-storm");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
+  describe("idempotency-missing category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("idempotency-missing");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("concurrency");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for non-idempotent operations", () => {
+      const result = store.get("idempotency-missing");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("insert") || p.id.includes("payment") || p.id.includes("idem"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("idempotency-missing");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
   describe("search functionality", () => {
     it("finds race-condition by searching 'toctou'", () => {
       const results = store.search({ query: "toctou" });
@@ -144,6 +240,21 @@ describe("Concurrency Category Definitions", () => {
     it("finds thread-safety by searching 'singleton'", () => {
       const results = store.search({ query: "singleton" });
       expect(results.some((r) => r.category.id === "thread-safety")).toBe(true);
+    });
+
+    it("finds timeout-missing by searching 'timeout'", () => {
+      const results = store.search({ query: "timeout" });
+      expect(results.some((r) => r.category.id === "timeout-missing")).toBe(true);
+    });
+
+    it("finds retry-storm by searching 'backoff'", () => {
+      const results = store.search({ query: "backoff" });
+      expect(results.some((r) => r.category.id === "retry-storm")).toBe(true);
+    });
+
+    it("finds idempotency-missing by searching 'idempotent'", () => {
+      const results = store.search({ query: "idempotent" });
+      expect(results.some((r) => r.category.id === "idempotency-missing")).toBe(true);
     });
   });
 });

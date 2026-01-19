@@ -1,0 +1,479 @@
+id: timeout-missing
+version: 1
+name: Missing Timeout
+description: |
+  Detects operations missing timeout configurations. Network calls, database 
+  queries, file operations, and locks without timeouts can hang indefinitely, 
+  causing resource exhaustion and cascading failures. Always set explicit 
+  timeouts and handle timeout errors gracefully.
+domain: concurrency
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-8945
+  - CVE-2018-1000001
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://cwe.mitre.org/data/definitions/835.html
+  - https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html
+
+detectionPatterns:
+  - id: python-requests-no-timeout
+    type: regex
+    language: python
+    pattern: "requests\\.(get|post|put|delete|patch|head)\\([^)]*(?!timeout)"
+    confidence: high
+    description: Detects requests library calls without timeout
+
+  - id: python-urllib-no-timeout
+    type: regex
+    language: python
+    pattern: "urllib\\.request\\.urlopen\\([^)]*(?!timeout)"
+    confidence: high
+    description: Detects urllib calls without timeout
+
+  - id: python-socket-no-timeout
+    type: regex
+    language: python
+    pattern: "socket\\.(?!settimeout|setdefaulttimeout)"
+    confidence: medium
+    description: Detects socket operations (verify timeout set)
+
+  - id: python-db-no-timeout
+    type: regex
+    language: python
+    pattern: "cursor\\.execute|connection\\.execute(?!.*timeout)"
+    confidence: medium
+    description: Detects database queries (verify statement timeout)
+
+  - id: python-lock-no-timeout
+    type: regex
+    language: python
+    pattern: "\\.acquire\\(\\)|Lock\\(\\)\\.acquire\\(\\)"
+    confidence: high
+    description: Detects lock acquire without timeout
+
+  - id: ts-fetch-no-timeout
+    type: regex
+    language: typescript
+    pattern: "fetch\\([^)]*\\)(?!\\.)|await\\s+fetch\\("
+    confidence: medium
+    description: Detects fetch without AbortController timeout
+
+  - id: ts-axios-no-timeout
+    type: regex
+    language: typescript
+    pattern: "axios\\.(get|post|put|delete|patch)\\([^}]*(?!timeout)"
+    confidence: high
+    description: Detects axios calls without timeout config
+
+  - id: ts-promise-no-timeout
+    type: regex
+    language: typescript
+    pattern: "await\\s+new\\s+Promise(?!.*setTimeout|.*race)"
+    confidence: medium
+    description: Detects promises without timeout wrapper
+
+  - id: ts-db-query-no-timeout
+    type: regex
+    language: typescript
+    pattern: "\\.query\\(|\\.execute\\((?!.*timeout)"
+    confidence: medium
+    description: Detects database queries (verify timeout)
+
+testTemplates:
+  - id: pytest-timeout-missing
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import signal
+      from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+      
+      class Test{{className}}Timeout:
+          """Timeout handling tests for {{functionName}}"""
+          
+          def test_http_request_has_timeout(self, {{fixtures}}):
+              """Test HTTP requests have explicit timeout"""
+              import requests
+              from unittest.mock import patch
+              
+              with patch('requests.get') as mock_get:
+                  mock_get.return_value.status_code = 200
+                  
+                  {{httpFunctionCall}}()
+                  
+                  call_kwargs = mock_get.call_args.kwargs if mock_get.called else {}
+                  assert 'timeout' in call_kwargs, "HTTP request missing timeout"
+                  assert call_kwargs['timeout'] > 0
+          
+          def test_operation_respects_timeout(self, {{fixtures}}):
+              """Test operation completes or times out within limit"""
+              max_timeout = {{maxTimeout}}
+              
+              def run_with_timeout():
+                  start = time.time()
+                  try:
+                      {{functionCall}}()
+                  except Exception:
+                      pass
+                  return time.time() - start
+              
+              elapsed = run_with_timeout()
+              assert elapsed < max_timeout * 2, f"Operation took {elapsed}s, expected <{max_timeout * 2}s"
+          
+          def test_timeout_error_handled(self, {{fixtures}}):
+              """Test timeout errors are caught and handled"""
+              from unittest.mock import patch
+              import requests
+              
+              with patch('requests.get') as mock_get:
+                  mock_get.side_effect = requests.Timeout("Connection timed out")
+                  
+                  # Should not raise, should handle gracefully
+                  try:
+                      result = {{httpFunctionCall}}()
+                      # Should return error result or None
+                      assert result is None or hasattr(result, 'error')
+                  except requests.Timeout:
+                      pytest.fail("Timeout exception not handled")
+          
+          def test_lock_has_timeout(self, {{fixtures}}):
+              """Test lock acquisitions have timeout"""
+              import threading
+              import inspect
+              
+              source = inspect.getsource({{lockFunctionName}})
+              
+              # Check for acquire with timeout
+              assert (
+                  'acquire(timeout=' in source or
+                  'acquire(blocking=True, timeout=' in source or
+                  'acquire(True,' in source
+              ), "Lock acquire missing timeout"
+          
+          def test_database_query_timeout(self, {{fixtures}}):
+              """Test database queries have statement timeout"""
+              from unittest.mock import MagicMock
+              
+              mock_cursor = MagicMock()
+              
+              {{dbFunctionCall}}(mock_cursor)
+              
+              # Check if timeout was set or query has timeout hint
+              calls = str(mock_cursor.mock_calls)
+              assert (
+                  'timeout' in calls.lower() or
+                  'statement_timeout' in calls.lower() or
+                  'SET LOCAL' in calls
+              ), "Database query missing timeout"
+          
+          def test_concurrent_timeout_isolation(self, {{fixtures}}):
+              """Test timeouts don't affect other operations"""
+              results = []
+              
+              def slow_operation():
+                  time.sleep(2)
+                  results.append('slow')
+              
+              def fast_operation():
+                  results.append('fast')
+              
+              with ThreadPoolExecutor(max_workers=2) as executor:
+                  slow = executor.submit(slow_operation)
+                  fast = executor.submit(fast_operation)
+                  
+                  fast.result(timeout=1)
+                  
+                  try:
+                      slow.result(timeout=0.5)
+                  except FuturesTimeout:
+                      pass
+              
+              assert 'fast' in results
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: httpFunctionCall
+        type: string
+        description: HTTP function call
+        required: true
+      - name: lockFunctionName
+        type: string
+        description: Lock function name (for source inspection)
+        required: true
+      - name: dbFunctionCall
+        type: string
+        description: Database function call
+        required: true
+      - name: maxTimeout
+        type: number
+        description: Maximum expected timeout in seconds
+        required: false
+        defaultValue: 30
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-timeout-missing
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Timeout Tests', () => {
+        describe('HTTP requests', () => {
+          it('includes timeout in fetch calls', async () => {
+            const originalFetch = global.fetch;
+            let usedAbortController = false;
+            
+            global.fetch = jest.fn().mockImplementation((url, options) => {
+              if (options?.signal) {
+                usedAbortController = true;
+              }
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{httpFunctionCall}}();
+            
+            expect(usedAbortController).toBe(true);
+            
+            global.fetch = originalFetch;
+          });
+          
+          it('handles timeout errors gracefully', async () => {
+            const originalFetch = global.fetch;
+            global.fetch = jest.fn().mockRejectedValue(new Error('AbortError'));
+            
+            await expect({{httpFunctionCall}}()).resolves.toBeDefined();
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('operation timeouts', () => {
+          it('completes within maximum time', async () => {
+            const MAX_TIME = {{maxTimeout}};
+            const start = Date.now();
+            
+            await {{functionCall}}();
+            
+            const elapsed = (Date.now() - start) / 1000;
+            expect(elapsed).toBeLessThan(MAX_TIME * 2);
+          });
+          
+          it('supports Promise.race timeout pattern', async () => {
+            const timeout = (ms: number) => 
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), ms)
+              );
+            
+            await expect(
+              Promise.race([
+                {{functionCall}}(),
+                timeout({{maxTimeout}} * 1000),
+              ])
+            ).resolves.toBeDefined();
+          });
+        });
+        
+        describe('database queries', () => {
+          it('sets query timeout', async () => {
+            const mockQuery = jest.fn().mockResolvedValue({ rows: [] });
+            
+            await {{dbFunctionCall}}(mockQuery);
+            
+            const callStr = JSON.stringify(mockQuery.mock.calls);
+            expect(
+              callStr.includes('timeout') || 
+              callStr.includes('statement_timeout')
+            ).toBe(true);
+          });
+        });
+        
+        describe('concurrent operations', () => {
+          it('individual timeouts do not block others', async () => {
+            const results: string[] = [];
+            
+            const slow = new Promise(resolve => {
+              setTimeout(() => {
+                results.push('slow');
+                resolve('slow');
+              }, 2000);
+            });
+            
+            const fast = new Promise(resolve => {
+              results.push('fast');
+              resolve('fast');
+            });
+            
+            await fast;
+            
+            expect(results).toContain('fast');
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: httpFunctionCall
+        type: string
+        description: HTTP function call
+        required: true
+      - name: dbFunctionCall
+        type: string
+        description: Database function call
+        required: true
+      - name: maxTimeout
+        type: number
+        description: Max timeout seconds
+        required: false
+        defaultValue: 30
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: requests-no-timeout
+    concept: |
+      Python requests without timeout. The requests library waits indefinitely 
+      by default. A hung server or network issue causes the caller to block 
+      forever, exhausting worker threads and causing cascading failures.
+    vulnerableCode: |
+      import requests
+      
+      def fetch_data(url):
+          # VULNERABLE: No timeout, will hang indefinitely
+          response = requests.get(url)
+          return response.json()
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_has_timeout():
+          with patch('requests.get') as mock:
+              mock.return_value.json.return_value = {}
+              
+              fetch_data('http://example.com')
+              
+              assert 'timeout' in mock.call_args.kwargs
+      
+      def test_timeout_value():
+          with patch('requests.get') as mock:
+              fetch_data_safe('http://example.com')
+              
+              timeout = mock.call_args.kwargs.get('timeout')
+              assert timeout is not None
+              assert timeout <= 30
+    language: python
+    severity: high
+
+  - name: fetch-no-abort
+    concept: |
+      JavaScript fetch without AbortController. Native fetch has no timeout 
+      option. Use AbortController with setTimeout to implement timeouts.
+      Without this, fetch waits for the TCP timeout (often minutes).
+    vulnerableCode: |
+      async function fetchData(url) {
+        // VULNERABLE: No timeout mechanism
+        const response = await fetch(url);
+        return response.json();
+      }
+    testCode: |
+      describe('fetchData', () => {
+        it('uses AbortController for timeout', async () => {
+          const safeFetch = async (url, timeoutMs = 5000) => {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+            
+            try {
+              const response = await fetch(url, { signal: controller.signal });
+              return response.json();
+            } finally {
+              clearTimeout(timeout);
+            }
+          };
+          
+          // Implementation should match this pattern
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: lock-acquire-blocking
+    concept: |
+      Lock acquire without timeout. Calling lock.acquire() without a timeout 
+      blocks forever if the lock is never released (deadlock, crash). Always 
+      use acquire(timeout=N) and handle acquisition failure.
+    vulnerableCode: |
+      import threading
+      
+      lock = threading.Lock()
+      
+      def update_resource(data):
+          # VULNERABLE: Blocks forever if lock not released
+          lock.acquire()
+          try:
+              process(data)
+          finally:
+              lock.release()
+    testCode: |
+      import pytest
+      import threading
+      import time
+      
+      def test_lock_has_timeout():
+          lock = threading.Lock()
+          lock.acquire()
+          
+          acquired = threading.Event()
+          
+          def try_acquire():
+              result = lock.acquire(timeout=1)
+              if result:
+                  acquired.set()
+                  lock.release()
+          
+          t = threading.Thread(target=try_acquire)
+          t.start()
+          t.join(timeout=2)
+          
+          assert not acquired.is_set()
+          lock.release()
+    language: python
+    severity: critical
+    cve: CVE-2020-8945
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
