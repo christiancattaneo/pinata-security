@@ -1,0 +1,529 @@
+id: high-latency
+version: 1
+name: High Latency Handling
+description: |
+  Detects code not resilient to high network latency. Includes blocking calls 
+  on critical paths, missing async patterns, and latency-sensitive operations 
+  without caching. High latency causes timeouts, poor UX, and cascading failures 
+  in synchronous call chains.
+domain: reliability
+level: integration
+priority: P0
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-3711
+  - CVE-2019-9516
+
+references:
+  - https://cwe.mitre.org/data/definitions/400.html
+  - https://landing.google.com/sre/sre-book/chapters/addressing-cascading-failures/
+  - https://www.amazon.com/b?ie=UTF8&node=16314871
+
+detectionPatterns:
+  - id: python-sync-http-in-handler
+    type: regex
+    language: python
+    pattern: "def\\s+\\w+\\(.*request.*\\).*requests\\.(get|post)"
+    confidence: medium
+    description: Detects synchronous HTTP in request handler
+
+  - id: python-sequential-calls
+    type: regex
+    language: python
+    pattern: "requests\\.get.*requests\\.get|fetch.*fetch"
+    confidence: low
+    description: Detects sequential network calls (consider parallel)
+
+  - id: python-no-cache-repeated
+    type: regex
+    language: python
+    pattern: "for.*in.*:.*requests\\.(get|post)(?!.*cache)"
+    confidence: medium
+    description: Detects repeated API calls in loop without cache
+
+  - id: python-blocking-dns
+    type: regex
+    language: python
+    pattern: "socket\\.gethostbyname(?!.*async|.*thread)"
+    confidence: medium
+    description: Detects blocking DNS lookup
+
+  - id: ts-await-in-loop
+    type: regex
+    language: typescript
+    pattern: "for.*\\{[^}]*await\\s+fetch|while.*await\\s+fetch"
+    confidence: medium
+    description: Detects sequential awaits in loop
+
+  - id: ts-sync-chain
+    type: regex
+    language: typescript
+    pattern: "await.*await.*await(?!.*Promise\\.all)"
+    confidence: low
+    description: Detects sequential await chain
+
+  - id: ts-no-prefetch
+    type: regex
+    language: typescript
+    pattern: "onClick.*fetch|onSubmit.*fetch(?!.*prefetch)"
+    confidence: low
+    description: Detects fetch on user action without prefetch
+
+  - id: ts-blocking-render
+    type: regex
+    language: typescript
+    pattern: "render.*await\\s+fetch|useEffect.*\\{.*await(?!.*loading)"
+    confidence: medium
+    description: Detects blocking fetch during render
+
+testTemplates:
+  - id: pytest-high-latency
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import asyncio
+      from unittest.mock import patch, MagicMock, AsyncMock
+      from concurrent.futures import ThreadPoolExecutor
+      
+      class Test{{className}}HighLatency:
+          """High latency handling tests for {{functionName}}"""
+          
+          def test_parallel_requests(self, {{fixtures}}):
+              """Test independent requests are parallelized"""
+              call_times = []
+              
+              def slow_call(*args, **kwargs):
+                  start = time.time()
+                  time.sleep(0.1)
+                  call_times.append((start, time.time()))
+                  return MagicMock(json=lambda: {})
+              
+              with patch('requests.get', side_effect=slow_call):
+                  start = time.time()
+                  {{functionCall}}()
+                  total_time = time.time() - start
+              
+              # If parallelized, total time should be ~0.1s not 0.3s
+              if len(call_times) >= 3:
+                  assert total_time < 0.25, f"Requests not parallelized: {total_time}s"
+          
+          def test_caches_repeated_calls(self, {{fixtures}}):
+              """Test repeated API calls are cached"""
+              call_count = 0
+              
+              def track_calls(*args, **kwargs):
+                  nonlocal call_count
+                  call_count += 1
+                  return MagicMock(json=lambda: {"data": "value"})
+              
+              with patch('requests.get', side_effect=track_calls):
+                  # Multiple calls with same parameters
+                  {{repeatedCall}}('same-param')
+                  {{repeatedCall}}('same-param')
+                  {{repeatedCall}}('same-param')
+              
+              assert call_count == 1, f"Cache miss: {call_count} calls"
+          
+          def test_async_external_calls(self, {{fixtures}}):
+              """Test external calls are async"""
+              import inspect
+              
+              func = {{functionReference}}
+              
+              assert asyncio.iscoroutinefunction(func) or \
+                     'async' in inspect.getsource(func) or \
+                     'thread' in inspect.getsource(func).lower(), \
+                     "External calls should be async or threaded"
+          
+          def test_request_deadline_propagated(self, {{fixtures}}):
+              """Test deadline is propagated to downstream calls"""
+              with patch('requests.get') as mock_get:
+                  mock_get.return_value = MagicMock(status_code=200)
+                  
+                  {{functionWithDeadlineCall}}(deadline=5.0)
+                  
+                  timeout = mock_get.call_args.kwargs.get('timeout')
+                  assert timeout is not None
+                  assert timeout <= 5.0
+          
+          def test_graceful_degradation(self, {{fixtures}}):
+              """Test graceful degradation under latency"""
+              def slow_response(*args, **kwargs):
+                  time.sleep(2)  # Simulate high latency
+                  return MagicMock(json=lambda: {"data": "fresh"})
+              
+              with patch('requests.get', side_effect=slow_response):
+                  start = time.time()
+                  result = {{functionCall}}()
+                  elapsed = time.time() - start
+              
+              # Should return cached/stale/default within timeout
+              assert elapsed < 1.5 or result.get('stale') or result.get('default')
+          
+          def test_prefetch_critical_data(self, {{fixtures}}):
+              """Test critical data is prefetched"""
+              prefetch_calls = []
+              
+              with patch('{{prefetchModule}}.prefetch') as mock_prefetch:
+                  mock_prefetch.side_effect = lambda x: prefetch_calls.append(x)
+                  
+                  {{initializeCall}}()
+              
+              assert len(prefetch_calls) > 0, "No prefetching detected"
+          
+          def test_latency_budget(self, {{fixtures}}):
+              """Test respects latency budget"""
+              call_timeouts = []
+              
+              with patch('requests.get') as mock_get:
+                  mock_get.return_value = MagicMock(status_code=200)
+                  
+                  # Overall budget is 5s, calling 3 services
+                  {{multiServiceCall}}(budget=5.0)
+                  
+                  for call in mock_get.call_args_list:
+                      timeout = call.kwargs.get('timeout', 5)
+                      call_timeouts.append(timeout)
+              
+              # Each call should get portion of budget
+              assert all(t < 5.0 for t in call_timeouts)
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: repeatedCall
+        type: string
+        description: Repeated call
+        required: true
+      - name: functionReference
+        type: string
+        description: Function reference
+        required: true
+      - name: functionWithDeadlineCall
+        type: string
+        description: Function with deadline
+        required: true
+      - name: prefetchModule
+        type: string
+        description: Prefetch module
+        required: true
+      - name: initializeCall
+        type: string
+        description: Initialize call
+        required: true
+      - name: multiServiceCall
+        type: string
+        description: Multi-service call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-high-latency
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} High Latency Tests', () => {
+        describe('parallel requests', () => {
+          it('parallelizes independent requests', async () => {
+            const callTimes: number[] = [];
+            
+            const slowFetch = async () => {
+              const start = Date.now();
+              await new Promise(r => setTimeout(r, 100));
+              callTimes.push(start);
+              return new Response('{}');
+            };
+            
+            global.fetch = jest.fn().mockImplementation(slowFetch);
+            
+            const start = Date.now();
+            await {{functionCall}}();
+            const elapsed = Date.now() - start;
+            
+            // 3 parallel 100ms calls should take ~100ms not 300ms
+            expect(elapsed).toBeLessThan(250);
+          });
+        });
+        
+        describe('caching', () => {
+          it('caches repeated API calls', async () => {
+            let fetchCount = 0;
+            
+            global.fetch = jest.fn().mockImplementation(async () => {
+              fetchCount++;
+              return new Response('{}');
+            });
+            
+            await {{repeatedCall}}('same-param');
+            await {{repeatedCall}}('same-param');
+            await {{repeatedCall}}('same-param');
+            
+            expect(fetchCount).toBe(1);
+          });
+        });
+        
+        describe('deadline propagation', () => {
+          it('propagates deadline to downstream', async () => {
+            const originalFetch = global.fetch;
+            let usedSignal = false;
+            
+            global.fetch = jest.fn().mockImplementation((url, options) => {
+              if (options?.signal) usedSignal = true;
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{functionWithDeadlineCall}}(5000);
+            
+            expect(usedSignal).toBe(true);
+            
+            global.fetch = originalFetch;
+          });
+        });
+        
+        describe('graceful degradation', () => {
+          it('returns stale data on timeout', async () => {
+            global.fetch = jest.fn().mockImplementation(async () => {
+              await new Promise(r => setTimeout(r, 5000));
+              return new Response('{}');
+            });
+            
+            const result = await {{functionCall}}();
+            
+            expect(result.stale || result.cached).toBe(true);
+          });
+          
+          it('returns default on failure', async () => {
+            global.fetch = jest.fn().mockRejectedValue(new Error('timeout'));
+            
+            const result = await {{functionCall}}();
+            
+            expect(result).toBeDefined();
+            expect(result.default || result.fallback).toBeDefined();
+          });
+        });
+        
+        describe('prefetching', () => {
+          it('prefetches critical data', async () => {
+            const prefetched: string[] = [];
+            
+            await {{initializeCall}}((key: string) => {
+              prefetched.push(key);
+            });
+            
+            expect(prefetched.length).toBeGreaterThan(0);
+          });
+        });
+        
+        describe('non-blocking UI', () => {
+          it('shows loading state immediately', async () => {
+            const states: string[] = [];
+            
+            const component = await {{renderWithLoadingCall}}((state: string) => {
+              states.push(state);
+            });
+            
+            expect(states[0]).toBe('loading');
+          });
+          
+          it('does not block render on fetch', async () => {
+            const start = Date.now();
+            
+            await {{renderCall}}();
+            
+            const elapsed = Date.now() - start;
+            expect(elapsed).toBeLessThan(50); // Immediate render
+          });
+        });
+        
+        describe('latency budget', () => {
+          it('distributes budget across calls', async () => {
+            const timeouts: number[] = [];
+            
+            global.fetch = jest.fn().mockImplementation((url, options) => {
+              if (options?.signal) {
+                // Extract timeout from signal if possible
+              }
+              timeouts.push(Date.now());
+              return Promise.resolve(new Response('{}'));
+            });
+            
+            await {{multiServiceCall}}(5000); // 5s budget
+            
+            // Each service should get portion
+            expect(timeouts.length).toBeGreaterThan(0);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: repeatedCall
+        type: string
+        description: Repeated call
+        required: true
+      - name: functionWithDeadlineCall
+        type: string
+        description: Function with deadline
+        required: true
+      - name: initializeCall
+        type: string
+        description: Initialize call
+        required: true
+      - name: renderWithLoadingCall
+        type: string
+        description: Render with loading
+        required: true
+      - name: renderCall
+        type: string
+        description: Render call
+        required: true
+      - name: multiServiceCall
+        type: string
+        description: Multi-service call
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: sequential-api-calls
+    concept: |
+      Sequential API calls on critical path. Calling services A then B then C 
+      takes 3x the latency of parallel calls. Use Promise.all or asyncio.gather 
+      for independent calls.
+    vulnerableCode: |
+      async function getOrderDetails(orderId) {
+        // VULNERABLE: Sequential calls, 3x latency
+        const order = await fetch(`/api/orders/${orderId}`);
+        const user = await fetch(`/api/users/${order.userId}`);
+        const products = await fetch(`/api/products?ids=${order.productIds}`);
+        
+        return { order, user, products };
+      }
+    testCode: |
+      describe('getOrderDetails', () => {
+        it('parallelizes API calls', async () => {
+          const callTimes = [];
+          
+          global.fetch = jest.fn().mockImplementation(async () => {
+            callTimes.push(Date.now());
+            await new Promise(r => setTimeout(r, 100));
+            return { json: () => ({}) };
+          });
+          
+          const start = Date.now();
+          await getOrderDetails('123');
+          const elapsed = Date.now() - start;
+          
+          expect(elapsed).toBeLessThan(200); // Not 300ms
+        });
+      });
+    language: typescript
+    severity: medium
+
+  - name: blocking-render
+    concept: |
+      Blocking fetch during render. Fetching data synchronously before rendering 
+      blocks the UI. Users see nothing until all data loads. Use suspense, 
+      loading states, or prefetching.
+    vulnerableCode: |
+      function ProductPage({ id }) {
+        // VULNERABLE: Blocks render until fetch completes
+        const [product, setProduct] = useState(null);
+        
+        useEffect(() => {
+          fetch(`/api/products/${id}`)
+            .then(r => r.json())
+            .then(setProduct);
+        }, [id]);
+        
+        if (!product) return null; // Nothing shown while loading
+        
+        return <ProductView product={product} />;
+      }
+    testCode: |
+      describe('ProductPage', () => {
+        it('shows loading state immediately', () => {
+          const { getByTestId } = render(<ProductPage id="123" />);
+          
+          expect(getByTestId('loading')).toBeInTheDocument();
+        });
+        
+        it('prefetches on hover', async () => {
+          const prefetchSpy = jest.fn();
+          
+          render(<ProductLink id="123" onPrefetch={prefetchSpy} />);
+          fireEvent.mouseEnter(screen.getByRole('link'));
+          
+          expect(prefetchSpy).toHaveBeenCalled();
+        });
+      });
+    language: typescript
+    severity: medium
+
+  - name: no-deadline-propagation
+    concept: |
+      Missing deadline propagation. If a request has 5s timeout but calls 3 
+      services each with 5s timeout, the request exceeds its deadline. Propagate 
+      remaining deadline to downstream calls.
+    vulnerableCode: |
+      def handle_request(request):
+          # VULNERABLE: Each service gets full 30s, total could be 90s
+          user = user_service.get(request.user_id, timeout=30)
+          orders = order_service.list(user.id, timeout=30)
+          products = product_service.batch_get(order.product_ids, timeout=30)
+          return format_response(user, orders, products)
+    testCode: |
+      import pytest
+      from unittest.mock import patch
+      
+      def test_propagates_deadline():
+          with patch('user_service.get') as mock_user:
+              with patch('order_service.list') as mock_orders:
+                  mock_user.return_value = User(id=1)
+                  
+                  handle_request_safe(request, deadline=5.0)
+                  
+                  user_timeout = mock_user.call_args.kwargs.get('timeout')
+                  order_timeout = mock_orders.call_args.kwargs.get('timeout')
+                  
+                  assert user_timeout < 5.0
+                  assert order_timeout < user_timeout
+    language: python
+    severity: high
+    cve: CVE-2021-3711
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

@@ -1,0 +1,508 @@
+id: thundering-herd
+version: 1
+name: Thundering Herd Prevention
+description: |
+  Detects vulnerability to thundering herd problems. When a cache expires or 
+  service recovers, all waiting clients simultaneously hit the backend. This 
+  overwhelms the recovering service causing repeated failures. Implement cache 
+  stampede protection, request coalescing, and jittered retries.
+domain: reliability
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-23017
+  - CVE-2019-9512
+
+references:
+  - https://en.wikipedia.org/wiki/Thundering_herd_problem
+  - https://instagram-engineering.com/thundering-herds-promises-82191c8af57d
+  - https://aws.amazon.com/builders-library/caching-challenges-and-strategies/
+
+detectionPatterns:
+  - id: python-cache-get-set
+    type: regex
+    language: python
+    pattern: "cache\\.get\\([^)]+\\).*cache\\.set\\((?!.*lock|.*singleflight)"
+    confidence: medium
+    description: Detects cache get/set without stampede protection
+
+  - id: python-simultaneous-retry
+    type: regex
+    language: python
+    pattern: "time\\.sleep\\(\\d+\\)(?!.*random|.*jitter)"
+    confidence: medium
+    description: Detects fixed sleep without jitter
+
+  - id: python-cache-expire-fixed
+    type: regex
+    language: python
+    pattern: "expire[ds]?\\s*=\\s*\\d+(?!.*random|.*jitter)"
+    confidence: low
+    description: Detects fixed expiry without jitter
+
+  - id: python-wait-all
+    type: regex
+    language: python
+    pattern: "asyncio\\.gather|await\\s+all(?!.*semaphore|.*limit)"
+    confidence: low
+    description: Detects gather without concurrency limit
+
+  - id: ts-cache-miss-fetch
+    type: regex
+    language: typescript
+    pattern: "if\\s*\\(!cache.*\\).*fetch(?!.*singleflight|.*dedupe)"
+    confidence: medium
+    description: Detects cache miss triggering fetch
+
+  - id: ts-fixed-retry-delay
+    type: regex
+    language: typescript
+    pattern: "setTimeout\\([^,]+,\\s*\\d+\\)(?!.*Math\\.random|.*jitter)"
+    confidence: medium
+    description: Detects fixed retry delay
+
+  - id: ts-promise-all-unbounded
+    type: regex
+    language: typescript
+    pattern: "Promise\\.all\\((?!.*limit|.*pLimit|.*throttle)"
+    confidence: low
+    description: Detects Promise.all without concurrency limit
+
+  - id: ts-cache-fixed-ttl
+    type: regex
+    language: typescript
+    pattern: "ttl\\s*[=:]\\s*\\d+(?!.*jitter|.*random)"
+    confidence: low
+    description: Detects fixed TTL without jitter
+
+testTemplates:
+  - id: pytest-thundering-herd
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import time
+      import random
+      import threading
+      from unittest.mock import patch, MagicMock
+      from concurrent.futures import ThreadPoolExecutor
+      
+      class Test{{className}}ThunderingHerd:
+          """Thundering herd prevention tests for {{functionName}}"""
+          
+          def test_single_backend_call_on_miss(self, {{fixtures}}):
+              """Test cache miss triggers only one backend call"""
+              backend_calls = []
+              
+              def track_backend(*args, **kwargs):
+                  backend_calls.append(time.time())
+                  time.sleep(0.1)  # Slow backend
+                  return {"data": "value"}
+              
+              with patch('{{backendModule}}.fetch', side_effect=track_backend):
+                  with patch('{{cacheModule}}.get', return_value=None):
+                      # Simulate concurrent requests
+                      with ThreadPoolExecutor(max_workers=10) as executor:
+                          futures = [executor.submit({{functionCall}}, 'key') for _ in range(10)]
+                          results = [f.result() for f in futures]
+              
+              assert len(backend_calls) == 1, f"Backend called {len(backend_calls)} times"
+          
+          def test_retry_has_jitter(self, {{fixtures}}):
+              """Test retry delays include jitter"""
+              delays = []
+              
+              for _ in range(10):
+                  delay = {{getRetryDelayCall}}(attempt=2)
+                  delays.append(delay)
+              
+              # With jitter, delays should vary
+              unique_delays = len(set(delays))
+              assert unique_delays > 1, "No jitter in retry delays"
+          
+          def test_cache_ttl_has_jitter(self, {{fixtures}}):
+              """Test cache TTL includes jitter"""
+              ttls = []
+              
+              for _ in range(10):
+                  ttl = {{getCacheTTLCall}}()
+                  ttls.append(ttl)
+              
+              unique_ttls = len(set(ttls))
+              assert unique_ttls > 1, "No jitter in cache TTL"
+          
+          def test_request_coalescing(self, {{fixtures}}):
+              """Test duplicate in-flight requests are coalesced"""
+              in_flight = {}
+              fetch_count = 0
+              
+              def coalescing_fetch(key):
+                  nonlocal fetch_count
+                  if key in in_flight:
+                      return in_flight[key].result()
+                  
+                  fetch_count += 1
+                  # Simulate fetch
+                  time.sleep(0.1)
+                  return {"key": key}
+              
+              with patch('{{backendModule}}.fetch', side_effect=coalescing_fetch):
+                  with ThreadPoolExecutor(max_workers=10) as executor:
+                      futures = [executor.submit({{functionCall}}, 'same-key') for _ in range(10)]
+              
+              # All should get same result with single fetch
+              assert fetch_count == 1
+          
+          def test_concurrent_limit(self, {{fixtures}}):
+              """Test concurrent requests are limited"""
+              max_concurrent = 0
+              current_concurrent = 0
+              lock = threading.Lock()
+              
+              def track_concurrent(*args):
+                  nonlocal max_concurrent, current_concurrent
+                  with lock:
+                      current_concurrent += 1
+                      max_concurrent = max(max_concurrent, current_concurrent)
+                  
+                  time.sleep(0.05)
+                  
+                  with lock:
+                      current_concurrent -= 1
+                  
+                  return {}
+              
+              with patch('{{backendModule}}.fetch', side_effect=track_concurrent):
+                  with ThreadPoolExecutor(max_workers=100) as executor:
+                      futures = [executor.submit({{functionCall}}, f'key-{i}') for i in range(100)]
+                      [f.result() for f in futures]
+              
+              assert max_concurrent <= {{concurrencyLimit}}, f"Max concurrent: {max_concurrent}"
+          
+          def test_staggered_expiry(self, {{fixtures}}):
+              """Test cache entries expire at different times"""
+              expirations = []
+              
+              for i in range(100):
+                  entry = {{createCacheEntryCall}}(f'key-{i}', f'value-{i}')
+                  expirations.append(entry['expires_at'])
+              
+              # Should have variation in expiry times
+              min_exp = min(expirations)
+              max_exp = max(expirations)
+              assert max_exp - min_exp > 1, "All entries expire at same time"
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: backendModule
+        type: string
+        description: Backend module
+        required: true
+      - name: cacheModule
+        type: string
+        description: Cache module
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: getRetryDelayCall
+        type: string
+        description: Get retry delay
+        required: true
+      - name: getCacheTTLCall
+        type: string
+        description: Get cache TTL
+        required: true
+      - name: createCacheEntryCall
+        type: string
+        description: Create cache entry
+        required: true
+      - name: concurrencyLimit
+        type: number
+        description: Concurrency limit
+        required: false
+        defaultValue: 10
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-thundering-herd
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Thundering Herd Tests', () => {
+        describe('cache stampede protection', () => {
+          it('coalesces concurrent cache misses', async () => {
+            let fetchCount = 0;
+            const mockFetch = jest.fn().mockImplementation(async () => {
+              fetchCount++;
+              await new Promise(r => setTimeout(r, 100));
+              return { data: 'value' };
+            });
+            
+            const promises = Array(10).fill(null).map(() => 
+              {{functionCall}}('same-key', mockFetch)
+            );
+            
+            await Promise.all(promises);
+            
+            expect(fetchCount).toBe(1);
+          });
+          
+          it('uses singleflight pattern', async () => {
+            const inFlight = new Map();
+            
+            const result = await {{singleflightCall}}('key', inFlight);
+            
+            expect(result).toBeDefined();
+          });
+        });
+        
+        describe('jittered delays', () => {
+          it('retry delays include jitter', async () => {
+            const delays = [];
+            
+            for (let i = 0; i < 10; i++) {
+              delays.push(await {{getRetryDelayCall}}(2));
+            }
+            
+            const unique = new Set(delays);
+            expect(unique.size).toBeGreaterThan(1);
+          });
+          
+          it('cache TTL includes jitter', async () => {
+            const ttls = [];
+            
+            for (let i = 0; i < 10; i++) {
+              ttls.push(await {{getCacheTTLCall}}());
+            }
+            
+            const unique = new Set(ttls);
+            expect(unique.size).toBeGreaterThan(1);
+          });
+        });
+        
+        describe('concurrency limiting', () => {
+          it('limits concurrent backend requests', async () => {
+            let maxConcurrent = 0;
+            let current = 0;
+            
+            const mockFetch = jest.fn().mockImplementation(async () => {
+              current++;
+              maxConcurrent = Math.max(maxConcurrent, current);
+              await new Promise(r => setTimeout(r, 50));
+              current--;
+              return {};
+            });
+            
+            const promises = Array(100).fill(null).map((_, i) => 
+              {{functionCall}}(`key-${i}`, mockFetch)
+            );
+            
+            await Promise.all(promises);
+            
+            expect(maxConcurrent).toBeLessThanOrEqual({{concurrencyLimit}});
+          });
+        });
+        
+        describe('staggered expiry', () => {
+          it('cache entries expire at different times', async () => {
+            const expirations = [];
+            
+            for (let i = 0; i < 100; i++) {
+              const entry = await {{createCacheEntryCall}}(`key-${i}`, `value-${i}`);
+              expirations.push(entry.expiresAt);
+            }
+            
+            const min = Math.min(...expirations);
+            const max = Math.max(...expirations);
+            
+            expect(max - min).toBeGreaterThan(1000); // At least 1s variation
+          });
+        });
+        
+        describe('circuit breaker integration', () => {
+          it('opens circuit on overload', async () => {
+            // Simulate overload
+            for (let i = 0; i < 100; i++) {
+              try {
+                await {{overloadCall}}();
+              } catch {}
+            }
+            
+            const circuitState = await {{getCircuitStateCall}}();
+            
+            expect(circuitState).toBe('open');
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: functionCall
+        type: string
+        description: Main function call
+        required: true
+      - name: singleflightCall
+        type: string
+        description: Singleflight call
+        required: true
+      - name: getRetryDelayCall
+        type: string
+        description: Get retry delay
+        required: true
+      - name: getCacheTTLCall
+        type: string
+        description: Get cache TTL
+        required: true
+      - name: createCacheEntryCall
+        type: string
+        description: Create cache entry
+        required: true
+      - name: overloadCall
+        type: string
+        description: Overload call
+        required: true
+      - name: getCircuitStateCall
+        type: string
+        description: Get circuit state
+        required: true
+      - name: concurrencyLimit
+        type: number
+        description: Concurrency limit
+        required: false
+        defaultValue: 10
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: cache-stampede
+    concept: |
+      Cache stampede on expiry. When a popular cache key expires, hundreds of 
+      concurrent requests all miss cache and hit the database simultaneously.
+      Use lock/singleflight to ensure only one request fetches while others wait.
+    vulnerableCode: |
+      def get_user(user_id):
+          # VULNERABLE: All concurrent misses hit DB
+          cached = cache.get(f"user:{user_id}")
+          if cached:
+              return cached
+          
+          user = db.query(f"SELECT * FROM users WHERE id = {user_id}")
+          cache.set(f"user:{user_id}", user, expire=300)
+          return user
+    testCode: |
+      import pytest
+      from concurrent.futures import ThreadPoolExecutor
+      from unittest.mock import patch
+      
+      def test_single_db_query():
+          db_calls = []
+          
+          def track_db(*args):
+              db_calls.append(1)
+              return {"id": 1, "name": "test"}
+          
+          with patch('db.query', side_effect=track_db):
+              with patch('cache.get', return_value=None):
+                  with ThreadPoolExecutor(max_workers=100) as ex:
+                      futures = [ex.submit(get_user, 1) for _ in range(100)]
+                      [f.result() for f in futures]
+          
+          assert len(db_calls) == 1
+    language: python
+    severity: high
+
+  - name: synchronized-retry
+    concept: |
+      Synchronized retries cause wave patterns. If all clients retry after 
+      exactly 1 second, they hit the recovering service simultaneously every 
+      second. Add random jitter (e.g., 0.5-1.5s) to spread retries.
+    vulnerableCode: |
+      async function fetchWithRetry(url, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+          try {
+            return await fetch(url);
+          } catch (e) {
+            // VULNERABLE: Fixed 1 second delay
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+      }
+    testCode: |
+      describe('fetchWithRetry', () => {
+        it('uses jittered delays', async () => {
+          const delays = [];
+          jest.spyOn(global, 'setTimeout').mockImplementation((fn, delay) => {
+            delays.push(delay);
+            return 0 as any;
+          });
+          
+          await fetchWithRetry('http://fail.example');
+          
+          const unique = new Set(delays);
+          expect(unique.size).toBeGreaterThan(1);
+        });
+      });
+    language: typescript
+    severity: high
+    cve: CVE-2021-23017
+
+  - name: cold-start-overload
+    concept: |
+      Cold start overload after deployment. After deploy, all caches are empty.
+      Every request is a cache miss hitting the database. Use cache warming, 
+      request coalescing, or gradual rollout to prevent overload.
+    vulnerableCode: |
+      # After deployment, all instances start with empty cache
+      app.cache = {}
+      
+      @app.route('/product/<id>')
+      def get_product(id):
+          # VULNERABLE: All requests hit DB on cold start
+          if id not in app.cache:
+              app.cache[id] = db.get_product(id)
+          return app.cache[id]
+    testCode: |
+      import pytest
+      from concurrent.futures import ThreadPoolExecutor
+      
+      def test_cold_start_protection():
+          # Simulate 1000 concurrent requests on cold start
+          db_calls = 0
+          
+          with ThreadPoolExecutor(max_workers=100) as ex:
+              futures = [ex.submit(get_product, 'popular-item') for _ in range(1000)]
+          
+          # Should use singleflight, not 1000 DB calls
+          assert db_calls < 10
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

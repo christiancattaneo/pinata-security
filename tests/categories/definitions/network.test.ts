@@ -32,9 +32,21 @@ describe("Network Category Definitions", () => {
       expect(store.has("packet-loss")).toBe(true);
     });
 
-    it("loads exactly 3 network categories", () => {
+    it("loads network-partition category", () => {
+      expect(store.has("network-partition")).toBe(true);
+    });
+
+    it("loads thundering-herd category", () => {
+      expect(store.has("thundering-herd")).toBe(true);
+    });
+
+    it("loads high-latency category", () => {
+      expect(store.has("high-latency")).toBe(true);
+    });
+
+    it("loads exactly 6 network/reliability categories", () => {
       const categories = store.byDomain("reliability");
-      expect(categories).toHaveLength(3);
+      expect(categories).toHaveLength(6);
     });
   });
 
@@ -158,9 +170,93 @@ describe("Network Category Definitions", () => {
     });
   });
 
+  describe("network-partition category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("network-partition");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("reliability");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for quorum and leader", () => {
+      const result = store.get("network-partition");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("quorum") || p.id.includes("leader") || p.id.includes("lock"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("network-partition");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
+  describe("thundering-herd category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("thundering-herd");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("reliability");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("critical");
+      }
+    });
+
+    it("has detection patterns for cache and retry", () => {
+      const result = store.get("thundering-herd");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("cache") || p.id.includes("retry") || p.id.includes("jitter"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("thundering-herd");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
+  describe("high-latency category", () => {
+    it("has correct metadata", () => {
+      const result = store.get("high-latency");
+      expect(result.success).toBe(true);
+
+      if (result.success) {
+        expect(result.data.domain).toBe("reliability");
+        expect(result.data.priority).toBe("P0");
+        expect(result.data.severity).toBe("high");
+      }
+    });
+
+    it("has detection patterns for sync calls and caching", () => {
+      const result = store.get("high-latency");
+      if (result.success) {
+        const patterns = result.data.detectionPatterns;
+        expect(patterns.some((p) => p.id.includes("sync") || p.id.includes("await") || p.id.includes("cache"))).toBe(true);
+      }
+    });
+
+    it("has 3+ examples", () => {
+      const result = store.get("high-latency");
+      if (result.success) {
+        expect(result.data.examples.length).toBeGreaterThanOrEqual(3);
+      }
+    });
+  });
+
   describe("test templates", () => {
     it("each category has pytest and jest templates", () => {
-      const categories = ["network-timeout", "connection-failure", "packet-loss"];
+      const categories = ["network-timeout", "connection-failure", "packet-loss", "network-partition", "thundering-herd", "high-latency"];
 
       for (const id of categories) {
         const result = store.get(id);
@@ -181,7 +277,7 @@ describe("Network Category Definitions", () => {
 
   describe("examples have required content", () => {
     it("examples have vulnerable code and test code", () => {
-      const categories = ["network-timeout", "connection-failure", "packet-loss"];
+      const categories = ["network-timeout", "connection-failure", "packet-loss", "network-partition", "thundering-herd", "high-latency"];
 
       for (const id of categories) {
         const result = store.get(id);
@@ -221,6 +317,21 @@ describe("Network Category Definitions", () => {
     it("finds packet-loss by searching 'packet'", () => {
       const results = store.search({ query: "packet" });
       expect(results.some((r) => r.category.id === "packet-loss")).toBe(true);
+    });
+
+    it("finds network-partition by searching 'partition'", () => {
+      const results = store.search({ query: "partition" });
+      expect(results.some((r) => r.category.id === "network-partition")).toBe(true);
+    });
+
+    it("finds thundering-herd by searching 'stampede'", () => {
+      const results = store.search({ query: "stampede" });
+      expect(results.some((r) => r.category.id === "thundering-herd")).toBe(true);
+    });
+
+    it("finds high-latency by searching 'latency'", () => {
+      const results = store.search({ query: "latency" });
+      expect(results.some((r) => r.category.id === "high-latency")).toBe(true);
     });
   });
 });

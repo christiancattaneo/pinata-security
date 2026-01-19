@@ -1,21 +1,33 @@
 {
-  "lastUpdated": "2026-01-19T17:21:36.816Z",
+  "lastUpdated": "2026-01-19T17:31:01.886Z",
   "recentFiles": [
     {
       "path": "tests/categories/definitions/network.test.ts",
-      "lastModified": 1768843284633.4153
+      "lastModified": 1768843849962.753
+    },
+    {
+      "path": "src/categories/definitions/network/high-latency.yml",
+      "lastModified": 1768843801690.44
+    },
+    {
+      "path": "src/categories/definitions/network/thundering-herd.yml",
+      "lastModified": 1768843729897.9917
+    },
+    {
+      "path": "src/categories/definitions/network/network-partition.yml",
+      "lastModified": 1768843661597.9524
     },
     {
       "path": "src/categories/definitions/network/packet-loss.yml",
-      "lastModified": 1768843237637.6372
+      "lastModified": 1768843308053.1003
     },
     {
       "path": "src/categories/definitions/network/connection-failure.yml",
-      "lastModified": 1768843172587.601
+      "lastModified": 1768843308052.9414
     },
     {
       "path": "src/categories/definitions/network/network-timeout.yml",
-      "lastModified": 1768843115694.8892
+      "lastModified": 1768843308052.9
     },
     {
       "path": "tests/categories/definitions/resource.test.ts",
@@ -69,11 +81,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "01451880213782683935c49d464e856ced954ba9",
-    "lastCommitMessage": "Add 3 P0 resource categories: memory-leak, file-handle-leak, connection-pool-exhaustion",
-    "lastCommitTime": 1768842534000,
-    "uncommittedChanges": 7,
+    "lastCommit": "a0e3f64c82e313a66e01d873e7f28a602d408145",
+    "lastCommitMessage": "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
+    "lastCommitTime": 1768843296000,
+    "uncommittedChanges": 9,
     "recentCommits": [
+      "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
       "Add 3 P0 resource categories: memory-leak, file-handle-leak, connection-pool-exhaustion",
       "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing",
       "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
@@ -82,8 +95,7 @@
       "Add security categories: ldap-injection, ssrf, timing-attack",
       "Add security categories: csrf, xxe, command-injection, deserialization",
       "Add first 3 security categories: sql-injection, xss, path-traversal",
-      "Implement CategoryStore with CRUD, indexing, and search",
-      "Initial TypeScript project structure with Zod schemas"
+      "Implement CategoryStore with CRUD, indexing, and search"
     ]
   },
   "completionSignals": {
@@ -106,6 +118,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768843437583,
+      "suggestion": "Create 3 more P0 network/reliability categories: network-partition, thundering-herd, and high-latency. Follow the same pattern as the previous network categories with detection patterns for Python/TypeScript, pytest/jest templates, and 3+ examples each. Focus on distributed system failures.",
+      "accepted": false
+    },
     {
       "timestamp": 1768842609667,
       "suggestion": "Create 3 P0 network domain categories: network-timeout, connection-failure, and packet-loss. Each needs: YAML definition with metadata (P0, critical/high severity), 3+ detection patterns for Python/TypeScript, pytest/jest test templates, 3+ real-world examples. Include tests in tests/categories/definitions/network.test.ts following the pattern from resource.test.ts.",
@@ -202,15 +219,10 @@
       "timestamp": 1768774951959,
       "suggestion": "Create a .cursorrules file for Pinata. Use TypeScript with strict mode, ESLint, and Prettier. Set up conventions for schema validation (Zod), file organization (src/categories, src/core, src/cli), testing (Vitest), and documentation. Include rules for type safety, error handling patterns, and consistent naming for category/pattern/template schemas.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768774162362,
-      "suggestion": "Create a GAMEPLAN for Pinata. Break down the implementation into phases: 1) Core taxonomy engine with categories/subcategories, 2) Test generation templates for each category, 3) CLI tool for scanning projects and identifying missing tests, 4) Integration with popular test frameworks (Jest, pytest, etc), 5) Reporting dashboard showing coverage by risk domain. For each phase, list specific tasks, dependencies, and rough time estimates.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768842609650,
+  "lastAnalysis": 1768843437569,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

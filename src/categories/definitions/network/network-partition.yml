@@ -1,0 +1,475 @@
+id: network-partition
+version: 1
+name: Network Partition Handling
+description: |
+  Detects code not resilient to network partitions (split-brain scenarios). 
+  Distributed systems must handle nodes becoming unreachable while still 
+  operational. Includes missing partition detection, improper leader election, 
+  and data consistency issues during partitions. CAP theorem violations cause 
+  data loss or stale reads.
+domain: reliability
+level: system
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2020-13401
+  - CVE-2019-11477
+
+references:
+  - https://en.wikipedia.org/wiki/CAP_theorem
+  - https://jepsen.io/analyses
+  - https://cwe.mitre.org/data/definitions/362.html
+
+detectionPatterns:
+  - id: python-cluster-no-quorum
+    type: regex
+    language: python
+    pattern: "nodes|cluster(?!.*quorum|.*majority|.*consensus)"
+    confidence: low
+    description: Detects cluster operations (verify quorum checks)
+
+  - id: python-leader-no-lease
+    type: regex
+    language: python
+    pattern: "leader|master(?!.*lease|.*ttl|.*expire|.*heartbeat)"
+    confidence: medium
+    description: Detects leader references without lease/TTL
+
+  - id: python-distributed-lock-no-fencing
+    type: regex
+    language: python
+    pattern: "acquire_lock|get_lock(?!.*fence|.*token|.*version)"
+    confidence: medium
+    description: Detects distributed lock without fencing token
+
+  - id: python-redis-no-cluster
+    type: regex
+    language: python
+    pattern: "redis\\.Redis\\((?!.*Cluster|.*Sentinel)"
+    confidence: low
+    description: Detects Redis without cluster/sentinel (single point of failure)
+
+  - id: ts-cluster-no-health
+    type: regex
+    language: typescript
+    pattern: "nodes|replicas(?!.*health|.*status|.*alive)"
+    confidence: low
+    description: Detects cluster operations without health checks
+
+  - id: ts-leader-election-naive
+    type: regex
+    language: typescript
+    pattern: "isLeader\\s*=|setLeader(?!.*consensus|.*raft|.*paxos)"
+    confidence: medium
+    description: Detects naive leader election
+
+  - id: ts-distributed-lock
+    type: regex
+    language: typescript
+    pattern: "acquireLock|getLock(?!.*fencing|.*token)"
+    confidence: medium
+    description: Detects distributed lock (verify fencing)
+
+  - id: ts-single-db-connection
+    type: regex
+    language: typescript
+    pattern: "new\\s+Pool\\s*\\((?!.*replicas|.*slaves|.*readonly)"
+    confidence: low
+    description: Detects single DB connection (no read replicas)
+
+testTemplates:
+  - id: pytest-network-partition
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import threading
+      import time
+      from unittest.mock import patch, MagicMock
+      
+      class Test{{className}}NetworkPartition:
+          """Network partition handling tests for {{functionName}}"""
+          
+          def test_detects_partition(self, {{fixtures}}):
+              """Test system detects network partition"""
+              with patch('{{healthCheckModule}}.check_node') as mock_check:
+                  # Simulate partition - some nodes unreachable
+                  mock_check.side_effect = lambda node: node != 'node-2'
+                  
+                  status = {{getClusterStatusCall}}()
+                  
+                  assert status['partitioned'] or len(status['unreachable']) > 0
+          
+          def test_requires_quorum_for_writes(self, {{fixtures}}):
+              """Test writes require quorum during partition"""
+              with patch('{{clusterModule}}.get_available_nodes') as mock_nodes:
+                  # Simulate minority partition (2 of 5 nodes)
+                  mock_nodes.return_value = ['node-1', 'node-2']
+                  
+                  with pytest.raises(Exception) as exc:
+                      {{writeCall}}('key', 'value')
+                  
+                  assert 'quorum' in str(exc.value).lower() or 'majority' in str(exc.value).lower()
+          
+          def test_leader_has_lease(self, {{fixtures}}):
+              """Test leader election uses leases"""
+              leader_info = {{getLeaderCall}}()
+              
+              assert 'lease_expiry' in leader_info or 'ttl' in leader_info
+              assert leader_info.get('lease_expiry') or leader_info.get('ttl')
+          
+          def test_stale_leader_rejected(self, {{fixtures}}):
+              """Test stale leader cannot make changes"""
+              # Simulate stale leader (lease expired)
+              with patch('{{leaderModule}}.get_lease_expiry') as mock_lease:
+                  mock_lease.return_value = time.time() - 100  # Expired
+                  
+                  with pytest.raises(Exception) as exc:
+                      {{leaderWriteCall}}('data')
+                  
+                  assert 'lease' in str(exc.value).lower() or 'stale' in str(exc.value).lower()
+          
+          def test_distributed_lock_has_fencing(self, {{fixtures}}):
+              """Test distributed locks use fencing tokens"""
+              lock = {{acquireLockCall}}('resource-1')
+              
+              assert hasattr(lock, 'fencing_token') or hasattr(lock, 'version')
+              assert lock.fencing_token or lock.version
+          
+          def test_handles_split_brain(self, {{fixtures}}):
+              """Test system handles split-brain scenario"""
+              # Simulate two partitions both thinking they're primary
+              partition_a = {{createPartitionCall}}(['node-1', 'node-2'])
+              partition_b = {{createPartitionCall}}(['node-3', 'node-4', 'node-5'])
+              
+              # Only majority partition should accept writes
+              assert partition_b.can_write()
+              assert not partition_a.can_write()
+          
+          def test_read_consistency_during_partition(self, {{fixtures}}):
+              """Test read consistency level during partition"""
+              with patch('{{clusterModule}}.get_available_nodes') as mock_nodes:
+                  mock_nodes.return_value = ['node-1', 'node-2']  # Minority
+                  
+                  # Should either fail or return stale marker
+                  result = {{readCall}}('key')
+                  
+                  assert result is None or result.get('stale') or result.get('error')
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: healthCheckModule
+        type: string
+        description: Health check module
+        required: true
+      - name: clusterModule
+        type: string
+        description: Cluster module
+        required: true
+      - name: leaderModule
+        type: string
+        description: Leader module
+        required: true
+      - name: getClusterStatusCall
+        type: string
+        description: Get cluster status
+        required: true
+      - name: writeCall
+        type: string
+        description: Write call
+        required: true
+      - name: readCall
+        type: string
+        description: Read call
+        required: true
+      - name: getLeaderCall
+        type: string
+        description: Get leader call
+        required: true
+      - name: leaderWriteCall
+        type: string
+        description: Leader write call
+        required: true
+      - name: acquireLockCall
+        type: string
+        description: Acquire lock call
+        required: true
+      - name: createPartitionCall
+        type: string
+        description: Create partition call
+        required: true
+      - name: fixtures
+        type: string
+        description: pytest fixtures
+        required: false
+        defaultValue: ""
+
+  - id: jest-network-partition
+    language: typescript
+    framework: jest
+    template: |
+      import { {{functionName}} } from '{{modulePath}}';
+      
+      describe('{{className}} Network Partition Tests', () => {
+        describe('partition detection', () => {
+          it('detects unreachable nodes', async () => {
+            const cluster = await {{createClusterCall}}();
+            
+            // Simulate partition
+            await {{simulatePartitionCall}}(['node-2', 'node-3']);
+            
+            const status = await {{getStatusCall}}();
+            
+            expect(status.unreachable.length).toBeGreaterThan(0);
+          });
+          
+          it('reports partition status', async () => {
+            await {{simulatePartitionCall}}(['node-2']);
+            
+            const health = await {{healthCheckCall}}();
+            
+            expect(health.partitioned).toBe(true);
+          });
+        });
+        
+        describe('quorum requirements', () => {
+          it('requires majority for writes', async () => {
+            // Minority partition
+            await {{simulatePartitionCall}}(['node-3', 'node-4', 'node-5']);
+            
+            await expect({{writeCall}}('key', 'value'))
+              .rejects.toThrow(/quorum|majority/i);
+          });
+          
+          it('allows reads from minority with stale flag', async () => {
+            await {{simulatePartitionCall}}(['node-3', 'node-4', 'node-5']);
+            
+            const result = await {{readCall}}('key', { allowStale: true });
+            
+            expect(result.stale).toBe(true);
+          });
+        });
+        
+        describe('leader election', () => {
+          it('leader has TTL/lease', async () => {
+            const leader = await {{getLeaderCall}}();
+            
+            expect(leader.leaseExpiry || leader.ttl).toBeDefined();
+          });
+          
+          it('rejects stale leader writes', async () => {
+            // Expire leader lease
+            await {{expireLeaderLeaseCall}}();
+            
+            await expect({{leaderWriteCall}}('data'))
+              .rejects.toThrow(/lease|expired|stale/i);
+          });
+          
+          it('triggers re-election on leader failure', async () => {
+            const oldLeader = await {{getLeaderCall}}();
+            
+            await {{killNodeCall}}(oldLeader.nodeId);
+            await new Promise(r => setTimeout(r, 100));
+            
+            const newLeader = await {{getLeaderCall}}();
+            
+            expect(newLeader.nodeId).not.toBe(oldLeader.nodeId);
+          });
+        });
+        
+        describe('fencing tokens', () => {
+          it('distributed lock returns fencing token', async () => {
+            const lock = await {{acquireLockCall}}('resource');
+            
+            expect(lock.fencingToken || lock.version).toBeDefined();
+          });
+          
+          it('rejects operations with old fencing token', async () => {
+            const lock1 = await {{acquireLockCall}}('resource');
+            await {{releaseLockCall}}(lock1);
+            const lock2 = await {{acquireLockCall}}('resource');
+            
+            // Old token should be rejected
+            await expect({{operationWithTokenCall}}(lock1.fencingToken))
+              .rejects.toThrow(/fencing|stale|invalid/i);
+          });
+        });
+        
+        describe('split-brain prevention', () => {
+          it('only majority partition accepts writes', async () => {
+            const partitionA = {{createPartitionSimCall}}(2, 5); // Minority
+            const partitionB = {{createPartitionSimCall}}(3, 5); // Majority
+            
+            expect(partitionA.canWrite).toBe(false);
+            expect(partitionB.canWrite).toBe(true);
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Class name
+        required: true
+      - name: functionName
+        type: string
+        description: Function name
+        required: true
+      - name: createClusterCall
+        type: string
+        description: Create cluster
+        required: true
+      - name: simulatePartitionCall
+        type: string
+        description: Simulate partition
+        required: true
+      - name: getStatusCall
+        type: string
+        description: Get status
+        required: true
+      - name: healthCheckCall
+        type: string
+        description: Health check
+        required: true
+      - name: writeCall
+        type: string
+        description: Write call
+        required: true
+      - name: readCall
+        type: string
+        description: Read call
+        required: true
+      - name: getLeaderCall
+        type: string
+        description: Get leader
+        required: true
+      - name: expireLeaderLeaseCall
+        type: string
+        description: Expire leader lease
+        required: true
+      - name: leaderWriteCall
+        type: string
+        description: Leader write
+        required: true
+      - name: killNodeCall
+        type: string
+        description: Kill node
+        required: true
+      - name: acquireLockCall
+        type: string
+        description: Acquire lock
+        required: true
+      - name: releaseLockCall
+        type: string
+        description: Release lock
+        required: true
+      - name: operationWithTokenCall
+        type: string
+        description: Operation with token
+        required: true
+      - name: createPartitionSimCall
+        type: string
+        description: Create partition simulation
+        required: true
+      - name: modulePath
+        type: string
+        description: Module path
+        required: true
+
+examples:
+  - name: split-brain-dual-leader
+    concept: |
+      Split-brain with dual leaders. During network partition, both halves 
+      might elect a leader. Without quorum checks, both accept writes causing 
+      data divergence. Require majority (n/2+1) for leader election.
+    vulnerableCode: |
+      class Cluster:
+          def elect_leader(self):
+              # VULNERABLE: No quorum check
+              if self.current_leader is None:
+                  self.current_leader = self.node_id
+                  return True
+              return False
+    testCode: |
+      import pytest
+      
+      def test_requires_majority():
+          cluster = Cluster(total_nodes=5)
+          cluster.visible_nodes = ['node-1', 'node-2']  # Minority
+          
+          result = cluster.elect_leader()
+          
+          assert result is False
+          assert cluster.current_leader is None
+    language: python
+    severity: critical
+
+  - name: stale-leader-write
+    concept: |
+      Stale leader accepting writes. After partition heals, old leader might 
+      still think it's leader. Use lease/TTL that expires if not renewed.
+      New leader's writes would conflict with stale leader's.
+    vulnerableCode: |
+      async function leaderWrite(data) {
+        // VULNERABLE: No lease check
+        if (this.isLeader) {
+          await this.db.write(data);
+        }
+      }
+    testCode: |
+      describe('leaderWrite', () => {
+        it('checks lease before write', async () => {
+          const leader = new Leader();
+          leader.isLeader = true;
+          leader.leaseExpiry = Date.now() - 1000; // Expired
+          
+          await expect(leader.write('data'))
+            .rejects.toThrow('lease expired');
+        });
+      });
+    language: typescript
+    severity: critical
+    cve: CVE-2020-13401
+
+  - name: distributed-lock-no-fence
+    concept: |
+      Distributed lock without fencing token. Process A acquires lock, gets 
+      paused (GC, network). Lock expires, B acquires lock and writes. A 
+      resumes and overwrites B's data. Fencing tokens prevent this.
+    vulnerableCode: |
+      def process_with_lock(resource_id):
+          lock = redis.lock(f"lock:{resource_id}")
+          lock.acquire()
+          
+          # VULNERABLE: No fencing token
+          data = fetch_data()
+          time.sleep(10)  # Simulates pause
+          write_data(data)
+          
+          lock.release()
+    testCode: |
+      import pytest
+      
+      def test_uses_fencing_token():
+          lock = acquire_lock('resource')
+          
+          assert hasattr(lock, 'fencing_token')
+          assert lock.fencing_token > 0
+          
+          # Write should include token
+          write_with_fence('resource', 'data', lock.fencing_token)
+    language: python
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
