@@ -27,8 +27,12 @@
 export {
   TemplateRenderer,
   TemplateRenderError,
+  TemplateSyntaxError,
   createRenderer,
   type ParsedPlaceholder,
+  type ParsedConditional,
+  type ParsedLoop,
+  type SyntaxValidationResult,
   type VariableValidationResult,
   type ValidationResult,
   type RenderOptions,
