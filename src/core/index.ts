@@ -2,11 +2,24 @@
  * Core analysis engine
  *
  * This module contains:
- * - ingestion/  - Code parsing and AST extraction
  * - detection/  - Pattern matching against categories
- * - scoring/    - Gap analysis and Pinata Score calculation
- * - generation/ - Test code generation
+ * - ingestion/  - Code parsing and AST extraction (coming soon)
+ * - scoring/    - Gap analysis and Pinata Score calculation (coming soon)
+ * - generation/ - Test code generation (coming soon)
  */
 
-// Placeholder exports - implement in Phase 3
 export const VERSION = "0.1.0";
+
+// Detection module
+export {
+  PatternMatcher,
+  createPatternMatcher,
+  detectLanguage,
+  getSupportedExtensions,
+  isExtensionSupported,
+  type PatternMatcherOptions,
+  type ScanOptions,
+  type PatternMatch,
+  type FileScanResult,
+  type AggregatedResults,
+} from "./detection/index.js";

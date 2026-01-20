@@ -1,9 +1,25 @@
 {
-  "lastUpdated": "2026-01-20T16:45:15.282Z",
+  "lastUpdated": "2026-01-20T17:16:05.442Z",
   "recentFiles": [
     {
+      "path": "tests/core/detection/pattern-matcher.test.ts",
+      "lastModified": 1768929028009.6685
+    },
+    {
+      "path": "src/core/detection/pattern-matcher.ts",
+      "lastModified": 1768928643798.0056
+    },
+    {
+      "path": "src/core/index.ts",
+      "lastModified": 1768928513747.9707
+    },
+    {
+      "path": "src/core/detection/index.ts",
+      "lastModified": 1768928507376.095
+    },
+    {
       "path": "src/cli/index.ts",
-      "lastModified": 1768927491806.3303
+      "lastModified": 1768927527373.96
     },
     {
       "path": "tests/cli/formatters.test.ts",
@@ -17,11 +33,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "99a53b592e17ea5be6213adf40ca4817922145f9",
-    "lastCommitMessage": "Add conditional blocks, loops, and nested variable access to TemplateRenderer",
-    "lastCommitTime": 1768871788000,
-    "uncommittedChanges": 8,
+    "lastCommit": "f4dc14c0f98bd2a48efd31f84b9a172552fb240f",
+    "lastCommitMessage": "Add pinata list CLI command with filters and formatters",
+    "lastCommitTime": 1768927516000,
+    "uncommittedChanges": 6,
     "recentCommits": [
+      "Add pinata list CLI command with filters and formatters",
       "Add conditional blocks, loops, and nested variable access to TemplateRenderer",
       "Add TemplateRenderer class with variable substitution and validation",
       "Add CategoryMigrator class with migration tracking and rollback support",
@@ -30,8 +47,7 @@
       "Add 3 P0 distributed system categories: network-partition, thundering-herd, high-latency",
       "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
       "Add 3 P0 resource categories: memory-leak, file-handle-leak, connection-pool-exhaustion",
-      "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing",
-      "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing"
+      "Add 3 P0 concurrency categories: timeout-missing, retry-storm, idempotency-missing"
     ]
   },
   "completionSignals": {
