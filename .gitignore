@@ -81,6 +81,9 @@ yarn.lock
 *.generated.*
 generated/
 
+# Tree-sitter WASM files (downloaded via npm run setup:wasm)
+wasm/*.wasm
+
 # Test artifacts
 test-results/
 playwright-report/

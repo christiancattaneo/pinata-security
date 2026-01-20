@@ -752,3 +752,342 @@ describe("language cross-matching", () => {
     }
   });
 });
+
+// AST pattern tests
+import { checkTreeSitterSetup } from "../../../src/core/detection/ast-parser.js";
+
+describe("AST pattern matching", () => {
+  let matcher: PatternMatcher;
+  let isAstAvailable: boolean;
+  const AST_TEST_DIR = resolve(__dirname, ".ast-test-files");
+
+  // Sample AST detection patterns
+  const AST_SQL_PATTERNS: DetectionPattern[] = [
+    {
+      id: "python-execute-call",
+      type: "ast",
+      language: "python",
+      pattern: `
+        (call
+          function: (attribute
+            attribute: (identifier) @method)) @call
+        (#match? @method "^execute$")
+      `,
+      confidence: "high",
+      description: "Detects cursor.execute() calls via AST",
+    },
+    {
+      id: "ts-query-call",
+      type: "ast",
+      language: "typescript",
+      pattern: `
+        (call_expression
+          function: (member_expression
+            property: (property_identifier) @method)) @call
+        (#match? @method "^query$")
+      `,
+      confidence: "high",
+      description: "Detects db.query() calls via AST",
+    },
+  ];
+
+  const AST_PYTHON_CODE = `
+import sqlite3
+
+def get_user(user_id):
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM users WHERE id = '{user_id}'")
+    return cursor.fetchone()
+
+def get_order(order_id):
+    cursor.execute("SELECT * FROM orders WHERE id = " + order_id)
+    return cursor.fetchone()
+`;
+
+  const AST_TS_CODE = `
+import { db } from './database';
+
+export async function getUser(userId: string) {
+  const result = await db.query(\`SELECT * FROM users WHERE id = '\${userId}'\`);
+  return result.rows[0];
+}
+
+export async function getOrder(orderId: string) {
+  const result = await db.query("SELECT * FROM orders WHERE id = " + orderId);
+  return result.rows[0];
+}
+`;
+
+  // Helper to check AST availability and skip test if not available
+  const requireAst = () => {
+    if (!isAstAvailable) {
+      return false;
+    }
+    return true;
+  };
+
+  beforeAll(async () => {
+    // Check if WASM files are available
+    const setup = await checkTreeSitterSetup();
+    isAstAvailable = setup.success && setup.data.ready;
+
+    if (!isAstAvailable) {
+      console.warn("AST tests skipped: tree-sitter WASM not available. Run: npm run setup:wasm");
+    }
+
+    // Create test directory and files
+    await mkdir(AST_TEST_DIR, { recursive: true });
+    await writeFile(resolve(AST_TEST_DIR, "vulnerable.py"), AST_PYTHON_CODE);
+    await writeFile(resolve(AST_TEST_DIR, "vulnerable.ts"), AST_TS_CODE);
+  });
+
+  afterAll(async () => {
+    await rm(AST_TEST_DIR, { recursive: true, force: true });
+  });
+
+  beforeEach(() => {
+    matcher = new PatternMatcher();
+  });
+
+  describe("isAstAvailable", () => {
+    it("reports AST availability", () => {
+      // This just tests the method exists and returns a boolean
+      const available = matcher.isAstAvailable();
+      expect(typeof available).toBe("boolean");
+    });
+  });
+
+  describe("getAstMatcher", () => {
+    it("returns the AST matcher instance", () => {
+      const astMatcher = matcher.getAstMatcher();
+      expect(astMatcher).toBeDefined();
+      expect(typeof astMatcher.getSupportedLanguages).toBe("function");
+    });
+  });
+
+  describe("detectAstPattern", () => {
+    it("detects Python execute calls", async () => {
+      if (!requireAst()) return;
+      const query = `
+        (call
+          function: (attribute
+            attribute: (identifier) @method)) @call
+        (#match? @method "^execute$")
+      `;
+      const result = await matcher.detectAstPattern(AST_PYTHON_CODE, query, "python");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.length).toBeGreaterThan(0);
+        const calls = result.data.filter((m) => m.captureName === "call");
+        expect(calls.length).toBeGreaterThanOrEqual(2); // Two execute calls
+      }
+    });
+
+    it("detects TypeScript query calls", async () => {
+      if (!requireAst()) return;
+      const query = `
+        (call_expression
+          function: (member_expression
+            property: (property_identifier) @method)) @call
+        (#match? @method "^query$")
+      `;
+      const result = await matcher.detectAstPattern(AST_TS_CODE, query, "typescript");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.length).toBeGreaterThan(0);
+        const calls = result.data.filter((m) => m.captureName === "call");
+        expect(calls.length).toBeGreaterThanOrEqual(2); // Two query calls
+      }
+    });
+
+    it("returns error for unsupported language", async () => {
+      const result = await matcher.detectAstPattern("fn main() {}", "(function_item)", "rust");
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error.message).toContain("not supported");
+      }
+    });
+  });
+
+  describe("scanFile with AST patterns", () => {
+    it("detects Python patterns via AST in scanFile", async () => {
+      if (!requireAst()) return;
+      const result = await matcher.scanFile(
+        resolve(AST_TEST_DIR, "vulnerable.py"),
+        AST_SQL_PATTERNS,
+        { categoryId: "sql-injection", basePath: "" }
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.language).toBe("python");
+        expect(result.data.matches.length).toBeGreaterThan(0);
+
+        // Should find execute calls
+        const astMatches = result.data.matches.filter(
+          (m) => m.pattern.type === "ast"
+        );
+        expect(astMatches.length).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it("detects TypeScript patterns via AST in scanFile", async () => {
+      if (!requireAst()) return;
+      const result = await matcher.scanFile(
+        resolve(AST_TEST_DIR, "vulnerable.ts"),
+        AST_SQL_PATTERNS,
+        { categoryId: "sql-injection", basePath: "" }
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.language).toBe("typescript");
+        expect(result.data.matches.length).toBeGreaterThan(0);
+
+        const astMatches = result.data.matches.filter(
+          (m) => m.pattern.type === "ast"
+        );
+        expect(astMatches.length).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it("combines regex and AST pattern results", async () => {
+      if (!requireAst()) return;
+      const combinedPatterns: DetectionPattern[] = [
+        // Regex pattern
+        {
+          id: "regex-execute",
+          type: "regex",
+          language: "python",
+          pattern: "execute\\s*\\(",
+          confidence: "medium",
+          description: "Regex pattern for execute",
+        },
+        // AST pattern
+        {
+          id: "ast-execute",
+          type: "ast",
+          language: "python",
+          pattern: `
+            (call
+              function: (attribute
+                attribute: (identifier) @method)) @call
+            (#match? @method "^execute$")
+          `,
+          confidence: "high",
+          description: "AST pattern for execute",
+        },
+      ];
+
+      const result = await matcher.scanFile(
+        resolve(AST_TEST_DIR, "vulnerable.py"),
+        combinedPatterns,
+        { categoryId: "sql-injection", basePath: "" }
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const regexMatches = result.data.matches.filter((m) => m.pattern.type === "regex");
+        const astMatches = result.data.matches.filter((m) => m.pattern.type === "ast");
+
+        expect(regexMatches.length).toBeGreaterThan(0);
+        expect(astMatches.length).toBeGreaterThan(0);
+      }
+    });
+
+    it("includes line and column information for AST matches", async () => {
+      if (!requireAst()) return;
+      const result = await matcher.scanFile(
+        resolve(AST_TEST_DIR, "vulnerable.py"),
+        AST_SQL_PATTERNS,
+        { categoryId: "sql-injection", basePath: "" }
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success && result.data.matches.length > 0) {
+        const match = result.data.matches[0];
+        expect(match?.lineStart).toBeGreaterThan(0);
+        expect(match?.lineEnd).toBeGreaterThanOrEqual(match?.lineStart ?? 0);
+        expect(match?.columnStart).toBeGreaterThanOrEqual(0);
+        expect(match?.columnEnd).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe("scanDirectory with AST patterns", () => {
+    it("scans directory with AST patterns", async () => {
+      if (!requireAst()) return;
+      const result = await matcher.scanDirectory(
+        AST_TEST_DIR,
+        AST_SQL_PATTERNS,
+        { categoryId: "sql-injection", basePath: "" }
+      );
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // Should find matches in both Python and TypeScript files
+        const pyMatches = result.data.filter((r) => r.filePath.endsWith(".py"));
+        const tsMatches = result.data.filter((r) => r.filePath.endsWith(".ts"));
+
+        expect(pyMatches.length).toBeGreaterThan(0);
+        expect(tsMatches.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe("AST pattern accuracy", () => {
+    it("distinguishes method calls from variable access", async () => {
+      if (!requireAst()) return;
+      const codeWithVariables = `
+execute = "not a function call"
+result = execute  # Variable access, not a call
+cursor.execute("SELECT 1")  # Actual function call
+`;
+      await writeFile(resolve(AST_TEST_DIR, "mixed.py"), codeWithVariables);
+
+      const query = `
+        (call
+          function: (attribute
+            attribute: (identifier) @method)) @call
+        (#match? @method "^execute$")
+      `;
+      const result = await matcher.detectAstPattern(codeWithVariables, query, "python");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        // Should only find the actual function call, not variable access
+        const calls = result.data.filter((m) => m.captureName === "call");
+        expect(calls.length).toBe(1);
+        expect(calls[0]?.text).toContain("cursor.execute");
+      }
+    });
+
+    it("handles nested function calls", async () => {
+      if (!requireAst()) return;
+      const nestedCode = `
+def outer():
+    def inner():
+        cursor.execute("SELECT 1")
+    inner()
+    cursor.execute("SELECT 2")
+`;
+      const query = `
+        (call
+          function: (attribute
+            attribute: (identifier) @method)) @call
+        (#match? @method "^execute$")
+      `;
+      const result = await matcher.detectAstPattern(nestedCode, query, "python");
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const calls = result.data.filter((m) => m.captureName === "call");
+        expect(calls.length).toBe(2); // Both inner and outer execute calls
+      }
+    });
+  });
+});

@@ -3,7 +3,8 @@
  *
  * This module provides:
  * - PatternMatcher: Core pattern detection engine
- * - Regex pattern matching (AST support coming later)
+ * - Regex pattern matching
+ * - AST pattern matching via tree-sitter
  * - File and directory scanning
  * - Result aggregation and analysis
  */
@@ -20,3 +21,13 @@ export {
   type FileScanResult,
   type AggregatedResults,
 } from "./pattern-matcher.js";
+
+export {
+  AstPatternMatcher,
+  createAstMatcher,
+  parseSource,
+  executeQuery,
+  checkTreeSitterSetup,
+  COMMON_AST_PATTERNS,
+  type AstMatch,
+} from "./ast-parser.js";

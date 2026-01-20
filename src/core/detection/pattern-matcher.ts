@@ -11,6 +11,11 @@ import type {
   Language,
   Confidence,
 } from "../../categories/schema/index.js";
+import {
+  AstPatternMatcher,
+  createAstMatcher,
+  type AstMatch,
+} from "./ast-parser.js";
 
 /**
  * File extension to language mapping
@@ -129,6 +134,11 @@ export interface AggregatedResults {
  * structured detection results with file paths, line numbers, and
  * matched pattern details.
  *
+ * Supports multiple pattern types:
+ * - **regex**: Regular expression patterns (fast, broad matching)
+ * - **ast**: Tree-sitter AST queries (precise, structural matching)
+ * - **semantic**: LLM-assisted semantic analysis (future)
+ *
  * @example
  * ```typescript
  * const matcher = new PatternMatcher();
@@ -152,6 +162,8 @@ export interface AggregatedResults {
 export class PatternMatcher {
   private readonly defaultOptions: Required<PatternMatcherOptions>;
   private readonly log = logger.child("PatternMatcher");
+  private readonly astMatcher: AstPatternMatcher;
+  private astAvailable: boolean | null = null;
 
   constructor(options: PatternMatcherOptions = {}) {
     this.defaultOptions = {
@@ -162,6 +174,21 @@ export class PatternMatcher {
       includeHidden: options.includeHidden ?? false,
       maxDepth: options.maxDepth ?? -1,
     };
+    this.astMatcher = createAstMatcher();
+  }
+
+  /**
+   * Check if AST pattern matching is available
+   */
+  isAstAvailable(): boolean {
+    return this.astMatcher.getSupportedLanguages().length > 0;
+  }
+
+  /**
+   * Get the AST matcher instance for direct access
+   */
+  getAstMatcher(): AstPatternMatcher {
+    return this.astMatcher;
   }
 
   /**
@@ -234,8 +261,12 @@ export class PatternMatcher {
       if (pattern.type === "regex") {
         const patternMatches = this.matchRegexPattern(pattern, content, lines);
         matches.push(...patternMatches);
+      } else if (pattern.type === "ast") {
+        // AST pattern matching using tree-sitter
+        const astMatches = await this.matchAstPattern(pattern, content, lines, language!);
+        matches.push(...astMatches);
       }
-      // AST and semantic patterns to be implemented later
+      // Semantic patterns to be implemented later (LLM-assisted)
     }
 
     // Apply negative patterns to filter false positives
@@ -410,6 +441,111 @@ export class PatternMatcher {
     }
 
     return matches;
+  }
+
+  /**
+   * Match an AST pattern against file content using tree-sitter
+   *
+   * AST patterns use tree-sitter query syntax for precise structural matching.
+   * This is more accurate than regex for detecting code patterns that depend
+   * on syntax structure (e.g., function calls, string interpolation).
+   *
+   * @param pattern Detection pattern with type === "ast"
+   * @param content File content
+   * @param lines File content split into lines
+   * @param language Programming language
+   * @returns Array of pattern matches
+   */
+  private async matchAstPattern(
+    pattern: DetectionPattern,
+    content: string,
+    lines: string[],
+    language: Language
+  ): Promise<PatternMatch[]> {
+    const matches: PatternMatch[] = [];
+
+    // Check if AST parsing is available for this language
+    if (!this.astMatcher.isLanguageSupported(language)) {
+      this.log.debug(`AST parsing not available for ${language}, skipping pattern ${pattern.id}`);
+      return matches;
+    }
+
+    try {
+      const astResult = await this.astMatcher.query(content, pattern.pattern, language);
+
+      if (!astResult.success) {
+        this.log.warn(`AST query failed for pattern '${pattern.id}': ${astResult.error.message}`);
+        return matches;
+      }
+
+      // Convert AST matches to PatternMatch format
+      // Filter to only include matches with the main capture (typically @call or similar)
+      const seenLocations = new Set<string>();
+
+      for (const astMatch of astResult.data) {
+        // Skip duplicate locations (same match can have multiple captures)
+        const locationKey = `${astMatch.startLine}:${astMatch.startColumn}:${astMatch.endLine}:${astMatch.endColumn}`;
+        if (seenLocations.has(locationKey)) {
+          continue;
+        }
+
+        // Only include primary captures (skip helper captures like @method, @concat)
+        // Primary captures are typically named @call, @match, @target, or similar
+        const primaryCaptures = ["call", "match", "target", "vulnerable", "detection", "assertion"];
+        const isPrimary = primaryCaptures.some((name) => astMatch.captureName.includes(name));
+
+        if (!isPrimary && astMatch.captureName.startsWith("@") === false) {
+          // This is a helper capture, skip it
+          continue;
+        }
+
+        seenLocations.add(locationKey);
+
+        // Convert from 0-indexed to 1-indexed line numbers
+        const lineStart = astMatch.startLine + 1;
+        const lineEnd = astMatch.endLine + 1;
+
+        // Build code snippet
+        const codeSnippet = this.buildCodeSnippet(lines, lineStart, lineEnd);
+
+        matches.push({
+          pattern,
+          lineStart,
+          lineEnd,
+          columnStart: astMatch.startColumn,
+          columnEnd: astMatch.endColumn,
+          matchText: astMatch.text,
+          codeSnippet,
+        });
+      }
+    } catch (e) {
+      this.log.warn(`AST pattern error '${pattern.id}': ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    return matches;
+  }
+
+  /**
+   * Detect AST patterns in source code
+   *
+   * Convenience method for direct AST pattern detection without going through
+   * the full scanFile flow. Useful for testing and one-off queries.
+   *
+   * @param source Source code content
+   * @param query Tree-sitter query string
+   * @param language Programming language
+   * @returns AST matches or error
+   */
+  async detectAstPattern(
+    source: string,
+    query: string,
+    language: Language
+  ): Promise<Result<AstMatch[], PinataError>> {
+    if (!this.astMatcher.isLanguageSupported(language)) {
+      return err(new AnalysisError(`AST parsing not supported for ${language}`));
+    }
+
+    return this.astMatcher.query(source, query, language);
   }
 
   /**
