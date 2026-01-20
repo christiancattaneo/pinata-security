@@ -47,8 +47,10 @@ import {
 import {
   formatGeneratedTerminal,
   formatGeneratedJson,
+  formatWriteSummary,
   suggestTestPath,
   extractVariablesFromGap,
+  writeGeneratedTests,
   type GeneratedTest,
 } from "./generate-formatters.js";
 import { createRenderer } from "../templates/index.js";
@@ -483,9 +485,26 @@ program
         }
       }
 
-      // Handle write mode (future implementation)
+      // Handle write mode
       if (!dryRun) {
-        console.log(chalk.yellow("\nFile writing not yet implemented. Tests shown above."));
+        const outputDirOption = options["outputDir"] as string | undefined;
+        const writeResult = await writeGeneratedTests(
+          generatedTests,
+          cached.targetDirectory,
+          outputDirOption
+        );
+
+        if (!writeResult.success) {
+          console.error(formatError(writeResult.error));
+          process.exit(1);
+        }
+
+        // Show write summary
+        console.log(formatWriteSummary(writeResult.data, cached.targetDirectory));
+
+        if (writeResult.data.failed.length > 0) {
+          process.exit(1);
+        }
       }
 
       process.exit(0);
