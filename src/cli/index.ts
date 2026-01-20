@@ -16,6 +16,7 @@ import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import { existsSync } from "fs";
 import ora from "ora";
+import chalk from "chalk";
 
 import { logger } from "../lib/index.js";
 import { VERSION, createScanner } from "../core/index.js";
@@ -39,6 +40,18 @@ import {
   isValidScanOutputFormat,
   type ScanOutputFormat,
 } from "./scan-formatters.js";
+import {
+  saveScanResults,
+  loadScanResults,
+} from "./results-cache.js";
+import {
+  formatGeneratedTerminal,
+  formatGeneratedJson,
+  suggestTestPath,
+  extractVariablesFromGap,
+  type GeneratedTest,
+} from "./generate-formatters.js";
+import { createRenderer } from "../templates/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -204,6 +217,12 @@ program
 
       spinner?.stop();
 
+      // Cache results for generate command (save in current working directory)
+      const cacheResult = await saveScanResults(process.cwd(), scanResult.data);
+      if (!cacheResult.success) {
+        logger.debug(`Failed to cache results: ${cacheResult.error.message}`);
+      }
+
       // Format and output results
       const output = formatScanResult(scanResult.data, outputFormat as ScanOutputFormat, targetDirectory);
       console.log(output);
@@ -254,11 +273,227 @@ program
   .option("--gaps", "Generate tests for all identified gaps")
   .option("-c, --category <id>", "Generate tests for specific category")
   .option("-d, --domain <domain>", "Generate tests for all categories in domain")
+  .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "medium")
   .option("--output-dir <dir>", "Directory for generated test files")
-  .option("--dry-run", "Preview without writing files")
+  .option("--write", "Write files to disk (default is dry-run)")
+  .option("-o, --output <format>", "Output format: terminal, json", "terminal")
+  .option("-v, --verbose", "Verbose output")
+  .option("-q, --quiet", "Quiet mode (errors only)")
   .action(async (options: Record<string, unknown>) => {
-    logger.info("Generating tests...");
-    logger.warn("Generation not yet implemented. See Phase 2 of gameplan.");
+    const isQuiet = Boolean(options["quiet"]);
+    const isVerbose = Boolean(options["verbose"]);
+    const dryRun = !Boolean(options["write"]);
+    const outputFormat = String(options["output"] ?? "terminal");
+
+    if (isQuiet) {
+      logger.configure({ level: "error" });
+    } else if (isVerbose) {
+      logger.configure({ level: "debug" });
+    }
+
+    // Validate output format
+    if (!["terminal", "json"].includes(outputFormat)) {
+      console.error(formatError(new Error(`Invalid output format: ${outputFormat}. Use: terminal, json`)));
+      process.exit(1);
+    }
+
+    // Validate options - at least one filter required
+    const hasGaps = Boolean(options["gaps"]);
+    const categoryId = options["category"] as string | undefined;
+    const domainFilter = options["domain"] as string | undefined;
+
+    if (!hasGaps && !categoryId && !domainFilter) {
+      console.error(formatError(new Error(
+        "Specify what to generate: --gaps (all gaps), --category <id>, or --domain <domain>"
+      )));
+      process.exit(1);
+    }
+
+    // Validate domain if provided
+    if (domainFilter && !RISK_DOMAINS.includes(domainFilter as RiskDomain)) {
+      console.error(formatError(new Error(
+        `Invalid domain: ${domainFilter}. Valid domains: ${RISK_DOMAINS.join(", ")}`
+      )));
+      process.exit(1);
+    }
+
+    // Validate severity
+    const validSeverities = ["critical", "high", "medium", "low"];
+    const minSeverity = String(options["severity"] ?? "medium");
+    if (!validSeverities.includes(minSeverity)) {
+      console.error(formatError(new Error(
+        `Invalid severity: ${minSeverity}. Use: critical, high, medium, low`
+      )));
+      process.exit(1);
+    }
+    const severityOrder: Record<string, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    // Start spinner
+    const showSpinner = outputFormat === "terminal" && !isQuiet;
+    const spinner = showSpinner ? ora("Loading cached scan results...").start() : null;
+
+    try {
+      // Load cached scan results
+      const projectRoot = process.cwd();
+      const cacheResult = await loadScanResults(projectRoot);
+
+      if (!cacheResult.success) {
+        spinner?.fail("No cached results");
+        console.error(formatError(cacheResult.error));
+        console.error(chalk.yellow("\nRun `pinata analyze` first to scan for gaps."));
+        process.exit(1);
+      }
+
+      const cached = cacheResult.data;
+      let gaps = cached.gaps;
+
+      if (spinner) {
+        spinner.text = `Loaded ${gaps.length} gaps from cache. Filtering...`;
+      }
+
+      // Filter gaps
+      if (categoryId) {
+        gaps = gaps.filter((g) => g.categoryId === categoryId);
+      }
+      if (domainFilter) {
+        gaps = gaps.filter((g) => g.domain === domainFilter);
+      }
+      gaps = gaps.filter((g) => {
+        const gapLevel = severityOrder[g.severity] ?? 0;
+        const minLevel = severityOrder[minSeverity] ?? 0;
+        return gapLevel >= minLevel;
+      });
+
+      if (gaps.length === 0) {
+        spinner?.succeed("No gaps match the filters");
+        console.log(chalk.yellow("\nNo gaps found matching the specified filters."));
+        process.exit(0);
+      }
+
+      if (spinner) {
+        spinner.text = `Found ${gaps.length} gaps. Loading categories...`;
+      }
+
+      // Load categories for template access
+      const store = createCategoryStore();
+      const definitionsPath = getDefinitionsPath();
+      const loadResult = await store.loadFromDirectory(definitionsPath);
+
+      if (!loadResult.success) {
+        spinner?.fail("Failed to load categories");
+        console.error(formatError(loadResult.error));
+        process.exit(1);
+      }
+
+      if (spinner) {
+        spinner.text = `Generating tests for ${gaps.length} gaps...`;
+      }
+
+      // Create template renderer
+      const renderer = createRenderer({ strict: false, allowUnresolved: true });
+
+      // Generate tests for each gap
+      const generatedTests: GeneratedTest[] = [];
+      const errors: string[] = [];
+
+      // Group gaps by category to avoid rendering same template multiple times
+      const gapsByCategory = new Map<string, typeof gaps>();
+      for (const gap of gaps) {
+        const existing = gapsByCategory.get(gap.categoryId) ?? [];
+        existing.push(gap);
+        gapsByCategory.set(gap.categoryId, existing);
+      }
+
+      for (const [catId, categoryGaps] of gapsByCategory) {
+        const categoryResult = store.get(catId);
+        if (!categoryResult.success) {
+          errors.push(`Category not found: ${catId}`);
+          continue;
+        }
+        const category = categoryResult.data;
+
+        // Find best template for each gap (prefer matching language)
+        for (const gap of categoryGaps) {
+          // Detect gap file language
+          const gapExt = gap.filePath.split(".").pop() ?? "";
+          const langMap: Record<string, string> = {
+            py: "python",
+            ts: "typescript",
+            tsx: "typescript",
+            js: "javascript",
+            jsx: "javascript",
+            go: "go",
+            java: "java",
+            rs: "rust",
+          };
+          const gapLang = langMap[gapExt];
+
+          // Find matching template (prefer same language)
+          let template = category.testTemplates.find((t) => t.language === gapLang);
+          if (!template) {
+            template = category.testTemplates[0]; // Fallback to first template
+          }
+          if (!template) {
+            errors.push(`No templates available for ${catId}`);
+            continue;
+          }
+
+          // Extract variables from gap
+          const variables = extractVariablesFromGap(gap);
+
+          // Render template
+          const renderResult = renderer.renderTemplate(template, variables);
+          if (!renderResult.success) {
+            errors.push(`Failed to render ${catId}: ${renderResult.error.message}`);
+            continue;
+          }
+
+          // Generate suggested path
+          const suggestedPath = suggestTestPath(gap.filePath, template, cached.targetDirectory);
+
+          generatedTests.push({
+            gap,
+            category,
+            template,
+            result: renderResult.data,
+            suggestedPath,
+          });
+        }
+      }
+
+      spinner?.stop();
+
+      // Format and output results
+      if (outputFormat === "json") {
+        console.log(formatGeneratedJson(generatedTests));
+      } else {
+        console.log(formatGeneratedTerminal(generatedTests, cached.targetDirectory));
+      }
+
+      // Show errors if verbose
+      if (isVerbose && errors.length > 0) {
+        console.error(chalk.yellow("\nWarnings:"));
+        for (const error of errors) {
+          console.error(chalk.gray(`  - ${error}`));
+        }
+      }
+
+      // Handle write mode (future implementation)
+      if (!dryRun) {
+        console.log(chalk.yellow("\nFile writing not yet implemented. Tests shown above."));
+      }
+
+      process.exit(0);
+    } catch (error) {
+      spinner?.fail("Generation failed");
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
   });
 
 program
