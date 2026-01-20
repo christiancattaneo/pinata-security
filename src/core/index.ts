@@ -3,8 +3,8 @@
  *
  * This module contains:
  * - detection/  - Pattern matching against categories
+ * - scanner/    - Codebase analysis orchestration
  * - ingestion/  - Code parsing and AST extraction (coming soon)
- * - scoring/    - Gap analysis and Pinata Score calculation (coming soon)
  * - generation/ - Test code generation (coming soon)
  */
 
@@ -23,3 +23,21 @@ export {
   type FileScanResult,
   type AggregatedResults,
 } from "./detection/index.js";
+
+// Scanner module
+export {
+  Scanner,
+  createScanner,
+  SEVERITY_WEIGHTS,
+  CONFIDENCE_WEIGHTS,
+  PRIORITY_WEIGHTS,
+  DEFAULT_TEST_PATTERNS,
+  type ScannerOptions,
+  type ScanResult,
+  type Gap,
+  type DomainCoverage,
+  type CoverageMetrics,
+  type FileStats,
+  type PinataScore,
+  type ScanSummary,
+} from "./scanner/index.js";

@@ -43,6 +43,7 @@
     "commander": "^12.1.0",
     "glob": "^13.0.0",
     "js-yaml": "^4.1.1",
+    "minimatch": "^10.1.1",
     "ora": "^8.0.1",
     "web-tree-sitter": "^0.26.3",
     "yaml": "^2.4.5",
@@ -50,6 +51,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "@types/minimatch": "^5.1.2",
     "@types/node": "^20.14.10",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
