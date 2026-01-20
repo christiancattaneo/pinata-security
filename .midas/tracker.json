@@ -1,95 +1,40 @@
 {
-  "lastUpdated": "2026-01-19T17:45:07.071Z",
+  "lastUpdated": "2026-01-20T00:22:28.977Z",
   "recentFiles": [
     {
-      "path": "tests/categories/definitions/all-categories.test.ts",
-      "lastModified": 1768844692363.795
+      "path": "package-lock.json",
+      "lastModified": 1768868526440.39
     },
     {
-      "path": "tests/categories/definitions/performance.test.ts",
-      "lastModified": 1768844484864.3828
+      "path": "package.json",
+      "lastModified": 1768868526378.4414
     },
     {
-      "path": "src/categories/definitions/performance/blocking-io.yml",
-      "lastModified": 1768844484864.344
+      "path": "src/categories/migrations/migrator.ts",
+      "lastModified": 1768868499109.1055
     },
     {
-      "path": "src/categories/definitions/performance/cpu-spin.yml",
-      "lastModified": 1768844484864.3208
+      "path": "tests/categories/migrations/migrator.test.ts",
+      "lastModified": 1768868458506.5024
     },
     {
-      "path": "src/categories/definitions/performance/memory-bloat.yml",
-      "lastModified": 1768844484864.3027
+      "path": "src/categories/migrations/index.ts",
+      "lastModified": 1768867805334.5066
     },
     {
-      "path": "tests/categories/definitions/network.test.ts",
-      "lastModified": 1768843877264.6724
-    },
-    {
-      "path": "src/categories/definitions/network/network-partition.yml",
-      "lastModified": 1768843877256.6892
-    },
-    {
-      "path": "src/categories/definitions/network/thundering-herd.yml",
-      "lastModified": 1768843877256.6873
-    },
-    {
-      "path": "src/categories/definitions/network/high-latency.yml",
-      "lastModified": 1768843877256.6372
-    },
-    {
-      "path": "src/categories/definitions/network/packet-loss.yml",
-      "lastModified": 1768843308053.1003
-    },
-    {
-      "path": "src/categories/definitions/network/connection-failure.yml",
-      "lastModified": 1768843308052.9414
-    },
-    {
-      "path": "src/categories/definitions/network/network-timeout.yml",
-      "lastModified": 1768843308052.9
-    },
-    {
-      "path": "tests/categories/definitions/resource.test.ts",
-      "lastModified": 1768842548318.781
-    },
-    {
-      "path": "src/categories/definitions/resource/connection-pool-exhaustion.yml",
-      "lastModified": 1768842548318.7605
-    },
-    {
-      "path": "src/categories/definitions/resource/file-handle-leak.yml",
-      "lastModified": 1768842548317.2627
-    },
-    {
-      "path": "src/categories/definitions/resource/memory-leak.yml",
-      "lastModified": 1768842548317.2144
-    },
-    {
-      "path": "tests/categories/definitions/concurrency.test.ts",
-      "lastModified": 1768841173277.9963
-    },
-    {
-      "path": "src/categories/definitions/concurrency/retry-storm.yml",
-      "lastModified": 1768841173263.4817
-    },
-    {
-      "path": "src/categories/definitions/concurrency/idempotency-missing.yml",
-      "lastModified": 1768841173263.4536
-    },
-    {
-      "path": "src/categories/definitions/concurrency/timeout-missing.yml",
-      "lastModified": 1768841173263.278
+      "path": "src/categories/migrations/migration.schema.ts",
+      "lastModified": 1768867734794.527
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "cb2035cbdd14092bdf0330e7b0fc403353aac0f8",
-    "lastCommitMessage": "Add 3 P0 performance categories: memory-bloat, cpu-spin, blocking-io",
-    "lastCommitTime": 1768844470000,
-    "uncommittedChanges": 6,
+    "lastCommit": "f6b41cd5193ef5f64cd44b8253687b4198b105a8",
+    "lastCommitMessage": "Add integration test for all category definitions",
+    "lastCommitTime": 1768844707000,
+    "uncommittedChanges": 8,
     "recentCommits": [
+      "Add integration test for all category definitions",
       "Add 3 P0 performance categories: memory-bloat, cpu-spin, blocking-io",
       "Add 3 P0 distributed system categories: network-partition, thundering-herd, high-latency",
       "Add 3 P0 network/reliability categories: network-timeout, connection-failure, packet-loss",
@@ -98,8 +43,7 @@
       "Add 3 input domain categories: boundary-testing, null-undefined, injection-fuzzing",
       "Add 3 concurrency domain categories: race-condition, deadlock, thread-safety",
       "Add 8 data domain categories",
-      "Add security categories: ldap-injection, ssrf, timing-attack",
-      "Add security categories: csrf, xxe, command-injection, deserialization"
+      "Add security categories: ldap-injection, ssrf, timing-attack"
     ]
   },
   "completionSignals": {
@@ -122,6 +66,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1768847857776,
+      "suggestion": "Create src/categories/migrations/migrator.ts with a CategoryMigrator class. It should: 1) Load migration scripts from a migrations directory, 2) Track applied migrations in a .migrations file, 3) Support upgrading categories to new versions with a migrate() method that transforms old schema to new, 4) Include rollback support. Add corresponding tests in tests/categories/migrations/.",
+      "accepted": false
+    },
     {
       "timestamp": 1768844531459,
       "suggestion": "Create an integration test in tests/categories/definitions/all-categories.test.ts that loads ALL category definitions from src/categories/definitions/, validates each has required fields, ensures no duplicate IDs across domains, and verifies total count matches expected. Use CategoryStore.loadFromDirectory on the root definitions path.",
@@ -217,16 +166,10 @@
       "suggestion": "Create .cursorrules for Pinata focusing on the taxonomy engine architecture. Define: 1) TypeScript interfaces for Category, DetectionPattern, TestTemplate schemas from gameplan week 1, 2) File structure: src/core/taxonomy/, src/schemas/, tests/, 3) Naming conventions for category IDs (e.g., sec.injection.sql), 4) Testing requirements: unit tests for all CategoryStore operations, 5) Documentation format for each category entry",
       "accepted": false,
       "rejectionReason": "already did that"
-    },
-    {
-      "timestamp": 1768776691901,
-      "suggestion": "Create a .cursorrules file for Pinata. Include: TypeScript/Python conventions, schema-first development approach, test-driven mindset (dogfooding our own tool), modular architecture for the 5 phases (Taxonomy Engine, Test Templates, CLI Scanner, Framework Integration, Dashboard). Reference the category domains from brainlift (network, database, auth, time, observability).",
-      "accepted": false,
-      "rejectionReason": "[2 tools called]"
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1768844531444,
+  "lastAnalysis": 1768847857764,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }
