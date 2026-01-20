@@ -15,9 +15,10 @@ import { Command } from "commander";
 import { fileURLToPath } from "url";
 import { dirname, resolve } from "path";
 import { existsSync } from "fs";
+import ora from "ora";
 
 import { logger } from "../lib/index.js";
-import { VERSION } from "../core/index.js";
+import { VERSION, createScanner } from "../core/index.js";
 import { createCategoryStore } from "../categories/store/index.js";
 import {
   RISK_DOMAINS,
@@ -25,6 +26,7 @@ import {
   type RiskDomain,
   type TestLevel,
   type Priority,
+  type Severity,
 } from "../categories/schema/index.js";
 import {
   formatCategories,
@@ -32,6 +34,11 @@ import {
   isValidOutputFormat,
   type OutputFormat,
 } from "./formatters.js";
+import {
+  formatScanResult,
+  isValidScanOutputFormat,
+  type ScanOutputFormat,
+} from "./scan-formatters.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -73,19 +80,172 @@ program
   .description("Analyze codebase for test coverage gaps")
   .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif", "terminal")
   .option("-d, --domains <domains>", "Filter to specific domains (comma-separated)")
-  .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "medium")
+  .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "low")
+  .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "low")
   .option("--fail-on <level>", "Exit non-zero if gaps at level: critical, high, medium")
+  .option("--exclude <dirs>", "Directories to exclude (comma-separated)")
   .option("-v, --verbose", "Verbose output")
   .option("-q, --quiet", "Quiet mode (errors only)")
-  .action(async (path: string | undefined, options: Record<string, unknown>) => {
-    if (options["quiet"]) {
+  .action(async (targetPath: string | undefined, options: Record<string, unknown>) => {
+    const isQuiet = Boolean(options["quiet"]);
+    const isVerbose = Boolean(options["verbose"]);
+
+    if (isQuiet) {
       logger.configure({ level: "error" });
-    } else if (options["verbose"]) {
+    } else if (isVerbose) {
       logger.configure({ level: "debug" });
     }
 
-    logger.info(`Analyzing ${path ?? process.cwd()}...`);
-    logger.warn("Analysis not yet implemented. See Phase 3 of gameplan.");
+    // Resolve target path
+    const targetDirectory = resolve(targetPath ?? process.cwd());
+
+    // Validate target exists
+    if (!existsSync(targetDirectory)) {
+      console.error(formatError(new Error(`Directory not found: ${targetDirectory}`)));
+      process.exit(1);
+    }
+
+    // Validate output format
+    const outputFormat = String(options["output"] ?? "terminal");
+    if (!isValidScanOutputFormat(outputFormat)) {
+      console.error(formatError(new Error(`Invalid output format: ${outputFormat}. Use: terminal, json, markdown, sarif`)));
+      process.exit(1);
+    }
+
+    // Validate severity
+    const validSeverities = ["critical", "high", "medium", "low"];
+    const minSeverity = String(options["severity"] ?? "low") as Severity;
+    if (!validSeverities.includes(minSeverity)) {
+      console.error(formatError(new Error(`Invalid severity: ${minSeverity}. Use: critical, high, medium, low`)));
+      process.exit(1);
+    }
+
+    // Validate confidence
+    const validConfidences = ["high", "medium", "low"];
+    const minConfidence = String(options["confidence"] ?? "low");
+    if (!validConfidences.includes(minConfidence)) {
+      console.error(formatError(new Error(`Invalid confidence: ${minConfidence}. Use: high, medium, low`)));
+      process.exit(1);
+    }
+
+    // Parse domains filter
+    const domainsStr = options["domains"] as string | undefined;
+    let domains: RiskDomain[] = [];
+    if (domainsStr) {
+      const domainList = domainsStr.split(",").map((d) => d.trim());
+      for (const domain of domainList) {
+        if (!RISK_DOMAINS.includes(domain as RiskDomain)) {
+          console.error(formatError(new Error(`Invalid domain: ${domain}. Valid domains: ${RISK_DOMAINS.join(", ")}`)));
+          process.exit(1);
+        }
+      }
+      domains = domainList as RiskDomain[];
+    }
+
+    // Parse exclude directories
+    const excludeStr = options["exclude"] as string | undefined;
+    const excludeDirs = excludeStr
+      ? excludeStr.split(",").map((d) => d.trim())
+      : undefined;
+
+    // Parse fail-on level (Commander converts --fail-on to failOn)
+    const failOn = options["failOn"] as string | undefined;
+    if (failOn && !["critical", "high", "medium"].includes(failOn)) {
+      console.error(formatError(new Error(`Invalid fail-on level: ${failOn}. Use: critical, high, medium`)));
+      process.exit(1);
+    }
+
+    // Start spinner (only for terminal output and non-quiet mode)
+    const showSpinner = outputFormat === "terminal" && !isQuiet;
+    const spinner = showSpinner ? ora("Loading categories...").start() : null;
+
+    try {
+      // Load categories
+      const store = createCategoryStore();
+      const definitionsPath = getDefinitionsPath();
+
+      logger.debug(`Loading categories from: ${definitionsPath}`);
+      const loadResult = await store.loadFromDirectory(definitionsPath);
+
+      if (!loadResult.success) {
+        spinner?.fail("Failed to load categories");
+        console.error(formatError(loadResult.error));
+        process.exit(1);
+      }
+
+      if (spinner) {
+        spinner.text = `Loaded ${loadResult.data} categories. Scanning...`;
+      }
+      logger.debug(`Loaded ${loadResult.data} categories`);
+
+      // Create scanner and run analysis
+      const scanner = createScanner(store);
+
+      // Build scan options
+      const scanOptions: Parameters<typeof scanner.scanDirectory>[1] = {
+        minSeverity,
+        minConfidence: minConfidence as "high" | "medium" | "low",
+        detectTestFiles: true,
+      };
+      if (domains.length > 0) {
+        scanOptions.domains = domains;
+      }
+      if (excludeDirs) {
+        scanOptions.excludeDirs = excludeDirs;
+      }
+
+      const scanResult = await scanner.scanDirectory(targetDirectory, scanOptions);
+
+      if (!scanResult.success) {
+        spinner?.fail("Scan failed");
+        console.error(formatError(scanResult.error));
+        process.exit(1);
+      }
+
+      spinner?.stop();
+
+      // Format and output results
+      const output = formatScanResult(scanResult.data, outputFormat as ScanOutputFormat, targetDirectory);
+      console.log(output);
+
+      // Handle warnings
+      if (isVerbose && scanResult.data.warnings.length > 0) {
+        console.error("\nWarnings:");
+        for (const warning of scanResult.data.warnings) {
+          console.error(`  - ${warning}`);
+        }
+      }
+
+      // Handle fail-on exit code
+      if (failOn) {
+        const severityOrder: Record<string, number> = {
+          critical: 3,
+          high: 2,
+          medium: 1,
+        };
+        const failLevel = severityOrder[failOn] ?? 0;
+
+        const hasFailingGaps = scanResult.data.gaps.some((gap) => {
+          const gapLevel = severityOrder[gap.severity] ?? 0;
+          return gapLevel >= failLevel;
+        });
+
+        if (hasFailingGaps) {
+          const count = scanResult.data.gaps.filter((gap) => {
+            const gapLevel = severityOrder[gap.severity] ?? 0;
+            return gapLevel >= failLevel;
+          }).length;
+          logger.debug(`Exiting with code 1 due to ${count} gaps at ${failOn} level or above`);
+          process.exit(1);
+        }
+      }
+
+      process.exit(0);
+    } catch (error) {
+      spinner?.fail("Analysis failed");
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
   });
 
 program
