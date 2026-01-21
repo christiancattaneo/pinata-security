@@ -4,19 +4,22 @@ import { join, basename } from "node:path";
 import { load as loadYaml, dump as dumpYaml } from "js-yaml";
 import { glob } from "glob";
 
-import { Result, ok, err, tryCatchAsync } from "../../lib/result.js";
+import { ok, err, tryCatchAsync } from "../../lib/result.js";
+import type { Result } from "../../lib/result.js";
 import { PinataError, ValidationError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
 import {
+  MigrationStateSchema,
+  MIGRATOR_VERSION,
+  MIGRATIONS_STATE_FILE,
+} from "./migration.schema.js";
+import type {
   MigrationScript,
   MigrationState,
-  MigrationStateSchema,
   MigrationResult,
   MigrateOptions,
   RollbackOptions,
   AppliedMigration,
-  MIGRATOR_VERSION,
-  MIGRATIONS_STATE_FILE,
 } from "./migration.schema.js";
 
 /**
@@ -447,7 +450,7 @@ export class CategoryMigrator {
         success: !error,
         categoriesAffected,
         durationMs: Date.now() - startTime,
-        error,
+        ...(error !== undefined && { error }),
       };
 
       results.push(result);
@@ -556,7 +559,7 @@ export class CategoryMigrator {
         success: !error,
         categoriesAffected,
         durationMs: Date.now() - startTime,
-        error,
+        ...(error !== undefined && { error }),
       };
 
       results.push(result);
@@ -622,11 +625,12 @@ export class CategoryMigrator {
     const applied = this.state?.applied.length ?? 0;
     const total = this.migrations.size;
 
+    const lastRun = this.state?.lastRun;
     return {
       applied,
       pending: total - applied,
       total,
-      lastRun: this.state?.lastRun,
+      ...(lastRun !== undefined && { lastRun }),
     };
   }
 

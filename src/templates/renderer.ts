@@ -1,12 +1,13 @@
 import { z } from "zod";
 
-import { Result, ok, err } from "../lib/result.js";
+import { ok, err } from "../lib/result.js";
+import type { Result } from "../lib/result.js";
 import { PinataError, ValidationError } from "../lib/errors.js";
-import {
+import { VariableTypeSchema } from "../categories/schema/index.js";
+import type {
   TestTemplate,
   TemplateVariable,
   VariableType,
-  VariableTypeSchema,
 } from "../categories/schema/index.js";
 
 /**
@@ -382,11 +383,12 @@ export class TemplateRenderer {
     let match: RegExpExecArray | null;
 
     while ((match = regex.exec(template)) !== null) {
+      const falseBranch = match[3];
       conditionals.push({
         match: match[0],
         variable: match[1] ?? "",
         trueBranch: match[2] ?? "",
-        falseBranch: match[3],
+        ...(falseBranch !== undefined && { falseBranch }),
         startIndex: match.index,
         endIndex: match.index + match[0].length,
       });
