@@ -887,3 +887,93 @@ With 2 engineers, phases can overlap:
 - Find valid gaps in 80%+
 - < 20% false positive rate
 - 50 beta users
+
+---
+
+## Future: AI-Assisted Security Review (Post-MVP)
+
+**Background:** Research confirms that static analysis has fundamental limitations for certain vulnerability types. The Arcanum Sec-Context Top 10 anti-patterns fall into three confidence tiers:
+
+```
+HIGH CONFIDENCE (>80%)          MEDIUM (50-80%)           LOW (<30%)
+Static regex/AST works          Needs flow analysis       Manual review required
+───────────────────────         ───────────────────       ─────────────────────
+• Hardcoded Secrets             • XSS (innerHTML)         • Auth Failures
+• SQL Injection                 • Input Validation        • Rate Limiting
+• Command Injection             • Dependency Risks        • Data Exposure
+                                • File Upload
+```
+
+**Current Approach:**
+- HIGH confidence patterns: Full detection with test generation
+- MEDIUM confidence: Detection with caveats, recommend dynamic testing
+- LOW confidence: Flag for manual review with checklist prompts
+
+**Future Feature: AI Security Review Agent**
+
+For the three LOW confidence categories (auth-failures, rate-limiting, data-exposure), implement an agentic AI review system:
+
+| Feature | Description | Value |
+|---------|-------------|-------|
+| Context-aware auth review | LLM analyzes auth middleware chains, understands route protection | Reduces false negatives in auth detection |
+| Infrastructure correlation | Cross-reference code with nginx/k8s configs for rate limiting | Detects infra-level protection |
+| Semantic data classification | LLM identifies sensitive fields based on naming and context | Enables data exposure detection |
+| Review assistant | Interactive review session with suggested questions | Guided manual review |
+
+**Implementation Approach:**
+
+1. **Agent Architecture**
+   - Multi-step reasoning with tool use (read files, query configs)
+   - Context window management for large codebases
+   - Confidence calibration based on evidence found
+
+2. **Auth Review Agent**
+   ```
+   Input: Route handlers, middleware chain, auth config
+   Process:
+     1. Map all endpoints to their auth requirements
+     2. Trace auth middleware application
+     3. Identify unprotected routes
+     4. Check JWT/session configuration
+     5. Verify password hashing implementation
+   Output: Structured findings with confidence scores
+   ```
+
+3. **Rate Limit Review Agent**
+   ```
+   Input: Code + infra configs (nginx.conf, k8s manifests, CDN config)
+   Process:
+     1. Check for app-level rate limiting (express-rate-limit, etc.)
+     2. Parse nginx/envoy rate limit configs
+     3. Check API gateway settings (Kong, AWS API Gateway)
+     4. Correlate endpoints with protection
+   Output: Rate limit coverage map
+   ```
+
+4. **Data Exposure Review Agent**
+   ```
+   Input: API handlers, ORM models, serializers
+   Process:
+     1. Build field sensitivity ontology from model names
+     2. Trace data flow from DB to API response
+     3. Identify missing field filtering
+     4. Check for explicit exclusions
+   Output: Field exposure report with recommendations
+   ```
+
+**Timeline:** Phase 6+ (post-MVP)
+**Estimate:** 4-6 weeks
+**Dependencies:** 
+- Solid LLM integration (from Phase 2)
+- File/config parsing infrastructure
+- Agent orchestration framework
+
+**Success Criteria:**
+- 70%+ detection rate for auth issues (vs <50% with static only)
+- <30% false positive rate
+- Review sessions complete in <5 minutes per endpoint
+
+**Cost Considerations:**
+- Each agent review: ~5-20k tokens input, ~2k tokens output
+- Estimated cost per codebase review: $0.50-2.00
+- Implement caching and incremental review to reduce costs

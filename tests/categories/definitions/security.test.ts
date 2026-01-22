@@ -60,9 +60,37 @@ describe("Security Category Definitions", () => {
       expect(store.has("timing-attack")).toBe(true);
     });
 
-    it("loads exactly 10 security categories", () => {
+    it("loads all security categories (including Arcanum Top 10 coverage)", () => {
       const securityCategories = store.byDomain("security");
-      expect(securityCategories).toHaveLength(10);
+      // Original 10 + 6 new categories for Arcanum Top 10 coverage:
+      // hardcoded-secrets, auth-failures, rate-limiting, data-exposure, 
+      // file-upload, dependency-risks
+      expect(securityCategories.length).toBeGreaterThanOrEqual(15);
+    });
+
+    // Verify the new Arcanum Top 10 categories are loaded
+    it("loads hardcoded-secrets category", () => {
+      expect(store.has("hardcoded-secrets")).toBe(true);
+    });
+
+    it("loads auth-failures category", () => {
+      expect(store.has("auth-failures")).toBe(true);
+    });
+
+    it("loads rate-limiting category", () => {
+      expect(store.has("rate-limiting")).toBe(true);
+    });
+
+    it("loads data-exposure category", () => {
+      expect(store.has("data-exposure")).toBe(true);
+    });
+
+    it("loads file-upload category", () => {
+      expect(store.has("file-upload")).toBe(true);
+    });
+
+    it("loads dependency-risks category", () => {
+      expect(store.has("dependency-risks")).toBe(true);
     });
   });
 

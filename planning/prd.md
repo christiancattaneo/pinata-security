@@ -143,6 +143,47 @@ Measured via: user-reported incident correlation with Pinata gap reports, before
 - Custom category definitions
 - Team collaboration features
 - Historical trend analysis
+- **AI-Assisted Security Review Agent** (see below)
+
+### Future Scope: AI-Assisted Security Review
+
+**Problem:** Static analysis has fundamental limitations for certain vulnerability types. Research (SecVulEval 2025, Veracode GenAI Report) confirms:
+
+- **Auth failures, rate limiting, data exposure** require semantic understanding
+- Static analysis achieves <50% detection on these categories
+- Even LLMs achieve only ~23.8% F1 score for fine-grained vulnerability detection
+
+**Current Approach (v1):**
+Categories like `auth-failures`, `rate-limiting`, and `data-exposure` are implemented as **flag for manual review** patterns rather than claiming definitive detection.
+
+**Future Feature: AI Security Review Agent**
+
+An agentic LLM system that can:
+
+1. **Auth Review Agent**
+   - Trace middleware chains across files
+   - Understand route protection patterns
+   - Verify JWT/session configuration
+   - Check password hashing implementation
+
+2. **Rate Limit Review Agent** 
+   - Cross-reference code with infrastructure configs (nginx, k8s, CDN)
+   - Detect protection at any layer (app, gateway, WAF)
+   - Map endpoint coverage
+
+3. **Data Exposure Review Agent**
+   - Build field sensitivity ontology from model names
+   - Trace data flow from database to API response
+   - Identify missing field filtering
+
+**Expected Improvement:**
+- Detection rate: <50% (static) → 70%+ (with agent)
+- False positive rate: maintain <30%
+- Review time: <5 minutes per endpoint
+
+**Cost Estimate:**
+- Per-codebase review: $0.50-2.00
+- Implemented via cached, incremental reviews
 
 ---
 

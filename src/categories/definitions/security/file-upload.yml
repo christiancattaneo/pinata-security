@@ -1,0 +1,495 @@
+id: file-upload
+version: 1
+name: Unrestricted File Upload
+description: |
+  Detects file upload handlers that may lack proper validation. Unrestricted file
+  uploads can lead to Remote Code Execution (RCE) when malicious files (PHP, JSP,
+  executable scripts) are uploaded and executed on the server.
+  
+  Detection confidence: MEDIUM (55-70%)
+  Static analysis can detect:
+  - Missing file type validation (fileFilter, mimeType checks)
+  - Missing file size limits
+  - Uploads to public/static directories
+  - Missing filename sanitization
+  
+  Static analysis struggles with:
+  - Web server configuration (whether uploaded files are executed)
+  - Storage location permissions
+  - Content-type spoofing detection (polyglot files)
+  
+  Requires combination of static detection + runtime testing for full coverage.
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2023-28432
+  - CVE-2021-44228
+  - CVE-2020-9484
+
+references:
+  - https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload
+  - https://cwe.mitre.org/data/definitions/434.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html
+
+detectionPatterns:
+  # Multer without fileFilter
+  - id: multer-no-filter
+    type: regex
+    language: typescript
+    pattern: "multer\\s*\\(\\s*\\{(?!.*fileFilter)"
+    confidence: high
+    description: Multer configured without fileFilter - accepts any file type
+
+  - id: multer-no-limits
+    type: regex
+    language: typescript
+    pattern: "multer\\s*\\(\\s*\\{(?!.*limits)"
+    confidence: medium
+    description: |
+      Multer configured without size limits.
+      Large uploads can cause denial of service.
+
+  - id: multer-memory-storage
+    type: regex
+    language: typescript
+    pattern: "multer\\.memoryStorage\\s*\\(\\)"
+    confidence: medium
+    description: |
+      [REVIEW] Using memory storage for uploads.
+      Large files can exhaust server memory.
+
+  # Storing in public directories
+  - id: upload-public-dir
+    type: regex
+    language: typescript
+    pattern: "destination:\\s*[\"'`]\\./?(public|static|uploads|www)[\"'`]"
+    confidence: high
+    description: |
+      Uploads stored in public directory. If files are directly served,
+      executable files (PHP, JSP) could be run by the web server.
+
+  - id: express-static-uploads
+    type: regex
+    language: typescript
+    pattern: "express\\.static\\s*\\([^)]*upload"
+    confidence: high
+    description: |
+      Express serving upload directory statically.
+      Uploaded files may be executable.
+
+  # Python patterns
+  - id: flask-no-secure-filename
+    type: regex
+    language: python
+    pattern: "request\\.files\\[.+\\]\\.save\\s*\\("
+    confidence: medium
+    description: |
+      File save without visible secure_filename() usage.
+      Path traversal may be possible.
+    negativePattern: "secure_filename|werkzeug"
+
+  - id: django-no-file-validators
+    type: regex
+    language: python
+    pattern: "FileField\\s*\\((?!.*validators)"
+    confidence: medium
+    description: |
+      Django FileField without validators.
+      Consider FileExtensionValidator.
+
+  - id: fastapi-file-no-validation
+    type: regex
+    language: python
+    pattern: "UploadFile(?!.*content_type|.*filename)"
+    confidence: low
+    description: |
+      [REVIEW] FastAPI UploadFile without visible validation.
+      Verify content_type and filename are checked.
+
+  # Missing extension/type validation
+  - id: no-extension-check
+    type: regex
+    language: typescript
+    pattern: "\\.(originalname|filename)(?!.*\\.split|\\.endsWith|\\.match|extname)"
+    confidence: medium
+    description: |
+      [REVIEW] File processed without extension validation.
+      Verify allowed file types are checked.
+
+  - id: no-mimetype-check
+    type: regex
+    language: typescript
+    pattern: "req\\.file(?!.*mimetype|.*content-type)"
+    confidence: low
+    description: |
+      [REVIEW] File processed without MIME type check.
+      Content-type can be spoofed, combine with magic number check.
+
+  # Path traversal in filename
+  - id: path-traversal-filename
+    type: regex
+    language: typescript
+    pattern: "path\\.join\\s*\\([^,]+,\\s*(req\\.file\\.originalname|filename)"
+    confidence: high
+    description: |
+      Filename from request used in path.join without sanitization.
+      Path traversal attack possible (../../etc/passwd).
+
+testTemplates:
+  - id: pytest-file-upload
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import io
+      
+      
+      class Test{{className}}FileUpload:
+          """File upload security tests for {{moduleName}}"""
+          
+          # Dangerous file types that should be rejected
+          DANGEROUS_FILES = [
+              {"name": "shell.php", "content": b"<?php system($_GET['cmd']); ?>", "type": "application/x-php"},
+              {"name": "script.jsp", "content": b"<% Runtime.getRuntime().exec(request.getParameter(\"cmd\")); %>", "type": "text/x-jsp"},
+              {"name": "shell.aspx", "content": b"<%@ Page Language=\"C#\" %>", "type": "application/x-aspx"},
+              {"name": "script.exe", "content": b"MZ\\x90\\x00", "type": "application/x-msdownload"},
+              {"name": "shell.sh", "content": b"#!/bin/bash\\nrm -rf /", "type": "application/x-sh"},
+              {"name": "script.py", "content": b"import os; os.system('whoami')", "type": "text/x-python"},
+              {"name": "polyglot.jpg.php", "content": b"GIF89a<?php system($_GET['c']); ?>", "type": "image/gif"},
+          ]
+          
+          # Path traversal attempts
+          PATH_TRAVERSAL_NAMES = [
+              "../../../etc/passwd",
+              "..\\..\\..\\windows\\system32\\config\\sam",
+              "....//....//etc/passwd",
+              "%2e%2e%2f%2e%2e%2fetc/passwd",
+              "..%252f..%252f..%252fetc/passwd",
+          ]
+          
+          @pytest.mark.parametrize("file", DANGEROUS_FILES)
+          def test_rejects_dangerous_file_types(self, client, auth_token, file):
+              """Verify dangerous file types are rejected"""
+              response = client.post(
+                  "{{uploadEndpoint}}",
+                  headers={"Authorization": f"Bearer {auth_token}"},
+                  files={"file": (file["name"], io.BytesIO(file["content"]), file["type"])}
+              )
+              
+              assert response.status_code in [400, 415, 422], \
+                  f"Dangerous file type accepted: {file['name']}"
+          
+          @pytest.mark.parametrize("filename", PATH_TRAVERSAL_NAMES)
+          def test_rejects_path_traversal_filenames(self, client, auth_token, filename):
+              """Verify path traversal attempts are rejected"""
+              response = client.post(
+                  "{{uploadEndpoint}}",
+                  headers={"Authorization": f"Bearer {auth_token}"},
+                  files={"file": (filename, io.BytesIO(b"test"), "text/plain")}
+              )
+              
+              assert response.status_code == 400, \
+                  f"Path traversal filename accepted: {filename}"
+          
+          def test_enforces_file_size_limit(self, client, auth_token):
+              """Verify file size limit is enforced"""
+              # Create file larger than limit (default 10MB)
+              large_content = b"x" * ({{maxFileSizeMB}} * 1024 * 1024 + 1)
+              
+              response = client.post(
+                  "{{uploadEndpoint}}",
+                  headers={"Authorization": f"Bearer {auth_token}"},
+                  files={"file": ("large.txt", io.BytesIO(large_content), "text/plain")}
+              )
+              
+              assert response.status_code == 413, \
+                  "Large file not rejected with 413 Payload Too Large"
+          
+          def test_validates_content_matches_extension(self, client, auth_token):
+              """Verify file content matches claimed extension (polyglot detection)"""
+              # PHP content with .jpg extension
+              php_as_jpg = b"GIF89a<?php system($_GET['c']); ?>"
+              
+              response = client.post(
+                  "{{uploadEndpoint}}",
+                  headers={"Authorization": f"Bearer {auth_token}"},
+                  files={"file": ("image.jpg", io.BytesIO(php_as_jpg), "image/jpeg")}
+              )
+              
+              # Should either reject or strip the PHP
+              assert response.status_code == 400 or \
+                     b"<?php" not in response.content, \
+                  "Polyglot file (PHP in JPG) not detected"
+          
+          def test_sanitizes_filename(self, client, auth_token):
+              """Verify filename is sanitized before storage"""
+              dangerous_name = "file; rm -rf /.txt"
+              
+              response = client.post(
+                  "{{uploadEndpoint}}",
+                  headers={"Authorization": f"Bearer {auth_token}"},
+                  files={"file": (dangerous_name, io.BytesIO(b"test"), "text/plain")}
+              )
+              
+              if response.status_code == 200:
+                  # If accepted, verify name was sanitized
+                  stored_name = response.json().get("filename", "")
+                  assert ";" not in stored_name, "Filename not sanitized"
+          
+          def test_uploads_not_in_webroot(self):
+              """Verify uploads are stored outside web-accessible directories"""
+              import os
+              from {{modulePath}} import UPLOAD_DIR
+              
+              web_roots = ["public", "static", "www", "html", "htdocs"]
+              upload_path = os.path.normpath(UPLOAD_DIR).lower()
+              
+              for root in web_roots:
+                  assert root not in upload_path, \
+                      f"Upload directory contains web root: {root}"
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+      - name: uploadEndpoint
+        type: string
+        description: Upload endpoint path
+        required: true
+      - name: maxFileSizeMB
+        type: number
+        description: Maximum file size in MB
+        required: false
+        defaultValue: 10
+      - name: modulePath
+        type: string
+        description: Import path
+        required: true
+
+  - id: jest-file-upload
+    language: typescript
+    framework: jest
+    template: |
+      import * as fs from 'fs';
+      import * as path from 'path';
+      import FormData from 'form-data';
+      
+      describe('{{className}} File Upload Security', () => {
+        const DANGEROUS_FILES = [
+          { name: 'shell.php', content: '<?php system($_GET["cmd"]); ?>', type: 'application/x-php' },
+          { name: 'script.jsp', content: '<% Runtime.getRuntime().exec(request.getParameter("cmd")); %>', type: 'text/x-jsp' },
+          { name: 'shell.exe', content: Buffer.from([0x4D, 0x5A, 0x90, 0x00]), type: 'application/x-msdownload' },
+          { name: 'polyglot.jpg.php', content: 'GIF89a<?php system($_GET["c"]); ?>', type: 'image/gif' },
+        ];
+        
+        const PATH_TRAVERSAL_NAMES = [
+          '../../../etc/passwd',
+          '..\\..\\..\\windows\\system32\\config\\sam',
+          '....//....//etc/passwd',
+        ];
+        
+        describe('file type validation', () => {
+          test.each(DANGEROUS_FILES)(
+            'rejects dangerous file: $name',
+            async ({ name, content, type }) => {
+              const form = new FormData();
+              form.append('file', Buffer.from(content), { filename: name, contentType: type });
+              
+              const response = await fetch('{{uploadEndpoint}}', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form
+              });
+              
+              expect([400, 415, 422]).toContain(response.status);
+            }
+          );
+        });
+        
+        describe('path traversal', () => {
+          test.each(PATH_TRAVERSAL_NAMES)(
+            'rejects traversal filename: %s',
+            async (filename) => {
+              const form = new FormData();
+              form.append('file', Buffer.from('test'), { filename });
+              
+              const response = await fetch('{{uploadEndpoint}}', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form
+              });
+              
+              expect(response.status).toBe(400);
+            }
+          );
+        });
+        
+        describe('size limits', () => {
+          it('enforces file size limit', async () => {
+            const largeContent = Buffer.alloc({{maxFileSizeMB}} * 1024 * 1024 + 1);
+            
+            const form = new FormData();
+            form.append('file', largeContent, { filename: 'large.txt' });
+            
+            const response = await fetch('{{uploadEndpoint}}', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+              body: form
+            });
+            
+            expect(response.status).toBe(413);
+          });
+        });
+        
+        describe('content validation', () => {
+          it('detects polyglot files (PHP in image)', async () => {
+            // PHP code disguised as JPEG
+            const polyglot = Buffer.concat([
+              Buffer.from([0xFF, 0xD8, 0xFF, 0xE0]),  // JPEG header
+              Buffer.from('<?php system($_GET["cmd"]); ?>')
+            ]);
+            
+            const form = new FormData();
+            form.append('file', polyglot, { filename: 'image.jpg', contentType: 'image/jpeg' });
+            
+            const response = await fetch('{{uploadEndpoint}}', {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+              body: form
+            });
+            
+            // Should reject or sanitize
+            expect(response.status).toBe(400);
+          });
+        });
+        
+        describe('storage security', () => {
+          it('does not store uploads in web-accessible directory', () => {
+            const uploadDir = require('{{configPath}}').UPLOAD_DIR;
+            const webRoots = ['public', 'static', 'www', 'html'];
+            
+            const normalized = path.normalize(uploadDir).toLowerCase();
+            
+            for (const root of webRoots) {
+              expect(normalized).not.toContain(root);
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: uploadEndpoint
+        type: string
+        description: Upload endpoint
+        required: true
+      - name: maxFileSizeMB
+        type: number
+        description: Max file size in MB
+        required: false
+        defaultValue: 10
+      - name: configPath
+        type: string
+        description: Config module path
+        required: true
+
+examples:
+  - name: multer-no-filter
+    concept: |
+      Multer file upload without fileFilter accepts any file type. An attacker
+      can upload executable files (PHP, JSP, etc.) and if the upload directory
+      is served by a web server, execute arbitrary code.
+    vulnerableCode: |
+      // VULNERABLE: No file type validation
+      const upload = multer({
+        dest: 'uploads/'
+        // Missing: fileFilter
+        // Missing: limits
+      });
+      
+      app.post('/upload', upload.single('file'), (req, res) => {
+        res.json({ filename: req.file.filename });
+      });
+    testCode: |
+      describe('file upload', () => {
+        it('rejects PHP files', async () => {
+          const form = new FormData();
+          form.append('file', Buffer.from('<?php echo "pwned"; ?>'), {
+            filename: 'shell.php',
+            contentType: 'application/x-php'
+          });
+          
+          const response = await request(app)
+            .post('/upload')
+            .attach('file', Buffer.from('<?php ?>'), 'shell.php');
+          
+          expect(response.status).toBe(400);
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: public-upload-directory
+    concept: |
+      Uploads stored in a publicly accessible directory. If the web server
+      is configured to execute scripts in this directory, uploaded PHP/JSP
+      files will be executed, leading to Remote Code Execution.
+    vulnerableCode: |
+      // VULNERABLE: Uploads to public directory
+      const storage = multer.diskStorage({
+        destination: './public/uploads',  // Served by Express.static!
+        filename: (req, file, cb) => {
+          cb(null, file.originalname);  // No sanitization
+        }
+      });
+    testCode: |
+      describe('upload storage', () => {
+        it('does not store in public directory', () => {
+          const config = require('./upload-config');
+          expect(config.destination).not.toContain('public');
+          expect(config.destination).not.toContain('static');
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: flask-path-traversal
+    concept: |
+      File upload without secure_filename() allows path traversal. An attacker
+      can upload a file named "../../etc/passwd" to overwrite system files or
+      escape the upload directory.
+    vulnerableCode: |
+      # VULNERABLE: No filename sanitization
+      @app.route('/upload', methods=['POST'])
+      def upload():
+          file = request.files['file']
+          # Path traversal: filename could be "../../config.py"
+          file.save(os.path.join(UPLOAD_DIR, file.filename))
+          return 'OK'
+    testCode: |
+      def test_rejects_path_traversal():
+          """Verify path traversal filenames are rejected"""
+          response = client.post('/upload', data={
+              'file': (io.BytesIO(b'test'), '../../../etc/passwd')
+          })
+          
+          assert response.status_code == 400
+    language: python
+    severity: critical
+    cve: CVE-2023-28432
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

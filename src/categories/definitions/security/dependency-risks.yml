@@ -1,0 +1,472 @@
+id: dependency-risks
+version: 1
+name: Dependency Risks (Slopsquatting)
+description: |
+  Detects risky dependencies including AI-hallucinated packages (slopsquatting),
+  typosquatted packages, and packages with known vulnerabilities.
+  
+  Detection confidence: MEDIUM (60%)
+  This category requires EXTERNAL VALIDATION against package registries.
+  
+  Static analysis can detect:
+  - Package names that don't exist in npm/pypi (slopsquatting)
+  - Typosquatted names (Levenshtein distance from popular packages)
+  - Packages with very low download counts
+  - Very new packages (< 1 month old)
+  
+  Static analysis cannot detect:
+  - Zero-day supply chain attacks
+  - Packages that became malicious after installation
+  - Private registry packages
+  
+  Research shows 5-21% of AI-generated code references non-existent packages,
+  and 43% of those names repeat consistently, making them targetable.
+  
+  Requires integration with npm/pypi APIs or tools like Socket.dev, Snyk.
+domain: security
+level: unit
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2022-24785
+  - CVE-2021-44906
+  - CVE-2022-0155
+
+references:
+  - https://socket.dev/blog/slopsquatting
+  - https://cwe.mitre.org/data/definitions/1357.html
+  - https://owasp.org/www-community/attacks/Dependency_Confusion
+
+detectionPatterns:
+  # These patterns identify import/require statements for external validation
+  
+  # npm package.json dependencies
+  - id: npm-dependencies
+    type: regex
+    language: typescript
+    pattern: "\"(dependencies|devDependencies)\":\\s*\\{"
+    confidence: high
+    description: |
+      package.json dependencies section detected.
+      Run `npm audit` and verify packages against registry.
+
+  # Python requirements
+  - id: python-requirements
+    type: regex
+    language: python
+    pattern: "^[a-zA-Z0-9_-]+[><=!~]"
+    confidence: high
+    description: |
+      requirements.txt entry detected.
+      Verify package exists in PyPI.
+
+  # Import statements to verify
+  - id: npm-import
+    type: regex
+    language: typescript
+    pattern: "(import|require)\\s*\\(?[\"'`]([a-z@][a-z0-9_/-]*)[\"'`]"
+    confidence: medium
+    description: |
+      External package import detected.
+      Verify package exists and is not typosquatted.
+
+  - id: python-import
+    type: regex
+    language: python
+    pattern: "^(from|import)\\s+([a-z][a-z0-9_]*)"
+    confidence: medium
+    description: |
+      Python import detected.
+      Verify package exists in PyPI.
+
+  # Known typosquat patterns (common misspellings)
+  - id: lodash-typosquat
+    type: regex
+    language: typescript
+    pattern: "(l0dash|lodahs|1odash|lodassh|lodsh)(?![a-z])"
+    confidence: high
+    description: Potential lodash typosquat detected
+
+  - id: express-typosquat
+    type: regex
+    language: typescript
+    pattern: "(expres(?!s)|expresss|3xpress)(?![a-z])"
+    confidence: high
+    description: Potential express typosquat detected
+
+  - id: requests-typosquat
+    type: regex
+    language: python
+    pattern: "(reqeusts|requets|request(?!s)|requ3sts)(?![a-z])"
+    confidence: high
+    description: Potential requests typosquat detected
+
+  # Suspicious patterns
+  - id: numeric-suffix-package
+    type: regex
+    language: typescript
+    pattern: "[\"'`](@?[a-z][a-z0-9-]*[0-9]{3,})[\"'`]"
+    confidence: medium
+    description: |
+      Package name with numeric suffix detected.
+      May be typosquat or abandoned package.
+
+  - id: hyphen-variant-package
+    type: regex
+    language: typescript
+    pattern: "[\"'`](@?[a-z]+[-_][a-z]+[-_][a-z]+)[\"'`]"
+    confidence: low
+    description: |
+      [REVIEW] Multi-hyphenated package name.
+      Verify this is the official package.
+
+testTemplates:
+  - id: pytest-dependency-check
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      import subprocess
+      import json
+      import urllib.request
+      from pathlib import Path
+      
+      
+      class Test{{className}}Dependencies:
+          """
+          Dependency security tests for {{moduleName}}
+          
+          These tests verify dependencies are safe and legitimate.
+          Run in CI to catch slopsquatting before deployment.
+          """
+          
+          @pytest.fixture
+          def requirements(self):
+              """Parse requirements.txt"""
+              req_file = Path("requirements.txt")
+              if not req_file.exists():
+                  pytest.skip("No requirements.txt found")
+              
+              packages = []
+              for line in req_file.read_text().splitlines():
+                  line = line.strip()
+                  if line and not line.startswith("#"):
+                      # Extract package name
+                      name = line.split("[")[0].split(">")[0].split("<")[0].split("=")[0].split("!")[0]
+                      packages.append(name.strip())
+              return packages
+          
+          def test_all_packages_exist_in_pypi(self, requirements):
+              """Verify all packages exist in PyPI (detect slopsquatting)"""
+              missing = []
+              
+              for package in requirements:
+                  url = f"https://pypi.org/pypi/{package}/json"
+                  try:
+                      urllib.request.urlopen(url, timeout=5)
+                  except urllib.error.HTTPError as e:
+                      if e.code == 404:
+                          missing.append(package)
+              
+              assert not missing, \
+                  f"CRITICAL: Packages not found in PyPI (possible slopsquatting): {missing}"
+          
+          def test_no_typosquatted_packages(self, requirements):
+              """Check for common typosquats of popular packages"""
+              popular = {
+                  "requests": ["reqeusts", "requets", "request", "requ3sts"],
+                  "numpy": ["numpi", "numppy", "nump1"],
+                  "pandas": ["panda", "pandass", "pand4s"],
+                  "flask": ["flaskk", "flaask", "fl4sk"],
+                  "django": ["dajngo", "djang0", "djanog"],
+              }
+              
+              suspicious = []
+              for package in requirements:
+                  pkg_lower = package.lower()
+                  for legit, typos in popular.items():
+                      if pkg_lower in typos:
+                          suspicious.append((package, legit))
+              
+              assert not suspicious, \
+                  f"Possible typosquats detected: {suspicious}"
+          
+          def test_no_very_new_packages(self, requirements):
+              """Flag packages less than 30 days old"""
+              import datetime
+              
+              new_packages = []
+              
+              for package in requirements:
+                  url = f"https://pypi.org/pypi/{package}/json"
+                  try:
+                      with urllib.request.urlopen(url, timeout=5) as response:
+                          data = json.loads(response.read())
+                          
+                          # Get first upload date
+                          releases = data.get("releases", {})
+                          dates = []
+                          for version_releases in releases.values():
+                              for release in version_releases:
+                                  if "upload_time" in release:
+                                      dates.append(release["upload_time"])
+                          
+                          if dates:
+                              first = min(dates)
+                              first_date = datetime.datetime.fromisoformat(first.replace("Z", "+00:00"))
+                              age = datetime.datetime.now(datetime.timezone.utc) - first_date
+                              
+                              if age.days < 30:
+                                  new_packages.append((package, age.days))
+                  except Exception:
+                      pass
+              
+              if new_packages:
+                  pytest.warns(UserWarning,
+                      match=f"[REVIEW] Very new packages (<30 days): {new_packages}")
+          
+          def test_pip_audit_clean(self):
+              """Run pip-audit to check for known vulnerabilities"""
+              try:
+                  result = subprocess.run(
+                      ["pip-audit", "--format=json"],
+                      capture_output=True,
+                      text=True,
+                      timeout=120
+                  )
+                  
+                  if result.returncode != 0:
+                      vulns = json.loads(result.stdout)
+                      critical = [v for v in vulns if v.get("severity") == "critical"]
+                      
+                      assert not critical, \
+                          f"Critical vulnerabilities found: {critical}"
+                      
+                      if vulns:
+                          pytest.warns(UserWarning,
+                              match=f"[REVIEW] {len(vulns)} vulnerabilities found")
+              except FileNotFoundError:
+                  pytest.skip("pip-audit not installed")
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+
+  - id: jest-dependency-check
+    language: typescript
+    framework: jest
+    template: |
+      import * as fs from 'fs';
+      import * as https from 'https';
+      import { execSync } from 'child_process';
+      
+      describe('{{className}} Dependency Security', () => {
+        const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
+        const allDeps = {
+          ...packageJson.dependencies,
+          ...packageJson.devDependencies
+        };
+        
+        const packages = Object.keys(allDeps);
+        
+        async function checkNpmRegistry(pkg: string): Promise<boolean> {
+          return new Promise((resolve) => {
+            https.get(`https://registry.npmjs.org/${pkg}`, (res) => {
+              resolve(res.statusCode === 200);
+            }).on('error', () => resolve(false));
+          });
+        }
+        
+        describe('slopsquatting detection', () => {
+          test.each(packages)(
+            'package %s exists in npm registry',
+            async (pkg) => {
+              const exists = await checkNpmRegistry(pkg);
+              expect(exists).toBe(true);
+            },
+            10000
+          );
+        });
+        
+        describe('typosquat detection', () => {
+          const POPULAR_PACKAGES: Record<string, string[]> = {
+            lodash: ['l0dash', 'lodahs', '1odash', 'lodassh'],
+            express: ['expres', 'expresss', '3xpress'],
+            axios: ['axio', 'axi0s', 'axois'],
+            react: ['r3act', 'reakt', 'reactt'],
+            moment: ['m0ment', 'momnet', 'momen'],
+          };
+          
+          it('has no typosquatted packages', () => {
+            const suspicious: Array<[string, string]> = [];
+            
+            for (const pkg of packages) {
+              const pkgLower = pkg.toLowerCase();
+              for (const [legit, typos] of Object.entries(POPULAR_PACKAGES)) {
+                if (typos.includes(pkgLower)) {
+                  suspicious.push([pkg, legit]);
+                }
+              }
+            }
+            
+            expect(suspicious).toHaveLength(0);
+          });
+        });
+        
+        describe('npm audit', () => {
+          it('has no critical vulnerabilities', () => {
+            try {
+              const result = execSync('npm audit --json', { encoding: 'utf-8' });
+              const audit = JSON.parse(result);
+              
+              const critical = audit.vulnerabilities
+                ? Object.values(audit.vulnerabilities).filter(
+                    (v: any) => v.severity === 'critical'
+                  )
+                : [];
+              
+              expect(critical).toHaveLength(0);
+            } catch (error: any) {
+              // npm audit returns non-zero if vulnerabilities found
+              if (error.stdout) {
+                const audit = JSON.parse(error.stdout);
+                const critical = audit.metadata?.vulnerabilities?.critical || 0;
+                expect(critical).toBe(0);
+              }
+            }
+          });
+        });
+        
+        describe('dependency freshness', () => {
+          it('[REVIEW] flags very new packages', async () => {
+            const newPackages: Array<[string, number]> = [];
+            
+            for (const pkg of packages.slice(0, 10)) {  // Limit API calls
+              try {
+                const response = await fetch(`https://registry.npmjs.org/${pkg}`);
+                const data = await response.json();
+                
+                if (data.time?.created) {
+                  const created = new Date(data.time.created);
+                  const age = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+                  
+                  if (age < 30) {
+                    newPackages.push([pkg, Math.floor(age)]);
+                  }
+                }
+              } catch {
+                // Skip API errors
+              }
+            }
+            
+            if (newPackages.length > 0) {
+              console.warn('[REVIEW] Very new packages:', newPackages);
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+
+examples:
+  - name: slopsquatting-ai-package
+    concept: |
+      AI models frequently hallucinate package names that don't exist. Attackers
+      monitor these hallucinations and register malicious packages with those names.
+      Research shows 5-21% of AI suggestions reference non-existent packages, and
+      43% of those names repeat consistently across different prompts.
+    vulnerableCode: |
+      # AI suggested this package, but it doesn't exist in PyPI
+      # Attacker registered "flask-utils-extended" with malware
+      from flask_utils_extended import validate_request
+      
+      @app.route('/api/data')
+      def get_data():
+          validate_request()  # Executes malware!
+          return jsonify(data)
+    testCode: |
+      def test_all_imports_exist():
+          """Verify all imported packages exist in PyPI"""
+          import urllib.request
+          
+          packages_to_check = ["flask_utils_extended"]
+          
+          for pkg in packages_to_check:
+              url = f"https://pypi.org/pypi/{pkg}/json"
+              try:
+                  urllib.request.urlopen(url)
+              except urllib.error.HTTPError as e:
+                  if e.code == 404:
+                      raise AssertionError(f"Package {pkg} does not exist!")
+    language: python
+    severity: critical
+
+  - name: typosquatting-lodash
+    concept: |
+      Typosquatting exploits typing mistakes when installing packages. A package
+      named "l0dash" (with zero) instead of "lodash" can contain malware but look
+      nearly identical in code. Always verify package names carefully.
+    vulnerableCode: |
+      // Typo: l0dash instead of lodash
+      const _ = require('l0dash');
+      
+      // Attacker's package executes on require()
+      _.map(data, transform);
+    testCode: |
+      describe('dependency names', () => {
+        const LODASH_TYPOS = ['l0dash', 'lodahs', '1odash', 'lodassh', 'lodsh'];
+        
+        it('uses official lodash, not typosquat', () => {
+          const pkg = require('./package.json');
+          const deps = Object.keys(pkg.dependencies || {});
+          
+          for (const dep of deps) {
+            expect(LODASH_TYPOS).not.toContain(dep.toLowerCase());
+          }
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: very-new-package
+    concept: |
+      Very new packages (< 30 days old) should be reviewed carefully. Attackers
+      may register malicious packages shortly before a supply chain attack. Low
+      download counts combined with recent creation date are warning signs.
+    vulnerableCode: |
+      # New package with suspicious name similar to popular library
+      # Created 2 days ago with 47 downloads
+      npm install react-dom-utils-helper
+    testCode: |
+      async function checkPackageAge(pkg: string): Promise<number> {
+        const response = await fetch(`https://registry.npmjs.org/${pkg}`);
+        const data = await response.json();
+        
+        const created = new Date(data.time.created);
+        const ageInDays = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+        
+        return ageInDays;
+      }
+      
+      test('package is not suspiciously new', async () => {
+        const age = await checkPackageAge('react-dom-utils-helper');
+        expect(age).toBeGreaterThan(30);
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

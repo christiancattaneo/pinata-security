@@ -17,8 +17,10 @@ describe("All Category Definitions Integration", () => {
   let allCategories: Category[];
 
   // Expected category counts per domain
+  // Note: security increased from 10 to 16 with Arcanum Top 10 coverage
+  // (added: hardcoded-secrets, auth-failures, rate-limiting, data-exposure, file-upload, dependency-risks)
   const EXPECTED_COUNTS = {
-    security: 10,
+    security: 16,
     data: 8,
     concurrency: 6,
     input: 3,

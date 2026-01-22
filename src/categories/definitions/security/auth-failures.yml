@@ -1,0 +1,514 @@
+id: auth-failures
+version: 1
+name: Authentication Failures
+description: |
+  Flags potential authentication and authorization vulnerabilities for manual review.
+  Auth logic is highly application-specific and requires understanding business rules
+  to determine correctness. Static analysis cannot reliably determine "is this auth 
+  check correct?" - it can only flag patterns that warrant human inspection.
+  
+  Detection confidence: LOW (<50%)
+  This category flags for MANUAL REVIEW rather than claiming definitive detection.
+  Research shows 75.8% false confidence in AI-generated auth code (Veracode 2025).
+  
+  FUTURE: AI-assisted review agent can analyze auth flows with context (see roadmap).
+domain: security
+level: integration
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-22945
+  - CVE-2023-22796
+  - CVE-2022-29464
+
+references:
+  - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/
+  - https://cwe.mitre.org/data/definitions/287.html
+  - https://cwe.mitre.org/data/definitions/306.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
+detectionPatterns:
+  # These patterns FLAG for review, not definitive detection
+  
+  # Missing auth middleware on routes
+  - id: express-route-no-auth
+    type: regex
+    language: typescript
+    pattern: "app\\.(get|post|put|delete|patch)\\s*\\([^,]+,\\s*(async\\s+)?\\(req"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Express route without visible auth middleware.
+      Verify this endpoint intentionally allows unauthenticated access.
+    negativePattern: "authenticate|authorize|auth|isAuthenticated|requireAuth|protect"
+
+  - id: fastapi-route-no-depends
+    type: regex
+    language: python
+    pattern: "@app\\.(get|post|put|delete|patch)\\s*\\([^)]+\\)\\s*\\n(async\\s+)?def\\s+\\w+\\s*\\([^)]*\\):"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] FastAPI route without Depends() for auth.
+      Verify authentication is handled appropriately.
+    negativePattern: "Depends\\(.*auth|Depends\\(.*user|current_user"
+
+  # JWT vulnerabilities
+  - id: jwt-none-algorithm
+    type: regex
+    language: python
+    pattern: "(algorithm|algorithms?)\\s*[=:]\\s*[\"']none[\"']|verify\\s*=\\s*False"
+    confidence: high
+    description: JWT with 'none' algorithm or verification disabled - critical vulnerability
+
+  - id: jwt-weak-secret
+    type: regex
+    language: typescript
+    pattern: "jwt\\.(sign|verify)\\s*\\([^,]+,\\s*[\"'][^\"']{1,15}[\"']"
+    confidence: medium
+    description: |
+      [REVIEW REQUIRED] JWT secret appears short (<16 chars). 
+      Secrets should be at least 256 bits for HS256.
+
+  # Weak password handling
+  - id: weak-password-hash-md5
+    type: regex
+    language: python
+    pattern: "(md5|sha1)\\s*\\(.*password|hashlib\\.(md5|sha1)\\s*\\("
+    confidence: high
+    description: MD5/SHA1 used for password hashing - use bcrypt/argon2/scrypt
+
+  - id: password-comparison-timing
+    type: regex
+    language: python
+    pattern: "password\\s*==\\s*|password\\s*!=\\s*|password.*===|password.*!=="
+    confidence: medium
+    description: |
+      [REVIEW REQUIRED] Direct password comparison may be timing-vulnerable.
+      Use constant-time comparison (hmac.compare_digest, crypto.timingSafeEqual).
+
+  # Session handling
+  - id: session-fixation
+    type: regex
+    language: python
+    pattern: "session\\[.+\\]\\s*=.*(?!.*session\\.regenerate|request\\.session\\.cycle_key)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Session modification without regeneration.
+      Regenerate session ID after login to prevent fixation.
+
+  - id: insecure-cookie
+    type: regex
+    language: typescript
+    pattern: "cookie\\s*\\([^)]+(?!.*httpOnly|.*secure|.*sameSite)"
+    confidence: medium
+    description: |
+      [REVIEW REQUIRED] Cookie set without security flags.
+      Verify httpOnly, secure, and sameSite are set appropriately.
+
+  # IDOR patterns
+  - id: idor-user-id-param
+    type: regex
+    language: typescript
+    pattern: "(req\\.params|req\\.query|req\\.body)\\.(user[_-]?id|userId|owner[_-]?id)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] User ID taken from request parameter.
+      Verify ownership check exists before accessing resources.
+
+  - id: idor-direct-lookup
+    type: regex
+    language: python
+    pattern: "get\\s*\\(.*id\\s*=.*request\\.(args|form|json)|filter\\s*\\(.*id.*=.*request"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Database lookup using request-supplied ID.
+      Verify authorization check exists (user owns resource).
+
+  # Missing rate limiting indicators
+  - id: login-no-rate-limit
+    type: regex
+    language: typescript
+    pattern: "(login|signin|authenticate).*\\(.*req.*\\)(?!.*rateLimit|.*limiter)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Login endpoint may lack rate limiting.
+      See rate-limiting category for dedicated checks.
+
+testTemplates:
+  - id: pytest-auth-review
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      from unittest.mock import patch, MagicMock
+      
+      
+      class Test{{className}}AuthReview:
+          """
+          Authentication review tests for {{moduleName}}
+          
+          NOTE: These tests flag potential issues for manual review.
+          Auth logic requires human verification of business rules.
+          """
+          
+          # =================================================================
+          # PROTECTED ENDPOINTS - Verify these require authentication
+          # =================================================================
+          
+          PROTECTED_ENDPOINTS = [
+              {{#protectedEndpoints}}
+              ("{{method}}", "{{path}}"),
+              {{/protectedEndpoints}}
+          ]
+          
+          @pytest.mark.parametrize("method,path", PROTECTED_ENDPOINTS)
+          def test_protected_endpoints_require_auth(self, client, method, path):
+              """[REVIEW] Verify protected endpoints reject unauthenticated requests"""
+              response = getattr(client, method.lower())(path)
+              
+              assert response.status_code in [401, 403], \
+                  f"[MANUAL REVIEW NEEDED] {method} {path} returned {response.status_code} " \
+                  f"without auth. Verify this is intentional."
+          
+          # =================================================================
+          # TOKEN/SESSION SECURITY
+          # =================================================================
+          
+          def test_session_regenerated_on_login(self, client):
+              """[REVIEW] Verify session ID changes after login to prevent fixation"""
+              # Get initial session
+              response1 = client.get("/")
+              session_before = client.cookies.get("session")
+              
+              # Login
+              response2 = client.post("/login", json={
+                  "username": "{{testUser}}",
+                  "password": "{{testPassword}}"
+              })
+              session_after = client.cookies.get("session")
+              
+              if session_before and session_after:
+                  assert session_before != session_after, \
+                      "[MANUAL REVIEW] Session ID not regenerated after login - " \
+                      "potential session fixation vulnerability"
+          
+          def test_token_expiration_enforced(self, client):
+              """[REVIEW] Verify expired tokens are rejected"""
+              import jwt
+              import time
+              
+              # Create expired token
+              expired_token = jwt.encode(
+                  {"user_id": 1, "exp": int(time.time()) - 3600},
+                  "{{jwtSecret}}",  # Use test secret
+                  algorithm="HS256"
+              )
+              
+              response = client.get(
+                  "/api/protected",
+                  headers={"Authorization": f"Bearer {expired_token}"}
+              )
+              
+              assert response.status_code == 401, \
+                  "[MANUAL REVIEW] Expired token not rejected"
+          
+          # =================================================================
+          # AUTHORIZATION (IDOR) CHECKS
+          # =================================================================
+          
+          def test_cannot_access_other_users_resources(self, client, auth_user_a, auth_user_b):
+              """[REVIEW] Verify users cannot access each other's resources"""
+              # User A's resource
+              user_a_resource = "/api/users/{{userAId}}/settings"
+              
+              # User B tries to access User A's resource
+              response = client.get(
+                  user_a_resource,
+                  headers={"Authorization": f"Bearer {auth_user_b}"}
+              )
+              
+              assert response.status_code == 403, \
+                  f"[MANUAL REVIEW] IDOR vulnerability: User B accessed User A's resource"
+          
+          def test_id_parameter_validated(self, client, auth_token):
+              """[REVIEW] Verify ID parameters are validated against current user"""
+              # Try to access resource with different user's ID
+              response = client.get(
+                  "/api/users/999999/data",  # Non-existent or other user's ID
+                  headers={"Authorization": f"Bearer {auth_token}"}
+              )
+              
+              # Should be 403 (forbidden) not 404 (not found)
+              # 404 may indicate ID was used without ownership check
+              assert response.status_code != 404 or response.status_code == 403, \
+                  "[MANUAL REVIEW] Resource lookup may not verify ownership"
+          
+          # =================================================================
+          # PASSWORD HANDLING
+          # =================================================================
+          
+          def test_password_not_in_response(self, client, auth_token):
+              """[REVIEW] Verify password hash never returned in API responses"""
+              response = client.get(
+                  "/api/users/me",
+                  headers={"Authorization": f"Bearer {auth_token}"}
+              )
+              
+              data = response.json()
+              sensitive_fields = ["password", "password_hash", "hashed_password", "pwd"]
+              
+              for field in sensitive_fields:
+                  assert field not in data, \
+                      f"[MANUAL REVIEW] Sensitive field '{field}' exposed in response"
+          
+          def test_uses_secure_password_hashing(self):
+              """[REVIEW] Verify bcrypt/argon2/scrypt is used for passwords"""
+              import inspect
+              from {{modulePath}} import {{authModule}}
+              
+              source = inspect.getsource({{authModule}})
+              
+              secure_hashers = ["bcrypt", "argon2", "scrypt", "pbkdf2"]
+              insecure_hashers = ["md5", "sha1", "sha256"]  # sha256 alone is insufficient
+              
+              uses_secure = any(h in source.lower() for h in secure_hashers)
+              uses_insecure = any(h in source.lower() for h in insecure_hashers)
+              
+              assert uses_secure, \
+                  "[MANUAL REVIEW] No secure password hasher detected"
+              
+              if uses_insecure:
+                  pytest.warns(UserWarning, 
+                      match="[MANUAL REVIEW] Insecure hash algorithm detected")
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+      - name: protectedEndpoints
+        type: array
+        description: List of endpoints requiring auth
+        required: true
+      - name: testUser
+        type: string
+        description: Test username
+        required: false
+        defaultValue: testuser
+      - name: testPassword
+        type: string
+        description: Test password
+        required: false
+        defaultValue: testpassword123
+      - name: jwtSecret
+        type: string
+        description: JWT secret for testing
+        required: false
+        defaultValue: test-secret-key
+      - name: userAId
+        type: string
+        description: User A's ID for IDOR testing
+        required: false
+        defaultValue: "1"
+      - name: modulePath
+        type: string
+        description: Import path
+        required: true
+      - name: authModule
+        type: string
+        description: Auth module name
+        required: true
+
+  - id: jest-auth-review
+    language: typescript
+    framework: jest
+    template: |
+      /**
+       * Authentication Review Tests for {{moduleName}}
+       * 
+       * NOTE: These tests flag potential issues for MANUAL REVIEW.
+       * Authentication logic requires human verification of business rules.
+       */
+      
+      describe('{{className}} Auth Review', () => {
+        const PROTECTED_ENDPOINTS = {{protectedEndpoints}};
+        
+        describe('endpoint authentication', () => {
+          test.each(PROTECTED_ENDPOINTS)(
+            '[REVIEW] %s %s requires authentication',
+            async (method, path) => {
+              const response = await fetch(`${BASE_URL}${path}`, {
+                method,
+                headers: {} // No auth
+              });
+              
+              expect([401, 403]).toContain(response.status);
+            }
+          );
+        });
+        
+        describe('authorization (IDOR)', () => {
+          it('[REVIEW] users cannot access other users resources', async () => {
+            const userAToken = await loginAs('userA');
+            const userBToken = await loginAs('userB');
+            
+            // User B tries to access User A's resource
+            const response = await fetch(`${BASE_URL}/api/users/userA/settings`, {
+              headers: { Authorization: `Bearer ${userBToken}` }
+            });
+            
+            expect(response.status).toBe(403);
+          });
+        });
+        
+        describe('token security', () => {
+          it('[REVIEW] rejects expired tokens', async () => {
+            const expiredToken = jwt.sign(
+              { userId: 1, exp: Math.floor(Date.now() / 1000) - 3600 },
+              'test-secret'
+            );
+            
+            const response = await fetch(`${BASE_URL}/api/protected`, {
+              headers: { Authorization: `Bearer ${expiredToken}` }
+            });
+            
+            expect(response.status).toBe(401);
+          });
+          
+          it('[REVIEW] session cookie has security flags', async () => {
+            const response = await fetch(`${BASE_URL}/login`, {
+              method: 'POST',
+              body: JSON.stringify({ username: 'test', password: 'test' })
+            });
+            
+            const setCookie = response.headers.get('set-cookie') || '';
+            
+            expect(setCookie.toLowerCase()).toContain('httponly');
+            expect(setCookie.toLowerCase()).toContain('secure');
+            expect(setCookie.toLowerCase()).toContain('samesite');
+          });
+        });
+        
+        describe('password handling', () => {
+          it('[REVIEW] password not exposed in user response', async () => {
+            const token = await loginAs('testuser');
+            const response = await fetch(`${BASE_URL}/api/users/me`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            
+            const user = await response.json();
+            
+            expect(user).not.toHaveProperty('password');
+            expect(user).not.toHaveProperty('password_hash');
+            expect(user).not.toHaveProperty('hashed_password');
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+      - name: protectedEndpoints
+        type: array
+        description: List of protected endpoints
+        required: true
+
+examples:
+  - name: missing-auth-middleware
+    concept: |
+      Route handler without authentication middleware. Express/FastAPI routes
+      should use auth middleware before handlers. Static analysis can flag 
+      routes that appear unprotected, but human review is needed to verify
+      which endpoints intentionally allow public access.
+    vulnerableCode: |
+      // POTENTIALLY VULNERABLE: No auth middleware visible
+      app.get('/api/users/:id/settings', async (req, res) => {
+        const settings = await db.getUserSettings(req.params.id);
+        res.json(settings);  // Returns any user's settings!
+      });
+    testCode: |
+      describe('user settings endpoint', () => {
+        it('[REVIEW] requires authentication', async () => {
+          const response = await request(app)
+            .get('/api/users/123/settings')
+            .expect(401);  // Should require auth
+        });
+        
+        it('[REVIEW] enforces ownership', async () => {
+          const userAToken = await login('userA');
+          
+          // Try to access userB's settings with userA's token
+          const response = await request(app)
+            .get('/api/users/userB/settings')
+            .set('Authorization', `Bearer ${userAToken}`)
+            .expect(403);  // Should be forbidden
+        });
+      });
+    language: typescript
+    severity: critical
+
+  - name: jwt-none-algorithm
+    concept: |
+      JWT with 'none' algorithm or signature verification disabled. This allows
+      attackers to forge tokens by simply removing the signature. This is a 
+      HIGH confidence detection as the pattern is unambiguous.
+    vulnerableCode: |
+      # VULNERABLE: JWT verification disabled
+      token_data = jwt.decode(token, options={"verify_signature": False})
+      
+      # VULNERABLE: Accepting 'none' algorithm
+      token_data = jwt.decode(token, algorithms=["none", "HS256"])
+    testCode: |
+      def test_jwt_requires_signature():
+          """Verify JWT signature is always verified"""
+          # Create unsigned token (alg: none)
+          header = base64.b64encode(b'{"alg":"none","typ":"JWT"}').decode()
+          payload = base64.b64encode(b'{"user_id":1,"admin":true}').decode()
+          unsigned_token = f"{header}.{payload}."
+          
+          with pytest.raises(jwt.InvalidSignatureError):
+              verify_token(unsigned_token)
+    language: python
+    severity: critical
+    cve: CVE-2021-22945
+
+  - name: idor-user-id
+    concept: |
+      Insecure Direct Object Reference where user ID is taken from request
+      parameters without ownership verification. Attacker changes ID in URL
+      to access other users' data. Requires manual review to verify ownership
+      check exists.
+    vulnerableCode: |
+      @app.get("/api/users/{user_id}/documents")
+      async def get_user_documents(user_id: int):
+          # VULNERABLE: No ownership check
+          documents = await db.get_documents(user_id=user_id)
+          return documents
+    testCode: |
+      async def test_cannot_access_other_users_documents(client, auth_user_a, auth_user_b):
+          """[REVIEW] Verify IDOR protection on documents endpoint"""
+          # User B tries to access User A's documents
+          response = await client.get(
+              f"/api/users/{user_a_id}/documents",
+              headers={"Authorization": f"Bearer {auth_user_b}"}
+          )
+          
+          assert response.status_code == 403, \
+              "[MANUAL REVIEW] IDOR: Can access other user's documents"
+    language: python
+    severity: critical
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01

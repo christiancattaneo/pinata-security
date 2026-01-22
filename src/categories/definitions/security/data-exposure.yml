@@ -1,0 +1,450 @@
+id: data-exposure
+version: 1
+name: Excessive Data Exposure
+description: |
+  Flags potential excessive data exposure in API responses for manual review.
+  Static analysis cannot reliably detect this vulnerability because it requires
+  semantic knowledge of which fields are "sensitive" in the application context.
+  
+  Detection confidence: LOW (<30%)
+  This category flags for MANUAL REVIEW. Static analysis can detect:
+  - APIs returning full ORM objects without field selection
+  - SELECT * queries on user/account tables
+  - Missing .select() or .only() on ORM queries
+  
+  Static analysis CANNOT determine:
+  - Which fields are sensitive in YOUR application
+  - Business context of what data should be exposed
+  - Client requirements for specific fields
+  
+  OWASP API3:2023 - Broken Object Property Level Authorization
+  
+  FUTURE: AI-assisted review with field sensitivity policies.
+domain: security
+level: integration
+priority: P1
+severity: high
+applicableLanguages:
+  - python
+  - typescript
+  - javascript
+
+cves:
+  - CVE-2021-41773
+  - CVE-2019-3396
+
+references:
+  - https://owasp.org/API-Security/editions/2023/en/0xa3-broken-object-property-level-authorization/
+  - https://cwe.mitre.org/data/definitions/359.html
+  - https://cwe.mitre.org/data/definitions/213.html
+
+detectionPatterns:
+  # These flag for review - requires semantic understanding
+  
+  # Returning full objects
+  - id: returning-full-user
+    type: regex
+    language: typescript
+    pattern: "res\\.(json|send)\\s*\\(\\s*(user|users|account|profile|customer)\\s*\\)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] API returns full user/account object.
+      Verify sensitive fields (password, SSN, etc.) are excluded.
+    negativePattern: "\\.omit\\(|\\.pick\\(|\\.select\\(|exclude|sanitize"
+
+  - id: returning-full-object-py
+    type: regex
+    language: python
+    pattern: "return\\s+(user|users|account|profile|customer)(?!\\.dict\\(exclude|__dict__|model_dump\\(exclude)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Returning full user/account object in Python.
+      Verify Pydantic exclude or custom serialization is used.
+
+  # SELECT * patterns
+  - id: select-star-user
+    type: regex
+    language: python
+    pattern: "SELECT\\s+\\*\\s+FROM\\s+(user|users|account|customer|employee)"
+    confidence: medium
+    description: |
+      [REVIEW REQUIRED] SELECT * from user-related table.
+      Consider selecting only required fields.
+
+  - id: select-star-ts
+    type: regex
+    language: typescript
+    pattern: "\\.(query|execute)\\s*\\([^)]*SELECT\\s+\\*\\s+FROM\\s+(user|account)"
+    confidence: medium
+    description: |
+      [REVIEW REQUIRED] SELECT * query on user table.
+      Select only required fields to prevent data leakage.
+
+  # ORM without field selection
+  - id: prisma-findmany-no-select
+    type: regex
+    language: typescript
+    pattern: "prisma\\.(user|account|customer)\\.find(Many|First|Unique)\\s*\\(\\s*\\{(?!.*select:)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Prisma query without select clause.
+      Returns all fields by default.
+
+  - id: sequelize-findall-no-attributes
+    type: regex
+    language: typescript
+    pattern: "\\.(findAll|findOne|findByPk)\\s*\\(\\s*\\{(?!.*attributes:)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Sequelize query without attributes clause.
+      Consider specifying which fields to return.
+
+  - id: django-queryset-no-values
+    type: regex
+    language: python
+    pattern: "\\.(filter|get|all)\\s*\\([^)]*\\)(?!\\.values|\\.only|\\.defer)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Django queryset without values()/only()/defer().
+      May return all model fields.
+
+  - id: sqlalchemy-no-column-select
+    type: regex
+    language: python
+    pattern: "session\\.(query|execute)\\s*\\(\\s*(User|Account|Customer)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] SQLAlchemy query on user-like model.
+      Verify sensitive columns are excluded in serialization.
+
+  # Generic patterns
+  - id: to-json-full-object
+    type: regex
+    language: python
+    pattern: "\\.to_json\\s*\\(\\)|json\\.dumps\\s*\\(\\s*(user|account|obj)"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Object serialized to JSON without field filtering.
+
+  - id: spread-user-response
+    type: regex
+    language: typescript
+    pattern: "\\{\\s*\\.\\.\\.user\\s*\\}|Object\\.assign\\s*\\(\\s*\\{\\}\\s*,\\s*user"
+    confidence: low
+    description: |
+      [REVIEW REQUIRED] Spreading user object in response.
+      May include sensitive fields unintentionally.
+
+testTemplates:
+  - id: pytest-data-exposure-review
+    language: python
+    framework: pytest
+    template: |
+      import pytest
+      
+      
+      class Test{{className}}DataExposure:
+          """
+          Data exposure review tests for {{moduleName}}
+          
+          NOTE: These tests verify sensitive fields are not exposed.
+          What constitutes "sensitive" is application-specific.
+          
+          [MANUAL REVIEW] Define your sensitive fields and update tests.
+          """
+          
+          # Define sensitive fields for your application
+          SENSITIVE_FIELDS = [
+              "password",
+              "password_hash",
+              "hashed_password",
+              "salt",
+              "secret",
+              "api_key",
+              "token",
+              "refresh_token",
+              "ssn",
+              "social_security",
+              "credit_card",
+              "card_number",
+              "cvv",
+              "bank_account",
+              {{#additionalSensitiveFields}}
+              "{{.}}",
+              {{/additionalSensitiveFields}}
+          ]
+          
+          # Endpoints that return user data
+          USER_DATA_ENDPOINTS = [
+              {{#userEndpoints}}
+              {"method": "{{method}}", "path": "{{path}}"},
+              {{/userEndpoints}}
+          ]
+          
+          @pytest.mark.parametrize("endpoint", USER_DATA_ENDPOINTS)
+          async def test_no_sensitive_fields_in_response(self, client, auth_token, endpoint):
+              """[REVIEW] Verify sensitive fields are excluded from API responses"""
+              method = endpoint["method"].lower()
+              path = endpoint["path"]
+              
+              response = await getattr(client, method)(
+                  path,
+                  headers={"Authorization": f"Bearer {auth_token}"}
+              )
+              
+              data = response.json()
+              
+              # Handle both single object and list responses
+              items = data if isinstance(data, list) else [data]
+              
+              for item in items:
+                  if isinstance(item, dict):
+                      for field in self.SENSITIVE_FIELDS:
+                          assert field not in item, \
+                              f"[MANUAL REVIEW] Sensitive field '{field}' exposed in {method.upper()} {path}"
+          
+          async def test_user_list_excludes_sensitive_data(self, client, auth_token):
+              """[REVIEW] Verify user list endpoint excludes sensitive data"""
+              response = await client.get(
+                  "/api/users",
+                  headers={"Authorization": f"Bearer {auth_token}"}
+              )
+              
+              users = response.json()
+              
+              for user in users:
+                  # Should only contain safe fields
+                  safe_fields = {"id", "username", "email", "name", "avatar", "created_at"}
+                  extra_fields = set(user.keys()) - safe_fields
+                  
+                  if extra_fields:
+                      pytest.warns(UserWarning,
+                          match=f"[MANUAL REVIEW] Extra fields in user response: {extra_fields}")
+          
+          def test_serializer_excludes_sensitive_fields(self):
+              """[REVIEW] Verify model serializers exclude sensitive fields"""
+              from {{modulePath}} import {{serializerClass}}
+              
+              serializer = {{serializerClass}}()
+              
+              if hasattr(serializer, 'Meta'):
+                  excluded = getattr(serializer.Meta, 'exclude', [])
+                  
+                  for field in self.SENSITIVE_FIELDS:
+                      if hasattr(serializer.Meta.model, field):
+                          assert field in excluded, \
+                              f"[MANUAL REVIEW] Sensitive field '{field}' not excluded in serializer"
+          
+          async def test_error_responses_no_sensitive_data(self, client):
+              """[REVIEW] Verify error responses don't leak sensitive data"""
+              response = await client.get("/api/users/999999999")
+              
+              if response.status_code >= 400:
+                  error_text = response.text.lower()
+                  
+                  leak_indicators = ["password", "secret", "token", "key", "stack trace"]
+                  for indicator in leak_indicators:
+                      assert indicator not in error_text, \
+                          f"[MANUAL REVIEW] Error response may leak: {indicator}"
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+      - name: additionalSensitiveFields
+        type: array
+        description: Additional sensitive fields for your app
+        required: false
+        defaultValue: "[]"
+      - name: userEndpoints
+        type: array
+        description: Endpoints returning user data
+        required: true
+      - name: modulePath
+        type: string
+        description: Import path
+        required: true
+      - name: serializerClass
+        type: string
+        description: Serializer class name
+        required: true
+
+  - id: jest-data-exposure-review
+    language: typescript
+    framework: jest
+    template: |
+      /**
+       * Data Exposure Review Tests for {{moduleName}}
+       * 
+       * [MANUAL REVIEW] Define sensitive fields for your application.
+       */
+      
+      describe('{{className}} Data Exposure Review', () => {
+        const SENSITIVE_FIELDS = [
+          'password',
+          'passwordHash',
+          'hashedPassword',
+          'salt',
+          'secret',
+          'apiKey',
+          'token',
+          'refreshToken',
+          'ssn',
+          'creditCard',
+          'cardNumber',
+          'cvv',
+          'bankAccount',
+          ...{{additionalSensitiveFields}},
+        ];
+        
+        const USER_DATA_ENDPOINTS = {{userEndpoints}};
+        
+        describe.each(USER_DATA_ENDPOINTS)(
+          '[REVIEW] $path excludes sensitive data',
+          ({ method, path }) => {
+            it('does not expose sensitive fields', async () => {
+              const token = await getAuthToken();
+              
+              const response = await fetch(`${BASE_URL}${path}`, {
+                method,
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              
+              const data = await response.json();
+              const items = Array.isArray(data) ? data : [data];
+              
+              for (const item of items) {
+                if (typeof item === 'object' && item !== null) {
+                  for (const field of SENSITIVE_FIELDS) {
+                    expect(item).not.toHaveProperty(field);
+                  }
+                }
+              }
+            });
+          }
+        );
+        
+        describe('error responses', () => {
+          it('[REVIEW] errors do not leak sensitive info', async () => {
+            const response = await fetch(`${BASE_URL}/api/users/nonexistent`);
+            const text = await response.text();
+            
+            const leakIndicators = ['password', 'secret', 'token', 'stack'];
+            
+            for (const indicator of leakIndicators) {
+              expect(text.toLowerCase()).not.toContain(indicator);
+            }
+          });
+        });
+      });
+    variables:
+      - name: className
+        type: string
+        description: Test class name
+        required: true
+      - name: moduleName
+        type: string
+        description: Module being tested
+        required: true
+      - name: additionalSensitiveFields
+        type: array
+        description: Additional sensitive fields
+        required: false
+        defaultValue: "[]"
+      - name: userEndpoints
+        type: array
+        description: Endpoints to test
+        required: true
+
+examples:
+  - name: returning-full-user-object
+    concept: |
+      API returning full database object including sensitive fields. The server
+      relies on the client to filter out sensitive data, but clients may not
+      implement filtering, and data is already exposed in network traffic.
+    vulnerableCode: |
+      // VULNERABLE: Returns entire user object including password hash
+      app.get('/api/users/:id', async (req, res) => {
+        const user = await prisma.user.findUnique({
+          where: { id: req.params.id }
+        });
+        
+        res.json(user);  // Includes password, internal fields!
+      });
+    testCode: |
+      describe('user endpoint', () => {
+        it('[REVIEW] excludes sensitive fields', async () => {
+          const response = await request(app)
+            .get('/api/users/1')
+            .set('Authorization', `Bearer ${token}`);
+          
+          const sensitiveFields = ['password', 'passwordHash', 'salt'];
+          
+          for (const field of sensitiveFields) {
+            expect(response.body).not.toHaveProperty(field);
+          }
+        });
+      });
+    language: typescript
+    severity: high
+
+  - name: select-star-user-table
+    concept: |
+      SELECT * FROM users returns all columns including sensitive data. Even if
+      the API layer filters fields, the data is still fetched from the database
+      and exists in memory, increasing attack surface.
+    vulnerableCode: |
+      # VULNERABLE: SELECT * includes all columns
+      def get_users():
+          cursor.execute("SELECT * FROM users")
+          return cursor.fetchall()
+    testCode: |
+      def test_user_query_excludes_password():
+          """[REVIEW] Verify password not selected from database"""
+          import inspect
+          source = inspect.getsource(get_users)
+          
+          # Should use explicit column list, not SELECT *
+          assert "SELECT *" not in source.upper(), \
+              "[MANUAL REVIEW] Query uses SELECT *. Use explicit columns."
+    language: python
+    severity: medium
+
+  - name: spread-operator-user
+    concept: |
+      Using spread operator to return user object exposes all fields including
+      sensitive ones. The spread copies all properties without filtering. Use
+      explicit field picking or omit sensitive fields explicitly.
+    vulnerableCode: |
+      // VULNERABLE: Spreading user object includes all fields
+      app.get('/api/profile', async (req, res) => {
+        const user = await db.getUser(req.userId);
+        
+        // This exposes password, salt, internal IDs, etc.
+        res.json({
+          ...user,
+          loggedIn: true
+        });
+      });
+    testCode: |
+      describe('profile endpoint', () => {
+        it('[REVIEW] does not expose sensitive fields via spread', async () => {
+          const response = await request(app)
+            .get('/api/profile')
+            .set('Authorization', `Bearer ${token}`);
+          
+          expect(response.body).not.toHaveProperty('password');
+          expect(response.body).not.toHaveProperty('passwordHash');
+          expect(response.body).not.toHaveProperty('salt');
+          expect(response.body).not.toHaveProperty('internalId');
+        });
+      });
+    language: typescript
+    severity: high
+
+createdAt: 2024-01-01
+updatedAt: 2024-01-01
