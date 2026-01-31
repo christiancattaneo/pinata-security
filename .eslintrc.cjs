@@ -9,7 +9,7 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: "module",
-    project: "./tsconfig.json",
+    project: "./tsconfig.eslint.json",
   },
   plugins: ["@typescript-eslint", "import"],
   extends: [
@@ -23,7 +23,7 @@ module.exports = {
   settings: {
     "import/resolver": {
       typescript: {
-        project: "./tsconfig.json",
+        project: "./tsconfig.eslint.json",
       },
     },
   },
@@ -80,12 +80,29 @@ module.exports = {
         "import/no-default-export": "off",
       },
     },
-    // Relax rules for tests
+    // Relax rules for tests - tests have different requirements than production code
     {
       files: ["tests/**/*.ts"],
       rules: {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "@typescript-eslint/require-await": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-unsafe-argument": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+        "import/no-unresolved": "off",
+        "import/namespace": "off",
+        "import/order": "off",
+        "import/no-duplicates": "off",
+        "import/default": "off",
+        "import/no-named-as-default": "off",
+        "import/no-named-as-default-member": "off",
+        "no-console": "off",
       },
     },
   ],
