@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import path from "path";
 import { fileURLToPath } from "url";
+
+import { describe, it, expect, beforeAll } from "vitest";
 
 import { CategoryStore, createCategoryStore } from "@/categories/store/category-store.js";
 

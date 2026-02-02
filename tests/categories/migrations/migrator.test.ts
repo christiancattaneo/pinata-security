@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdir, writeFile, rm, readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { dump as dumpYaml, load as loadYaml } from "js-yaml";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import {
   CategoryMigrator,

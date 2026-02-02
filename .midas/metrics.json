@@ -1,5 +1,5 @@
 {
-  "totalSessions": 5,
+  "totalSessions": 8,
   "totalToolCalls": 0,
   "totalTornadoCycles": 0,
   "totalJournalsSaved": 0,
@@ -11,7 +11,12 @@
     },
     {
       "phase": "BUILD:RULES",
-      "enteredAt": "2026-01-18T22:22:31.958Z"
+      "enteredAt": "2026-01-18T22:22:31.958Z",
+      "duration": 18555
+    },
+    {
+      "phase": "SHIP:REVIEW",
+      "enteredAt": "2026-01-31T19:37:09.215Z"
     }
   ],
   "sessions": [
@@ -93,9 +98,45 @@
       "tornadoCycles": 0,
       "journalsSaved": 0,
       "promptsCopied": 15
+    },
+    {
+      "sessionId": "1768934832474-mc69",
+      "startTime": "2026-01-20T18:47:12.474Z",
+      "startPhase": {
+        "phase": "BUILD",
+        "step": "IMPLEMENT"
+      },
+      "toolCalls": 0,
+      "tornadoCycles": 0,
+      "journalsSaved": 0,
+      "promptsCopied": 1
+    },
+    {
+      "sessionId": "1768935211618-q9k5",
+      "startTime": "2026-01-20T18:53:31.618Z",
+      "startPhase": {
+        "phase": "BUILD",
+        "step": "IMPLEMENT"
+      },
+      "toolCalls": 0,
+      "tornadoCycles": 0,
+      "journalsSaved": 0,
+      "promptsCopied": 9
+    },
+    {
+      "sessionId": "1769885892833-6n6w",
+      "startTime": "2026-01-31T18:58:12.833Z",
+      "startPhase": {
+        "phase": "BUILD",
+        "step": "TEST"
+      },
+      "toolCalls": 0,
+      "tornadoCycles": 0,
+      "journalsSaved": 0,
+      "promptsCopied": 2
     }
   ],
   "averageSessionMinutes": 277,
-  "currentStreak": 2,
-  "lastSessionDate": "2026-01-19"
+  "currentStreak": 1,
+  "lastSessionDate": "2026-01-31"
 }

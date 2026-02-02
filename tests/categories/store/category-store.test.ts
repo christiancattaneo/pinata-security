@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs/promises";
-import path from "path";
 import os from "os";
+import path from "path";
+
+import { createTestCategory, createTestPattern, createTestTemplate, createTestExample } from "@tests/fixtures/categories.js";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { CategoryStore, createCategoryStore } from "@/categories/store/category-store.js";
-import { createTestCategory, createTestPattern, createTestTemplate, createTestExample } from "@tests/fixtures/categories.js";
 
 describe("CategoryStore", () => {
   let store: CategoryStore;

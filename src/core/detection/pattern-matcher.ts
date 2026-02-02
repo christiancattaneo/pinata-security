@@ -1,21 +1,26 @@
 import { readFile, readdir, stat } from "fs/promises";
 import { resolve, extname } from "path";
-import { ok, err, tryCatchAsync } from "../../lib/result.js";
-import type { Result } from "../../lib/result.js";
+
+import { DetectionResultSchema } from "../../categories/schema/index.js";
 import { PinataError, AnalysisError, ParseError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
-import { DetectionResultSchema } from "../../categories/schema/index.js";
+import { ok, err, tryCatchAsync } from "../../lib/result.js";
+
+import {
+  AstPatternMatcher,
+  createAstMatcher,
+  type AstMatch,
+} from "./ast-parser.js";
+
 import type {
   DetectionPattern,
   DetectionResult,
   Language,
   Confidence,
 } from "../../categories/schema/index.js";
-import {
-  AstPatternMatcher,
-  createAstMatcher,
-  type AstMatch,
-} from "./ast-parser.js";
+import type { Result } from "../../lib/result.js";
+
+
 
 /**
  * File extension to language mapping

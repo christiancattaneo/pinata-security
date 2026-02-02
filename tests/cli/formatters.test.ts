@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
 import {
   formatTerminal,
   formatJson,
@@ -9,6 +10,7 @@ import {
   formatSuccess,
   isValidOutputFormat,
 } from "../../src/cli/formatters.js";
+
 import type { CategorySummary } from "../../src/categories/schema/index.js";
 
 // Mock chalk to avoid color codes in test output comparisons

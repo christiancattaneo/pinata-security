@@ -1,0 +1,1445 @@
+{
+  "version": 1,
+  "projectPath": "/Users/christiancattaneo/Projects/pinata",
+  "lastFullScan": 1769888014140,
+  "files": {
+    "src/categories/migrations/index.ts": {
+      "hash": "e32ee00cb1a7",
+      "size": 1097,
+      "mtime": 1768868565017.6973,
+      "lastIndexed": 1768934871677,
+      "symbols": [
+        "AppliedMigrationSchema",
+        "MigrationStateSchema",
+        "MigrationDefinitionSchema",
+        "MIGRATOR_VERSION",
+        "MIGRATIONS_STATE_FILE",
+        "CategoryMigrator",
+        "MigrationError",
+        "createMigrator"
+      ],
+      "imports": [
+        "@/categories/migrations"
+      ],
+      "lineCount": 49,
+      "relevanceScore": 85,
+      "reasons": [
+        "core file",
+        "modified today"
+      ]
+    },
+    "src/cli/index.ts": {
+      "hash": "ff460ffd330b",
+      "size": 21600,
+      "mtime": 1769887932772.4026,
+      "lastIndexed": 1769887934130,
+      "symbols": [
+        "getDefinitionsPath"
+      ],
+      "imports": [
+        "fs",
+        "path",
+        "url",
+        "chalk",
+        "commander",
+        "ora",
+        "../categories/store/index.js",
+        "../core/index.js",
+        "../lib/index.js",
+        "../templates/index.js"
+      ],
+      "lineCount": 635,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/core/detection/index.ts": {
+      "hash": "5e048fa95434",
+      "size": 730,
+      "mtime": 1768935685686.9993,
+      "lastIndexed": 1768935687049,
+      "symbols": [
+        "PatternMatcher",
+        "createPatternMatcher",
+        "detectLanguage",
+        "getSupportedExtensions",
+        "isExtensionSupported",
+        "AstPatternMatcher",
+        "createAstMatcher",
+        "parseSource",
+        "executeQuery",
+        "checkTreeSitterSetup",
+        "COMMON_AST_PATTERNS"
+      ],
+      "imports": [],
+      "lineCount": 34,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/core/index.ts": {
+      "hash": "d27d70b9df50",
+      "size": 940,
+      "mtime": 1768945373319.9827,
+      "lastIndexed": 1768945376500,
+      "symbols": [
+        "VERSION",
+        "PatternMatcher",
+        "createPatternMatcher",
+        "detectLanguage",
+        "getSupportedExtensions",
+        "isExtensionSupported",
+        "Scanner",
+        "createScanner",
+        "SEVERITY_WEIGHTS",
+        "CONFIDENCE_WEIGHTS",
+        "PRIORITY_WEIGHTS",
+        "DEFAULT_TEST_PATTERNS"
+      ],
+      "imports": [],
+      "lineCount": 44,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/templates/index.ts": {
+      "hash": "51e58eb87b0e",
+      "size": 965,
+      "mtime": 1768871803280.8464,
+      "lastIndexed": 1768934871679,
+      "symbols": [
+        "TemplateRenderer",
+        "TemplateRenderError",
+        "TemplateSyntaxError",
+        "createRenderer"
+      ],
+      "imports": [
+        "@/templates"
+      ],
+      "lineCount": 41,
+      "relevanceScore": 85,
+      "reasons": [
+        "core file",
+        "modified today"
+      ]
+    },
+    "src/categories/index.ts": {
+      "hash": "52e0eacc5bf7",
+      "size": 1064,
+      "mtime": 1768788001485.38,
+      "lastIndexed": 1768934871679,
+      "symbols": [
+        "CategoryBaseSchema",
+        "CategorySummarySchema",
+        "RiskDomainSchema",
+        "TestLevelSchema",
+        "PrioritySchema",
+        "SeveritySchema",
+        "ConfidenceSchema",
+        "LanguageSchema",
+        "DetectionPatternSchema",
+        "DetectionResultSchema",
+        "TemplateVariableSchema",
+        "TestTemplateSchema",
+        "TEST_LEVELS",
+        "LANGUAGES",
+        "PATTERN_TYPES",
+        "TEST_FRAMEWORKS",
+        "CategoryStore",
+        "createCategoryStore"
+      ],
+      "imports": [],
+      "lineCount": 55,
+      "relevanceScore": 80,
+      "reasons": [
+        "core file"
+      ]
+    },
+    "src/categories/schema/index.ts": {
+      "hash": "6818dccb66c1",
+      "size": 2321,
+      "mtime": 1769887932772.3486,
+      "lastIndexed": 1769887934130,
+      "symbols": [
+        "TestLevelSchema",
+        "PrioritySchema",
+        "SeveritySchema",
+        "ConfidenceSchema",
+        "LanguageSchema",
+        "CategoryBaseSchema",
+        "DetectionPatternSchema",
+        "DetectionResultSchema",
+        "TemplateVariableSchema",
+        "VariableTypeSchema",
+        "TestTemplateSchema",
+        "TEST_LEVELS",
+        "LANGUAGES",
+        "PATTERN_TYPES",
+        "TEST_FRAMEWORKS",
+        "CategorySchema",
+        "Category",
+        "CategorySummarySchema",
+        "CategorySummary"
+      ],
+      "imports": [
+        "zod",
+        "./example.schema.js",
+        "./pattern.schema.js",
+        "./template.schema.js"
+      ],
+      "lineCount": 102,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/categories/store/index.ts": {
+      "hash": "c5262999c0c3",
+      "size": 162,
+      "mtime": 1768788001485.3557,
+      "lastIndexed": 1768934871680,
+      "symbols": [
+        "CategoryStore",
+        "createCategoryStore"
+      ],
+      "imports": [],
+      "lineCount": 3,
+      "relevanceScore": 80,
+      "reasons": [
+        "core file"
+      ]
+    },
+    "src/index.ts": {
+      "hash": "660c02ad0136",
+      "size": 1427,
+      "mtime": 1768788001492.766,
+      "lastIndexed": 1768934871682,
+      "symbols": [
+        "CategorySummarySchema",
+        "RiskDomainSchema",
+        "TestLevelSchema",
+        "PrioritySchema",
+        "SeveritySchema",
+        "ConfidenceSchema",
+        "LanguageSchema",
+        "PatternTypeSchema",
+        "DetectionPatternSchema",
+        "TestFrameworkSchema",
+        "TestTemplateSchema",
+        "ExampleSchema",
+        "TEST_LEVELS",
+        "LANGUAGES",
+        "PATTERN_TYPES",
+        "TEST_FRAMEWORKS",
+        "CategoryStore",
+        "createCategoryStore",
+        "ValidationError",
+        "ParseError",
+        "ConfigError",
+        "AnalysisError",
+        "GenerationError",
+        "CategoryNotFoundError",
+        "PatternNotFoundError",
+        "err",
+        "unwrap",
+        "unwrapOr",
+        "map",
+        "mapErr",
+        "andThen",
+        "all",
+        "tryCatch",
+        "tryCatchAsync",
+        "VERSION"
+      ],
+      "imports": [],
+      "lineCount": 85,
+      "relevanceScore": 80,
+      "reasons": [
+        "core file"
+      ]
+    },
+    "src/lib/index.ts": {
+      "hash": "cb5babe99e5e",
+      "size": 493,
+      "mtime": 1768777383416.444,
+      "lastIndexed": 1768934871682,
+      "symbols": [
+        "PinataError",
+        "ValidationError",
+        "ParseError",
+        "ConfigError",
+        "AnalysisError",
+        "GenerationError",
+        "CategoryNotFoundError",
+        "PatternNotFoundError",
+        "ok",
+        "err",
+        "unwrap",
+        "unwrapOr",
+        "map",
+        "mapErr",
+        "andThen",
+        "all",
+        "tryCatch",
+        "tryCatchAsync",
+        "logger"
+      ],
+      "imports": [],
+      "lineCount": 31,
+      "relevanceScore": 80,
+      "reasons": [
+        "core file"
+      ]
+    },
+    "tests/core/detection/pattern-matcher.test.ts": {
+      "hash": "b1f2024d29bb",
+      "size": 33888,
+      "mtime": 1769887932775.0642,
+      "lastIndexed": 1769887934136,
+      "symbols": [
+        "getUser",
+        "renderContent",
+        "renderHTML",
+        "getOrder",
+        "requireAst",
+        "call",
+        "calls"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "../../../src/core/detection/ast-parser.js",
+        "../../../src/categories/schema/index.js",
+        "./database",
+        "dompurify"
+      ],
+      "lineCount": 1097,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "package.json": {
+      "hash": "9fd09981d453",
+      "size": 1955,
+      "mtime": 1768945380491.8938,
+      "lastIndexed": 1768945381437,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 69,
+      "relevanceScore": 75,
+      "reasons": [
+        "config",
+        "recently modified"
+      ]
+    },
+    ".eslintrc.cjs": {
+      "hash": "bac6e8ff51e0",
+      "size": 3436,
+      "mtime": 1769887956982.5042,
+      "lastIndexed": 1769888014139,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 111,
+      "relevanceScore": 75,
+      "reasons": [
+        "config",
+        "recently modified"
+      ]
+    },
+    ".prettierrc": {
+      "hash": "15612838793c",
+      "size": 181,
+      "mtime": 1768777383425.018,
+      "lastIndexed": 1768934871684,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 11,
+      "relevanceScore": 65,
+      "reasons": [
+        "config"
+      ]
+    },
+    "src/categories/migrations/migration.schema.ts": {
+      "hash": "e5456ab80443",
+      "size": 3868,
+      "mtime": 1768868565017.6477,
+      "lastIndexed": 1768934871684,
+      "symbols": [
+        "signature",
+        "AppliedMigrationSchema",
+        "MigrationStateSchema",
+        "MigrationDefinitionSchema",
+        "AppliedMigration",
+        "MigrationState",
+        "MigrationDefinition",
+        "MigrationFn",
+        "MigrationScript",
+        "MigrationResult",
+        "MigrateOptions",
+        "RollbackOptions",
+        "MIGRATOR_VERSION",
+        "MIGRATIONS_STATE_FILE"
+      ],
+      "imports": [
+        "zod"
+      ],
+      "lineCount": 152,
+      "relevanceScore": 65,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "src/categories/migrations/migrator.ts": {
+      "hash": "a36458d22a5d",
+      "size": 19462,
+      "mtime": 1769887932772.3533,
+      "lastIndexed": 1769887934131,
+      "symbols": [
+        "const",
+        "to",
+        "createMigrator",
+        "MigrationError",
+        "CategoryMigrator"
+      ],
+      "imports": [
+        "node:crypto",
+        "node:fs/promises",
+        "node:path",
+        "glob",
+        "js-yaml",
+        "../../lib/errors.js",
+        "../../lib/logger.js",
+        "../../lib/result.js"
+      ],
+      "lineCount": 682,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/cli/formatters.ts": {
+      "hash": "e805a0b73604",
+      "size": 5900,
+      "mtime": 1769887932772.3604,
+      "lastIndexed": 1769887934132,
+      "symbols": [
+        "formatTerminal",
+        "formatStats",
+        "formatJson",
+        "formatMarkdown",
+        "formatCategories",
+        "isValidOutputFormat",
+        "formatError",
+        "formatWarning",
+        "formatSuccess",
+        "OutputFormat"
+      ],
+      "imports": [
+        "chalk",
+        "../categories/schema/index.js"
+      ],
+      "lineCount": 226,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/core/detection/pattern-matcher.ts": {
+      "hash": "9c63a5968ba7",
+      "size": 22776,
+      "mtime": 1769887932772.4,
+      "lastIndexed": 1769887934133,
+      "symbols": [
+        "calls",
+        "createPatternMatcher",
+        "detectLanguage",
+        "getSupportedExtensions",
+        "isExtensionSupported",
+        "PatternMatcher",
+        "PatternMatcherOptions",
+        "ScanOptions",
+        "PatternMatch",
+        "FileScanResult",
+        "AggregatedResults"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "../../categories/schema/index.js",
+        "../../lib/errors.js",
+        "../../lib/logger.js",
+        "../../lib/result.js"
+      ],
+      "lineCount": 742,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/templates/renderer.ts": {
+      "hash": "0189fb7a538b",
+      "size": 32839,
+      "mtime": 1769887932772.446,
+      "lastIndexed": 1769887934134,
+      "symbols": [
+        "to",
+        "createRenderer",
+        "TemplateRenderError",
+        "TemplateSyntaxError",
+        "TemplateRenderer",
+        "ParsedPlaceholder",
+        "ParsedConditional",
+        "ParsedLoop",
+        "SyntaxValidationResult",
+        "VariableValidationResult",
+        "ValidationResult",
+        "RenderOptions",
+        "RenderResult"
+      ],
+      "imports": [
+        "zod",
+        "../categories/schema/index.js",
+        "../lib/errors.js",
+        "../lib/result.js"
+      ],
+      "lineCount": 1127,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tsconfig.json": {
+      "hash": "55940c9f680c",
+      "size": 856,
+      "mtime": 1768777383401.886,
+      "lastIndexed": 1768934871691,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 34,
+      "relevanceScore": 65,
+      "reasons": [
+        "config"
+      ]
+    },
+    "tsup.config.ts": {
+      "hash": "293d56de45ce",
+      "size": 244,
+      "mtime": 1768777383401.9163,
+      "lastIndexed": 1768934871691,
+      "symbols": [],
+      "imports": [
+        "tsup"
+      ],
+      "lineCount": 13,
+      "relevanceScore": 65,
+      "reasons": [
+        "config"
+      ]
+    },
+    "vitest.config.ts": {
+      "hash": "e9928e42df4e",
+      "size": 474,
+      "mtime": 1768777383416.1106,
+      "lastIndexed": 1768934871691,
+      "symbols": [],
+      "imports": [
+        "vitest/config",
+        "path"
+      ],
+      "lineCount": 22,
+      "relevanceScore": 65,
+      "reasons": [
+        "config"
+      ]
+    },
+    "src/categories/schema/category.schema.ts": {
+      "hash": "73ecb70e842d",
+      "size": 2681,
+      "mtime": 1768777383416.1465,
+      "lastIndexed": 1768934871691,
+      "symbols": [
+        "RiskDomainSchema",
+        "TestLevelSchema",
+        "PrioritySchema",
+        "SeveritySchema",
+        "ConfidenceSchema",
+        "LanguageSchema",
+        "CategoryBaseSchema",
+        "RiskDomain",
+        "TestLevel",
+        "Priority",
+        "Severity",
+        "Confidence",
+        "Language",
+        "CategoryBase",
+        "RISK_DOMAINS",
+        "TEST_LEVELS",
+        "LANGUAGES"
+      ],
+      "imports": [
+        "zod"
+      ],
+      "lineCount": 109,
+      "relevanceScore": 60,
+      "reasons": []
+    },
+    "src/categories/schema/example.schema.ts": {
+      "hash": "bce6d344f788",
+      "size": 1317,
+      "mtime": 1769887932772.3357,
+      "lastIndexed": 1769887934131,
+      "symbols": [
+        "ExampleSchema",
+        "Example"
+      ],
+      "imports": [
+        "zod",
+        "./category.schema.js"
+      ],
+      "lineCount": 43,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/categories/schema/pattern.schema.ts": {
+      "hash": "f2de8e859c29",
+      "size": 2549,
+      "mtime": 1769887932772.3215,
+      "lastIndexed": 1769887934131,
+      "symbols": [
+        "PatternTypeSchema",
+        "DetectionPatternSchema",
+        "DetectionResultSchema",
+        "PatternType",
+        "DetectionPattern",
+        "DetectionResult",
+        "PATTERN_TYPES"
+      ],
+      "imports": [
+        "zod",
+        "./category.schema.js"
+      ],
+      "lineCount": 87,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/categories/schema/template.schema.ts": {
+      "hash": "35860da8553d",
+      "size": 2571,
+      "mtime": 1769887932772.3352,
+      "lastIndexed": 1769887934131,
+      "symbols": [
+        "TestFrameworkSchema",
+        "VariableTypeSchema",
+        "TemplateVariableSchema",
+        "TestTemplateSchema",
+        "TestFramework",
+        "VariableType",
+        "TemplateVariable",
+        "TestTemplate",
+        "TEST_FRAMEWORKS"
+      ],
+      "imports": [
+        "zod",
+        "./category.schema.js"
+      ],
+      "lineCount": 102,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/categories/store/category-store.ts": {
+      "hash": "8ca87d9d9f25",
+      "size": 16765,
+      "mtime": 1769887932772.3696,
+      "lastIndexed": 1769887934132,
+      "symbols": [
+        "createCategoryStore",
+        "CategoryStore",
+        "CategoryFilter",
+        "SearchOptions",
+        "SearchResult"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "yaml",
+        "../../lib/errors.js",
+        "../../lib/result.js",
+        "../schema/index.js"
+      ],
+      "lineCount": 604,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/lib/errors.ts": {
+      "hash": "371b6791fc48",
+      "size": 2506,
+      "mtime": 1768777383416.4058,
+      "lastIndexed": 1768934871693,
+      "symbols": [
+        "for",
+        "PinataError",
+        "ValidationError",
+        "ParseError",
+        "ConfigError",
+        "AnalysisError",
+        "GenerationError",
+        "CategoryNotFoundError",
+        "PatternNotFoundError"
+      ],
+      "imports": [],
+      "lineCount": 103,
+      "relevanceScore": 60,
+      "reasons": []
+    },
+    "src/lib/logger.ts": {
+      "hash": "5c09b1632386",
+      "size": 2409,
+      "mtime": 1768777383416.444,
+      "lastIndexed": 1768934871693,
+      "symbols": [
+        "Logger",
+        "LogLevel",
+        "logger"
+      ],
+      "imports": [
+        "chalk"
+      ],
+      "lineCount": 117,
+      "relevanceScore": 60,
+      "reasons": []
+    },
+    "src/lib/result.ts": {
+      "hash": "db701b7a28eb",
+      "size": 2452,
+      "mtime": 1768777383416.4277,
+      "lastIndexed": 1768934871693,
+      "symbols": [
+        "ok",
+        "err",
+        "unwrap",
+        "unwrapOr",
+        "map",
+        "mapErr",
+        "andThen",
+        "all",
+        "tryCatch",
+        "tryCatchAsync",
+        "Result"
+      ],
+      "imports": [],
+      "lineCount": 121,
+      "relevanceScore": 60,
+      "reasons": []
+    },
+    "tests/categories/migrations/migrator.test.ts": {
+      "hash": "edf8b7648919",
+      "size": 18829,
+      "mtime": 1769887932772.5332,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "node:fs/promises",
+        "node:os",
+        "node:path",
+        "js-yaml",
+        "vitest"
+      ],
+      "lineCount": 601,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/cli/formatters.test.ts": {
+      "hash": "2de26e54b469",
+      "size": 11395,
+      "mtime": 1769887932772.5396,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "vitest",
+        "../../src/categories/schema/index.js"
+      ],
+      "lineCount": 344,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/templates/renderer.test.ts": {
+      "hash": "b8e6c4dff21d",
+      "size": 37982,
+      "mtime": 1769887932775.1926,
+      "lastIndexed": 1769887934137,
+      "symbols": [
+        "createTestTemplate",
+        "createVariable",
+        "UserService",
+        "MyClass",
+        "Test",
+        "TestUserServiceSQLInjection"
+      ],
+      "imports": [
+        "vitest",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 1220,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/all-categories.test.ts": {
+      "hash": "f4d393f34df2",
+      "size": 12121,
+      "mtime": 1769887932772.4436,
+      "lastIndexed": 1769887934134,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/schema/index.js",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 376,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/concurrency.test.ts": {
+      "hash": "fb94326059e4",
+      "size": 8580,
+      "mtime": 1769887932772.4634,
+      "lastIndexed": 1769887934134,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 262,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/data.test.ts": {
+      "hash": "2da3c6b60d14",
+      "size": 6487,
+      "mtime": 1769887932772.475,
+      "lastIndexed": 1769887934134,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 214,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/input.test.ts": {
+      "hash": "afddf29336fe",
+      "size": 7119,
+      "mtime": 1769887932772.4602,
+      "lastIndexed": 1769887934134,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 197,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/network.test.ts": {
+      "hash": "211f30725509",
+      "size": 11880,
+      "mtime": 1769887932772.4736,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 339,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/performance.test.ts": {
+      "hash": "846f01654dd4",
+      "size": 7895,
+      "mtime": 1769887932772.4973,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 234,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/resource.test.ts": {
+      "hash": "f01b2cd897b0",
+      "size": 7328,
+      "mtime": 1769887932772.4912,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 207,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/definitions/security.test.ts": {
+      "hash": "0975bc66c20c",
+      "size": 14457,
+      "mtime": 1769887932772.5042,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "path",
+        "url",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 427,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/schema/category.schema.test.ts": {
+      "hash": "6571db6e69f4",
+      "size": 5142,
+      "mtime": 1769887932772.547,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "vitest"
+      ],
+      "lineCount": 164,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/schema/pattern.schema.test.ts": {
+      "hash": "93e30ae976a3",
+      "size": 4018,
+      "mtime": 1769887932772.5198,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "vitest"
+      ],
+      "lineCount": 132,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/categories/store/category-store.test.ts": {
+      "hash": "9a4800619c27",
+      "size": 17524,
+      "mtime": 1769887932772.6023,
+      "lastIndexed": 1769887934135,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "os",
+        "path",
+        "@tests/fixtures/categories.js",
+        "vitest",
+        "@/categories/store/category-store.js"
+      ],
+      "lineCount": 565,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/fixtures/categories.ts": {
+      "hash": "64811131c13e",
+      "size": 2835,
+      "mtime": 1768777383416.491,
+      "lastIndexed": 1768934871699,
+      "symbols": [
+        "createTestCategory",
+        "createTestPattern",
+        "createTestTemplate",
+        "being",
+        "call",
+        "createTestExample",
+        "Test"
+      ],
+      "imports": [],
+      "lineCount": 114,
+      "relevanceScore": 45,
+      "reasons": []
+    },
+    "tests/lib/result.test.ts": {
+      "hash": "adc6c79b1a45",
+      "size": 4490,
+      "mtime": 1769887932772.55,
+      "lastIndexed": 1769887934136,
+      "symbols": [],
+      "imports": [
+        "vitest",
+        "@/lib/result.js"
+      ],
+      "lineCount": 171,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/core/detection/ast-parser.ts": {
+      "hash": "b59e84ca0a34",
+      "size": 15571,
+      "mtime": 1769887932772.421,
+      "lastIndexed": 1769887934133,
+      "symbols": [
+        "getWasmPaths",
+        "getLanguageWasmPaths",
+        "initializeParser",
+        "loadLanguage",
+        "getParser",
+        "parseSource",
+        "calls",
+        "executeQuery",
+        "createAstMatcher",
+        "checkTreeSitterSetup",
+        "AstPatternMatcher",
+        "AstMatch",
+        "COMMON_AST_PATTERNS"
+      ],
+      "imports": [
+        "fs",
+        "path",
+        "url",
+        "../../lib/errors.js",
+        "../../lib/logger.js",
+        "../../lib/result.js",
+        "../../categories/schema/index.js"
+      ],
+      "lineCount": 622,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "scripts/setup-wasm.ts": {
+      "hash": "b410279252f0",
+      "size": 4167,
+      "mtime": 1768945128375.3357,
+      "lastIndexed": 1768945151498,
+      "symbols": [
+        "downloadFile",
+        "main"
+      ],
+      "imports": [
+        "fs/promises",
+        "fs",
+        "path"
+      ],
+      "lineCount": 122,
+      "relevanceScore": 65,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/core/detection/ast-parser.test.ts": {
+      "hash": "3babbdbf29ab",
+      "size": 14355,
+      "mtime": 1769887932772.5698,
+      "lastIndexed": 1769887934136,
+      "symbols": [
+        "requireWasm",
+        "definitions",
+        "greet",
+        "declarations",
+        "add",
+        "hello",
+        "fetchData",
+        "getData",
+        "getUser",
+        "searchProducts",
+        "dangerous",
+        "User",
+        "Admin"
+      ],
+      "imports": [
+        "vitest"
+      ],
+      "lineCount": 481,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "scripts/test-tree-sitter.ts": {
+      "hash": "1c8486f949a8",
+      "size": 1276,
+      "mtime": 1768936237228.2742,
+      "lastIndexed": 1768936242209,
+      "symbols": [
+        "main"
+      ],
+      "imports": [],
+      "lineCount": 39,
+      "relevanceScore": 65,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/core/scanner/types.ts": {
+      "hash": "29f02c7eee4d",
+      "size": 6772,
+      "mtime": 1769887932772.432,
+      "lastIndexed": 1769887934130,
+      "symbols": [
+        "ScannerOptions",
+        "Gap",
+        "DomainCoverage",
+        "CoverageMetrics",
+        "FileStats",
+        "PinataScore",
+        "ScanResult",
+        "ScanSummary",
+        "SEVERITY_WEIGHTS",
+        "CONFIDENCE_WEIGHTS",
+        "PRIORITY_WEIGHTS",
+        "DEFAULT_TEST_PATTERNS"
+      ],
+      "imports": [
+        "zod"
+      ],
+      "lineCount": 273,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/core/scanner/scanner.ts": {
+      "hash": "cf9abcdf758a",
+      "size": 23819,
+      "mtime": 1769887932772.4253,
+      "lastIndexed": 1769887934133,
+      "symbols": [
+        "createScanner",
+        "Scanner"
+      ],
+      "imports": [
+        "fs",
+        "fs/promises",
+        "path",
+        "minimatch",
+        "../../lib/errors.js",
+        "../../lib/logger.js",
+        "../../lib/result.js",
+        "../detection/index.js",
+        "../../categories/store/category-store.js"
+      ],
+      "lineCount": 834,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/core/scanner/index.ts": {
+      "hash": "237417119564",
+      "size": 575,
+      "mtime": 1768945361348.1523,
+      "lastIndexed": 1768945366538,
+      "symbols": [
+        "for",
+        "Scanner",
+        "createScanner",
+        "SEVERITY_WEIGHTS",
+        "CONFIDENCE_WEIGHTS",
+        "PRIORITY_WEIGHTS",
+        "DEFAULT_TEST_PATTERNS"
+      ],
+      "imports": [],
+      "lineCount": 30,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "tests/core/scanner/scanner.test.ts": {
+      "hash": "5d1637348650",
+      "size": 23825,
+      "mtime": 1769887932772.5598,
+      "lastIndexed": 1769887934136,
+      "symbols": [
+        "getUser",
+        "renderContent",
+        "createTestCategory",
+        "createXssCategory"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/schema/index.js",
+        "@/core/scanner/types.js",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "./database",
+        "./users",
+        "./utils"
+      ],
+      "lineCount": 729,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/cli/scan-formatters.ts": {
+      "hash": "7038ca35c6cd",
+      "size": 14053,
+      "mtime": 1769887932772.3853,
+      "lastIndexed": 1769887934133,
+      "symbols": [
+        "formatScanTerminal",
+        "formatScoreBox",
+        "formatDomainCoverage",
+        "formatGapsSummary",
+        "formatGapLine",
+        "formatLanguages",
+        "formatScanJson",
+        "formatScanMarkdown",
+        "formatScanSarif",
+        "buildSarifRules",
+        "buildSarifResults",
+        "sarifLevel",
+        "formatScanResult",
+        "isValidScanOutputFormat",
+        "ScanOutputFormat"
+      ],
+      "imports": [
+        "path",
+        "chalk",
+        "../categories/schema/index.js"
+      ],
+      "lineCount": 495,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/cli/results-cache.ts": {
+      "hash": "fa36b2225587",
+      "size": 4642,
+      "mtime": 1769887932772.3833,
+      "lastIndexed": 1769887934132,
+      "symbols": [
+        "getCachePath",
+        "saveScanResults",
+        "loadScanResults",
+        "isCacheValid",
+        "clearCache",
+        "CachedScanResult"
+      ],
+      "imports": [
+        "fs",
+        "fs/promises",
+        "path",
+        "../lib/errors.js",
+        "../lib/result.js",
+        "../core/scanner/types.js"
+      ],
+      "lineCount": 186,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/cli/generate-formatters.ts": {
+      "hash": "c28bfbe88247",
+      "size": 12716,
+      "mtime": 1769887932772.373,
+      "lastIndexed": 1769887934132,
+      "symbols": [
+        "formatGeneratedTerminal",
+        "formatGeneratedJson",
+        "suggestTestPath",
+        "extractVariablesFromGap",
+        "writeGeneratedTests",
+        "formatWriteSummary",
+        "name",
+        "GeneratedTest",
+        "WriteResult",
+        "WriteSummary"
+      ],
+      "imports": [
+        "fs",
+        "fs/promises",
+        "path",
+        "chalk",
+        "../lib/errors.js",
+        "../lib/result.js",
+        "../categories/schema/index.js",
+        "../core/scanner/types.js",
+        "../templates/index.js"
+      ],
+      "lineCount": 434,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/temp-tests/categories/migrations/migrator.test.ts": {
+      "hash": "378dd9d46959",
+      "size": 2693,
+      "mtime": 1768949090698.1436,
+      "lastIndexed": 1768949092960,
+      "symbols": [
+        "should"
+      ],
+      "imports": [
+        "{{modulePath}}",
+        "decimal.js"
+      ],
+      "lineCount": 90,
+      "relevanceScore": 60,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/temp-tests/categories/store/category-store.test.ts": {
+      "hash": "7230e1dbf1f3",
+      "size": 2694,
+      "mtime": 1768949090698.5618,
+      "lastIndexed": 1768949092960,
+      "symbols": [
+        "should"
+      ],
+      "imports": [
+        "{{modulePath}}",
+        "decimal.js"
+      ],
+      "lineCount": 90,
+      "relevanceScore": 60,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/temp-tests/cli/results-cache.test.ts": {
+      "hash": "8b986593c865",
+      "size": 2680,
+      "mtime": 1768949090699.7473,
+      "lastIndexed": 1768949092960,
+      "symbols": [
+        "should"
+      ],
+      "imports": [
+        "{{modulePath}}",
+        "decimal.js"
+      ],
+      "lineCount": 90,
+      "relevanceScore": 60,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/temp-tests/cli/scan-formatters.test.ts": {
+      "hash": "f337b8ec4fc3",
+      "size": 10696,
+      "mtime": 1768949090700.152,
+      "lastIndexed": 1768949092960,
+      "symbols": [
+        "should"
+      ],
+      "imports": [
+        "{{modulePath}}",
+        "decimal.js"
+      ],
+      "lineCount": 360,
+      "relevanceScore": 60,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/temp-tests/core/scanner/scanner.test.ts": {
+      "hash": "75034ad8c0c6",
+      "size": 16081,
+      "mtime": 1768949090699.2292,
+      "lastIndexed": 1768949092960,
+      "symbols": [
+        "should"
+      ],
+      "imports": [
+        "{{modulePath}}",
+        "decimal.js"
+      ],
+      "lineCount": 540,
+      "relevanceScore": 60,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tsconfig.eslint.json": {
+      "hash": "6eceeeb63bae",
+      "size": 168,
+      "mtime": 1769887548373.6372,
+      "lastIndexed": 1769887549080,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 9,
+      "relevanceScore": 75,
+      "reasons": [
+        "config",
+        "recently modified"
+      ]
+    }
+  },
+  "totalFiles": 63,
+  "totalSymbols": 355
+}

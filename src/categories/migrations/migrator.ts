@@ -1,18 +1,20 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile, readdir, stat, mkdir } from "node:fs/promises";
 import { join, basename } from "node:path";
-import { load as loadYaml, dump as dumpYaml } from "js-yaml";
-import { glob } from "glob";
 
-import { ok, err, tryCatchAsync } from "../../lib/result.js";
-import type { Result } from "../../lib/result.js";
+import { glob } from "glob";
+import { load as loadYaml, dump as dumpYaml } from "js-yaml";
+
 import { PinataError, ValidationError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
+import { ok, err, tryCatchAsync } from "../../lib/result.js";
+
 import {
   MigrationStateSchema,
   MIGRATOR_VERSION,
   MIGRATIONS_STATE_FILE,
 } from "./migration.schema.js";
+
 import type {
   MigrationScript,
   MigrationState,
@@ -21,6 +23,7 @@ import type {
   RollbackOptions,
   AppliedMigration,
 } from "./migration.schema.js";
+import type { Result } from "../../lib/result.js";
 
 /**
  * Error for migration-specific failures

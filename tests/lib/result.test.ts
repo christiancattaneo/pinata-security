@@ -1,4 +1,7 @@
 import { describe, it, expect } from "vitest";
+
+import type { Result } from "@/lib/result.js";
+
 import {
   ok,
   err,
@@ -11,7 +14,6 @@ import {
   tryCatch,
   tryCatchAsync,
 } from "@/lib/result.js";
-import type { Result } from "@/lib/result.js";
 
 describe("Result", () => {
   describe("ok", () => {

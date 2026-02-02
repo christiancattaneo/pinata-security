@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from "vitest";
 import { mkdir, writeFile, rm } from "fs/promises";
 import { resolve } from "path";
+
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach } from "vitest";
+
+import { checkTreeSitterSetup } from "../../../src/core/detection/ast-parser.js";
 import {
   PatternMatcher,
   createPatternMatcher,
@@ -8,6 +11,7 @@ import {
   getSupportedExtensions,
   isExtensionSupported,
 } from "../../../src/core/detection/pattern-matcher.js";
+
 import type { DetectionPattern } from "../../../src/categories/schema/index.js";
 
 // Test fixtures directory
@@ -754,7 +758,6 @@ describe("language cross-matching", () => {
 });
 
 // AST pattern tests
-import { checkTreeSitterSetup } from "../../../src/core/detection/ast-parser.js";
 
 describe("AST pattern matching", () => {
   let matcher: PatternMatcher;

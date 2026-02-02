@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { ConfidenceSchema, LanguageSchema } from "./category.schema.js";
 
 /**

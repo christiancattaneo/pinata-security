@@ -184,12 +184,14 @@ function createRules(
       shortDescription: {
         text: gap.categoryName,
       },
-      fullDescription: category
+      ...(category
         ? {
-            text: category.description,
-            markdown: category.description,
+            fullDescription: {
+              text: category.description,
+              markdown: category.description,
+            },
           }
-        : undefined,
+        : {}),
       properties: {
         tags: [gap.domain, gap.level],
         precision: gap.confidence === "high" ? "high" : gap.confidence === "medium" ? "medium" : "low",
@@ -232,12 +234,14 @@ function gapToSarifResult(gap: Gap, ruleIndex: number): SarifResult {
             startLine: gap.lineStart,
             startColumn: gap.columnStart ?? 1,
             endLine: gap.lineEnd ?? gap.lineStart,
-            endColumn: gap.columnEnd,
-            snippet: gap.codeSnippet
+            ...(gap.columnEnd !== undefined ? { endColumn: gap.columnEnd } : {}),
+            ...(gap.codeSnippet
               ? {
-                  text: gap.codeSnippet,
+                  snippet: {
+                    text: gap.codeSnippet,
+                  },
                 }
-              : undefined,
+              : {}),
           },
         },
       },

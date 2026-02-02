@@ -1,14 +1,16 @@
 import { z } from "zod";
 
-import { ok, err } from "../lib/result.js";
-import type { Result } from "../lib/result.js";
-import { PinataError, ValidationError } from "../lib/errors.js";
 import { VariableTypeSchema } from "../categories/schema/index.js";
+import { PinataError, ValidationError } from "../lib/errors.js";
+import { ok, err } from "../lib/result.js";
+
 import type {
   TestTemplate,
   TemplateVariable,
   VariableType,
 } from "../categories/schema/index.js";
+import type { Result } from "../lib/result.js";
+
 
 /**
  * Error for template rendering failures

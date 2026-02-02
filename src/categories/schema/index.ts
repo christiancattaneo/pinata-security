@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import {
   CategoryBaseSchema,
   RiskDomainSchema,
@@ -11,9 +12,9 @@ import {
   TEST_LEVELS,
   LANGUAGES,
 } from "./category.schema.js";
+import { ExampleSchema } from "./example.schema.js";
 import { DetectionPatternSchema, DetectionResultSchema, PatternTypeSchema, PATTERN_TYPES } from "./pattern.schema.js";
 import { TestTemplateSchema, TemplateVariableSchema, TestFrameworkSchema, VariableTypeSchema, TEST_FRAMEWORKS } from "./template.schema.js";
-import { ExampleSchema } from "./example.schema.js";
 
 // Re-export all schemas
 export {

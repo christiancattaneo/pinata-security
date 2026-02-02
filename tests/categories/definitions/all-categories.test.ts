@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeAll } from "vitest";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { CategoryStore, createCategoryStore } from "@/categories/store/category-store.js";
+import { describe, it, expect, beforeAll } from "vitest";
+
 import type { Category } from "@/categories/schema/index.js";
+
+import { CategoryStore, createCategoryStore } from "@/categories/store/category-store.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFINITIONS_PATH = path.resolve(__dirname, "../../../src/categories/definitions");

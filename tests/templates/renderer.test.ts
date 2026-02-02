@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 
+import type { TestTemplate, TemplateVariable } from "@/categories/schema/index.js";
+
 import {
   TemplateRenderer,
   TemplateRenderError,
@@ -7,7 +9,6 @@ import {
   createRenderer,
   type RenderOptions,
 } from "@/templates/index.js";
-import type { TestTemplate, TemplateVariable } from "@/categories/schema/index.js";
 
 describe("TemplateRenderer", () => {
   let renderer: TemplateRenderer;

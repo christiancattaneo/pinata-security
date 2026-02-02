@@ -5,6 +5,7 @@ import YAML from "yaml";
 
 import { ValidationError, CategoryNotFoundError } from "../../lib/errors.js";
 import { ok, err, all, tryCatchAsync } from "../../lib/result.js";
+import { CategorySchema, CategorySummarySchema } from "../schema/index.js";
 
 import type { Result } from "../../lib/result.js";
 import type {
@@ -16,7 +17,6 @@ import type {
   Priority,
   Severity,
 } from "../schema/index.js";
-import { CategorySchema, CategorySummarySchema } from "../schema/index.js";
 
 /**
  * Options for filtering categories

@@ -5,6 +5,10 @@
  * Supports Python, TypeScript, and JavaScript.
  */
 
+import { existsSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
 import {
   Parser as TreeSitterParser,
   Language as TreeSitterLanguage,
@@ -12,15 +16,13 @@ import {
   Node as TreeSitterNode,
   Query as TreeSitterQuery,
 } from "web-tree-sitter";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import { existsSync } from "fs";
 
-import { ok, err } from "../../lib/result.js";
-import type { Result } from "../../lib/result.js";
 import { PinataError, ParseError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
+import { ok, err } from "../../lib/result.js";
+
 import type { Language } from "../../categories/schema/index.js";
+import type { Result } from "../../lib/result.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -148,7 +150,7 @@ async function initializeParser(): Promise<Result<void, PinataError>> {
 
   try {
     await TreeSitterParser.init({
-      locateFile: () => wasmPath!,
+      locateFile: () => wasmPath,
     });
     parserInitialized = true;
     logger.debug("Tree-sitter initialized");

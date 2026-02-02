@@ -18,32 +18,27 @@
  * ```
  */
 
+import { existsSync } from "fs";
 import { readdir, stat, readFile } from "fs/promises";
 import { resolve, relative, extname, basename } from "path";
-import { existsSync } from "fs";
+
 import { minimatch } from "minimatch";
 
-import { ok, err, tryCatchAsync } from "../../lib/result.js";
-import type { Result } from "../../lib/result.js";
-import { PinataError, AnalysisError } from "../../lib/errors.js";
-import { logger } from "../../lib/logger.js";
-import { PatternMatcher, detectLanguage } from "../detection/index.js";
-import type { CategoryStore } from "../../categories/store/category-store.js";
-import type {
-  Category,
-  RiskDomain,
-  TestLevel,
-  Language,
-  Priority,
-  Severity,
-  Confidence,
-  DetectionResult,
-  PatternType,
-} from "../../categories/schema/index.js";
 import {
   RISK_DOMAINS,
   TEST_LEVELS,
 } from "../../categories/schema/index.js";
+import { PinataError, AnalysisError } from "../../lib/errors.js";
+import { logger } from "../../lib/logger.js";
+import { ok, err, tryCatchAsync } from "../../lib/result.js";
+import { PatternMatcher, detectLanguage } from "../detection/index.js";
+
+import {
+  SEVERITY_WEIGHTS,
+  CONFIDENCE_WEIGHTS,
+  PRIORITY_WEIGHTS,
+  DEFAULT_TEST_PATTERNS,
+} from "./types.js";
 
 import type {
   ScannerOptions,
@@ -55,12 +50,19 @@ import type {
   PinataScore,
   ScanSummary,
 } from "./types.js";
-import {
-  SEVERITY_WEIGHTS,
-  CONFIDENCE_WEIGHTS,
-  PRIORITY_WEIGHTS,
-  DEFAULT_TEST_PATTERNS,
-} from "./types.js";
+import type {
+  Category,
+  RiskDomain,
+  TestLevel,
+  Language,
+  Priority,
+  Severity,
+  Confidence,
+  DetectionResult,
+  PatternType,
+} from "../../categories/schema/index.js";
+import type { CategoryStore } from "../../categories/store/category-store.js";
+import type { Result } from "../../lib/result.js";
 
 /**
  * Default scanner options
@@ -608,7 +610,7 @@ export class Scanner {
       const patternType = patternTypeMap.get(detection.patternId) ?? "regex";
 
       // Extract column info from context if available
-      const context = detection.context as Record<string, unknown> | undefined;
+      const context = detection.context;
       const columnStart = typeof context?.["columnStart"] === "number" ? context["columnStart"] : 0;
       const columnEnd = typeof context?.["columnEnd"] === "number" ? context["columnEnd"] : 0;
 

@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { mkdir, writeFile, rm } from "fs/promises";
 import { resolve } from "path";
-import { Scanner, createScanner } from "@/core/scanner/scanner.js";
-import { CategoryStore } from "@/categories/store/category-store.js";
+
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
+
 import type { Category } from "@/categories/schema/index.js";
 import type { Gap, PinataScore, CoverageMetrics } from "@/core/scanner/types.js";
+
+import { CategoryStore } from "@/categories/store/category-store.js";
+import { Scanner, createScanner } from "@/core/scanner/scanner.js";
 import { SEVERITY_WEIGHTS, CONFIDENCE_WEIGHTS, PRIORITY_WEIGHTS } from "@/core/scanner/types.js";
 
 // Test fixtures directory
