@@ -1,0 +1,89 @@
+{
+  "vulnerable/sql-injection/python-fstring.py": [
+    { "category": "sql-injection", "line": 9, "patternId": "python-fstring-execute" },
+    { "category": "sql-injection", "line": 14, "patternId": "python-fstring-execute" }
+  ],
+  "vulnerable/sql-injection/python-concat.py": [
+    { "category": "sql-injection", "line": 9, "patternId": "python-concat-execute" },
+    { "category": "sql-injection", "line": 15, "patternId": "python-concat-execute" }
+  ],
+  "vulnerable/sql-injection/ts-template.ts": [
+    { "category": "sql-injection", "line": 7, "patternId": "ts-template-literal-query" },
+    { "category": "sql-injection", "line": 12, "patternId": "ts-template-literal-query" }
+  ],
+  "vulnerable/sql-injection/js-concat.js": [
+    { "category": "sql-injection", "line": 7, "patternId": "js-string-concat-query" }
+  ],
+  "vulnerable/xss/ts-innerhtml.ts": [
+    { "category": "xss", "line": 5, "patternId": "ts-innerhtml-assignment" },
+    { "category": "xss", "line": 11, "patternId": "ts-innerhtml-assignment" }
+  ],
+  "vulnerable/xss/react-dangerous.tsx": [
+    { "category": "xss", "line": 8, "patternId": "ts-dangerouslysetinnerhtml" }
+  ],
+  "vulnerable/xss/flask-template.py": [
+    { "category": "xss", "line": 10, "patternId": "python-render-template-string" },
+    { "category": "xss", "line": 15, "patternId": "python-render-template-string" }
+  ],
+  "vulnerable/command-injection/python-os-system.py": [
+    { "category": "command-injection", "line": 7, "patternId": "python-os-system-fstring" },
+    { "category": "command-injection", "line": 11, "patternId": "python-os-popen-concat" },
+    { "category": "command-injection", "line": 15, "patternId": "python-subprocess-shell-true" }
+  ],
+  "vulnerable/command-injection/ts-exec.ts": [
+    { "category": "command-injection", "line": 6, "patternId": "ts-exec-concat" },
+    { "category": "command-injection", "line": 11, "patternId": "ts-execsync-template" }
+  ],
+  "vulnerable/path-traversal/python-open.py": [
+    { "category": "path-traversal", "line": 5, "patternId": "python-open-concat" },
+    { "category": "path-traversal", "line": 11, "patternId": "python-open-fstring" },
+    { "category": "path-traversal", "line": 15, "patternId": "python-open-concat" }
+  ],
+  "vulnerable/path-traversal/ts-readfile.ts": [
+    { "category": "path-traversal", "line": 6, "patternId": "ts-readfile-concat" },
+    { "category": "path-traversal", "line": 11, "patternId": "ts-writefile-template" }
+  ],
+  "vulnerable/hardcoded-secrets/python-secrets.py": [
+    { "category": "hardcoded-secrets", "line": 4, "patternId": "api-key-assignment" },
+    { "category": "hardcoded-secrets", "line": 5, "patternId": "aws-access-key" },
+    { "category": "hardcoded-secrets", "line": 6, "patternId": "aws-secret-key" },
+    { "category": "hardcoded-secrets", "line": 7, "patternId": "jwt-secret-hardcoded" }
+  ],
+  "vulnerable/hardcoded-secrets/ts-secrets.ts": [
+    { "category": "hardcoded-secrets", "line": 4, "patternId": "stripe-key-hardcoded" },
+    { "category": "hardcoded-secrets", "line": 5, "patternId": "private-key-inline" },
+    { "category": "hardcoded-secrets", "line": 6, "patternId": "jwt-token-hardcoded" }
+  ],
+  "vulnerable/deserialization/python-pickle.py": [
+    { "category": "deserialization", "line": 7, "patternId": "python-pickle-loads" },
+    { "category": "deserialization", "line": 11, "patternId": "python-yaml-unsafe-load" },
+    { "category": "deserialization", "line": 15, "patternId": "python-pickle-load" }
+  ],
+  "vulnerable/ssrf/python-requests.py": [
+    { "category": "ssrf", "line": 7, "patternId": "python-requests-user-url" },
+    { "category": "ssrf", "line": 13, "patternId": "python-requests-user-url" }
+  ],
+  "vulnerable/ssrf/ts-fetch.ts": [
+    { "category": "ssrf", "line": 5, "patternId": "ts-fetch-user-url" },
+    { "category": "ssrf", "line": 10, "patternId": "ts-fetch-user-url" }
+  ],
+  "vulnerable/csrf/django-exempt.py": [
+    { "category": "csrf", "line": 6, "patternId": "python-csrf-exempt" },
+    { "category": "csrf", "line": 11, "patternId": "python-csrf-exempt" }
+  ],
+  "vulnerable/xxe/python-xml.py": [
+    { "category": "xxe", "line": 7, "patternId": "python-lxml-parse" },
+    { "category": "xxe", "line": 10, "patternId": "python-etree-fromstring" },
+    { "category": "xxe", "line": 14, "patternId": "python-lxml-parse" }
+  ],
+  "safe/parameterized-queries.py": [],
+  "safe/parameterized-queries.ts": [],
+  "safe/sanitized-html.ts": [],
+  "safe/safe-subprocess.py": [],
+  "safe/validated-paths.py": [],
+  "safe/env-secrets.py": [],
+  "safe/safe-yaml.py": [],
+  "safe/validated-urls.py": [],
+  "safe/csrf-protected.py": [],
+  "safe/safe-xml.py": []
+}
