@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1769888014140,
+  "lastFullScan": 1770072163269,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "ff460ffd330b",
-      "size": 21600,
-      "mtime": 1769887932772.4026,
-      "lastIndexed": 1769887934130,
+      "hash": "31d1f68c3eec",
+      "size": 32582,
+      "mtime": 1770068489632.7117,
+      "lastIndexed": 1770072126656,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -48,11 +48,11 @@
         "../lib/index.js",
         "../templates/index.js"
       ],
-      "lineCount": 635,
-      "relevanceScore": 90,
+      "lineCount": 955,
+      "relevanceScore": 85,
       "reasons": [
         "core file",
-        "recently modified"
+        "modified today"
       ]
     },
     "src/core/detection/index.ts": {
@@ -328,16 +328,17 @@
       ]
     },
     "package.json": {
-      "hash": "9fd09981d453",
-      "size": 1955,
-      "mtime": 1768945380491.8938,
-      "lastIndexed": 1768945381437,
+      "hash": "b6f296a39815",
+      "size": 2147,
+      "mtime": 1770069215664.9392,
+      "lastIndexed": 1770072126654,
       "symbols": [],
       "imports": [],
-      "lineCount": 69,
-      "relevanceScore": 75,
+      "lineCount": 72,
+      "relevanceScore": 100,
       "reasons": [
         "config",
+        "mentioned",
         "recently modified"
       ]
     },
@@ -1242,10 +1243,10 @@
       ]
     },
     "src/cli/scan-formatters.ts": {
-      "hash": "7038ca35c6cd",
-      "size": 14053,
-      "mtime": 1769887932772.3853,
-      "lastIndexed": 1769887934133,
+      "hash": "e752ce0f795d",
+      "size": 14461,
+      "mtime": 1770068481945.0425,
+      "lastIndexed": 1770072126657,
       "symbols": [
         "formatScanTerminal",
         "formatScoreBox",
@@ -1268,10 +1269,10 @@
         "chalk",
         "../categories/schema/index.js"
       ],
-      "lineCount": 495,
-      "relevanceScore": 70,
+      "lineCount": 503,
+      "relevanceScore": 65,
       "reasons": [
-        "recently modified"
+        "modified today"
       ]
     },
     "src/cli/results-cache.ts": {
@@ -1438,8 +1439,1027 @@
         "config",
         "recently modified"
       ]
+    },
+    "src/cli/html-formatter.ts": {
+      "hash": "005a0be5615e",
+      "size": 13515,
+      "mtime": 1770069164473.1494,
+      "lastIndexed": 1770072126655,
+      "symbols": [
+        "escapeHtml",
+        "getSeverityClass",
+        "getDomainClass",
+        "generateGapsTable",
+        "generateSummary",
+        "formatHtml",
+        "filterTable"
+      ],
+      "imports": [
+        "../core/scanner/types.js"
+      ],
+      "lineCount": 449,
+      "relevanceScore": 95,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "src/cli/sarif-formatter.ts": {
+      "hash": "5cd386ffd939",
+      "size": 9514,
+      "mtime": 1770069164474.7014,
+      "lastIndexed": 1770072126655,
+      "symbols": [
+        "severityToSarifLevel",
+        "severityToScore",
+        "generateFingerprint",
+        "createRules",
+        "gapToSarifResult",
+        "formatSarif",
+        "getMimeType",
+        "validateSarif"
+      ],
+      "imports": [
+        "../core/index.js",
+        "../core/scanner/types.js",
+        "../categories/schema/index.js"
+      ],
+      "lineCount": 372,
+      "relevanceScore": 95,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "scripts/fetch-github-advisories.ts": {
+      "hash": "e179b8d2ce3a",
+      "size": 7646,
+      "mtime": 1770071849141.346,
+      "lastIndexed": 1770072126655,
+      "symbols": [
+        "fetchAdvisories",
+        "extractCommitUrls",
+        "parseAdvisory",
+        "loadCache",
+        "saveCache",
+        "main"
+      ],
+      "imports": [
+        "fs",
+        "path"
+      ],
+      "lineCount": 268,
+      "relevanceScore": 90,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "scripts/import-semgrep.ts": {
+      "hash": "e8bd3262bc62",
+      "size": 8140,
+      "mtime": 1770071849152.475,
+      "lastIndexed": 1770072126655,
+      "symbols": [
+        "cloneOrUpdateRepo",
+        "findYamlFiles",
+        "walk",
+        "semgrepPatternToRegex",
+        "mapConfidence",
+        "mapLanguage",
+        "extractCwe",
+        "convertRule",
+        "categorizePattern",
+        "main"
+      ],
+      "imports": [
+        "child_process",
+        "fs",
+        "path",
+        "yaml"
+      ],
+      "lineCount": 283,
+      "relevanceScore": 90,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "scripts/owasp-benchmark.ts": {
+      "hash": "b35012976e2d",
+      "size": 10182,
+      "mtime": 1770072162462.7463,
+      "lastIndexed": 1770072163266,
+      "symbols": [
+        "setup",
+        "parseExpectedResults",
+        "runScan",
+        "calculateScore",
+        "printScorecard",
+        "main"
+      ],
+      "imports": [
+        "child_process",
+        "fs",
+        "path"
+      ],
+      "lineCount": 328,
+      "relevanceScore": 65,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "scripts/benchmark.ts": {
+      "hash": "d5e79b86d0e8",
+      "size": 1230,
+      "mtime": 1770067759750.8206,
+      "lastIndexed": 1770072126656,
+      "symbols": [],
+      "imports": [
+        "child_process"
+      ],
+      "lineCount": 54,
+      "relevanceScore": 85,
+      "reasons": [
+        "mentioned",
+        "modified today"
+      ]
+    },
+    "tests/benchmarks/pattern-benchmark.test.ts": {
+      "hash": "0c4638ca6cb7",
+      "size": 11522,
+      "mtime": 1770069765338.5896,
+      "lastIndexed": 1770072126656,
+      "symbols": [
+        "UserService",
+        "DatabaseService"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/core/detection/pattern-matcher.js",
+        "@/categories/store/category-store.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 347,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "tests/blindspot/concurrency.test.ts": {
+      "hash": "7bd4d3ca1701",
+      "size": 6962,
+      "mtime": 1770069164485.5715,
+      "lastIndexed": 1770072126656,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "@/cli/results-cache.js",
+        "@/core/scanner/types.js"
+      ],
+      "lineCount": 249,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "tests/blindspot/edge-cases.test.ts": {
+      "hash": "8f96b9acd907",
+      "size": 14179,
+      "mtime": 1770069164478.5356,
+      "lastIndexed": 1770072126656,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "@/core/detection/pattern-matcher.js",
+        "@/templates/renderer.js"
+      ],
+      "lineCount": 471,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "tests/cli/output-formats.test.ts": {
+      "hash": "1889067a6152",
+      "size": 12193,
+      "mtime": 1770068540739.8525,
+      "lastIndexed": 1770072126656,
+      "symbols": [
+        "createMockScanResult"
+      ],
+      "imports": [
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "@/cli/sarif-formatter.js",
+        "@/cli/html-formatter.js",
+        "@/cli/junit-formatter.js",
+        "@/core/scanner/types.js"
+      ],
+      "lineCount": 418,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "tests/property/property-based.test.ts": {
+      "hash": "2c4edffe697f",
+      "size": 12274,
+      "mtime": 1770069351122.1323,
+      "lastIndexed": 1770072126657,
+      "symbols": [],
+      "imports": [
+        "path",
+        "fast-check",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/templates/renderer.js",
+        "@/cli/sarif-formatter.js",
+        "@/cli/html-formatter.js",
+        "@/cli/junit-formatter.js",
+        "@/core/scanner/types.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 400,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "tests/security/output-security.test.ts": {
+      "hash": "d3e34e3a5aa9",
+      "size": 11400,
+      "mtime": 1770069765344.1323,
+      "lastIndexed": 1770072126657,
+      "symbols": [
+        "createMockScanResult"
+      ],
+      "imports": [
+        "vitest",
+        "@/templates/renderer.js",
+        "@/cli/sarif-formatter.js",
+        "@/cli/html-formatter.js",
+        "@/cli/junit-formatter.js",
+        "@/core/scanner/types.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 368,
+      "relevanceScore": 80,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "src/cli/junit-formatter.ts": {
+      "hash": "0589232f63c6",
+      "size": 4663,
+      "mtime": 1770068466508.6711,
+      "lastIndexed": 1770072126657,
+      "symbols": [
+        "escapeXml",
+        "generateTestCase",
+        "generateTestSuite",
+        "formatJunit",
+        "validateJunit"
+      ],
+      "imports": [
+        "../core/scanner/types.js"
+      ],
+      "lineCount": 150,
+      "relevanceScore": 65,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/accuracy/accuracy.test.ts": {
+      "hash": "648d6c198059",
+      "size": 10645,
+      "mtime": 1770067972280.7715,
+      "lastIndexed": 1770072126659,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "@/core/scanner/types.js"
+      ],
+      "lineCount": 307,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/benchmarks/corpus-generator.ts": {
+      "hash": "fc5738905277",
+      "size": 12187,
+      "mtime": 1770067472531.7231,
+      "lastIndexed": 1770072126659,
+      "symbols": [
+        "getUser",
+        "renderContent",
+        "runCommand",
+        "loadFile",
+        "fetchUrl",
+        "render",
+        "calculate",
+        "readConfig",
+        "merge",
+        "escapeHtml",
+        "validateUser",
+        "calculateDiscount",
+        "sanitize",
+        "validateEmail",
+        "fetchWithRetry",
+        "generateCorpus",
+        "generateSmallCorpus",
+        "generateMediumCorpus",
+        "generateLargeCorpus",
+        "SeededRandom",
+        "UserService",
+        "OrderService",
+        "Cache",
+        "CorpusOptions",
+        "CorpusStats"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "child_process",
+        "fs",
+        "./database"
+      ],
+      "lineCount": 488,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/benchmarks/memory-benchmark.test.ts": {
+      "hash": "1564ba99dbbe",
+      "size": 6817,
+      "mtime": 1770067628011.0718,
+      "lastIndexed": 1770072126659,
+      "symbols": [
+        "getHeapUsageMB"
+      ],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js",
+        "./corpus-generator.js"
+      ],
+      "lineCount": 227,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/benchmarks/scan-benchmark.test.ts": {
+      "hash": "b4c0d10c044f",
+      "size": 8242,
+      "mtime": 1770067505656.931,
+      "lastIndexed": 1770072126659,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js"
+      ],
+      "lineCount": 243,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/benchmarks/template-benchmark.test.ts": {
+      "hash": "9ca6b6ad63fc",
+      "size": 12515,
+      "mtime": 1770067596435.9753,
+      "lastIndexed": 1770072126659,
+      "symbols": [
+        "Test"
+      ],
+      "imports": [
+        "vitest",
+        "@/templates/renderer.js",
+        "@/categories/store/category-store.js",
+        "@/categories/schema/index.js",
+        "path"
+      ],
+      "lineCount": 380,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/csrf-protected.py": {
+      "hash": "c842e9786823",
+      "size": 376,
+      "mtime": 1770067890647.8208,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "update_profile",
+        "delete_account"
+      ],
+      "imports": [
+        "django.http",
+        "django.views.decorators.http"
+      ],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/env-secrets.py": {
+      "hash": "4dcf142bf520",
+      "size": 391,
+      "mtime": 1770067883320.0627,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "get_config"
+      ],
+      "imports": [
+        "os"
+      ],
+      "lineCount": 15,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/parameterized-queries.py": {
+      "hash": "c577db315704",
+      "size": 644,
+      "mtime": 1770067868716.0183,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "get_user",
+        "search_users",
+        "insert_user"
+      ],
+      "imports": [
+        "sqlite3"
+      ],
+      "lineCount": 22,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/parameterized-queries.ts": {
+      "hash": "bd5e42f6620e",
+      "size": 454,
+      "mtime": 1770067870119.8872,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "getUser",
+        "searchProducts"
+      ],
+      "imports": [
+        "./database"
+      ],
+      "lineCount": 18,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/safe-subprocess.py": {
+      "hash": "7a1d84ccf319",
+      "size": 569,
+      "mtime": 1770067877387.765,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "run_ls",
+        "ping_host",
+        "run_with_shlex"
+      ],
+      "imports": [
+        "subprocess",
+        "shlex"
+      ],
+      "lineCount": 21,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/safe-xml.py": {
+      "hash": "873ebff709ab",
+      "size": 360,
+      "mtime": 1770067893046.1267,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "parse_xml_safe",
+        "parse_from_file_safe"
+      ],
+      "imports": [
+        "defusedxml",
+        "defusedxml.lxml"
+      ],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/safe-yaml.py": {
+      "hash": "8c98fb3ad343",
+      "size": 374,
+      "mtime": 1770067885433.9397,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "load_config",
+        "load_from_file",
+        "parse_json"
+      ],
+      "imports": [
+        "yaml",
+        "json"
+      ],
+      "lineCount": 17,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/sanitized-html.ts": {
+      "hash": "2cbbab32e500",
+      "size": 652,
+      "mtime": 1770067874131.4321,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "renderSafeContent",
+        "escapeHtml",
+        "renderText"
+      ],
+      "imports": [
+        "dompurify"
+      ],
+      "lineCount": 25,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/validated-paths.py": {
+      "hash": "e4cf2775ea03",
+      "size": 683,
+      "mtime": 1770067881238.3838,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "read_upload",
+        "save_file"
+      ],
+      "imports": [
+        "os",
+        "pathlib"
+      ],
+      "lineCount": 25,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/safe/validated-urls.py": {
+      "hash": "5fcd73033367",
+      "size": 715,
+      "mtime": 1770067888815.4778,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "fetch_safe_url",
+        "fetch_internal_api"
+      ],
+      "imports": [
+        "requests",
+        "urllib.parse"
+      ],
+      "lineCount": 26,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/command-injection/python-os-system.py": {
+      "hash": "dc2fce780565",
+      "size": 435,
+      "mtime": 1770067831508.532,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "run_script",
+        "list_files",
+        "ping_host"
+      ],
+      "imports": [
+        "os",
+        "subprocess"
+      ],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/command-injection/ts-exec.ts": {
+      "hash": "5ca7c29acdd2",
+      "size": 410,
+      "mtime": 1770067833436.9702,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "runCommand",
+        "getFileInfo"
+      ],
+      "imports": [
+        "child_process"
+      ],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/csrf/django-exempt.py": {
+      "hash": "f7c145de36a2",
+      "size": 360,
+      "mtime": 1770067859028.3538,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "update_profile",
+        "delete_account"
+      ],
+      "imports": [
+        "django.views.decorators.csrf",
+        "django.http"
+      ],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/deserialization/python-pickle.py": {
+      "hash": "60118a855077",
+      "size": 436,
+      "mtime": 1770067853604.892,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "load_session",
+        "load_config",
+        "load_cache"
+      ],
+      "imports": [
+        "pickle",
+        "yaml"
+      ],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/hardcoded-secrets/python-secrets.py": {
+      "hash": "f7e69ca89aaa",
+      "size": 395,
+      "mtime": 1770067841660.2998,
+      "lastIndexed": 1770072126660,
+      "symbols": [
+        "get_api_key"
+      ],
+      "imports": [],
+      "lineCount": 11,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/hardcoded-secrets/ts-secrets.ts": {
+      "hash": "4c34c5018564",
+      "size": 447,
+      "mtime": 1770067844624.3657,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "getConfig"
+      ],
+      "imports": [],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/path-traversal/python-open.py": {
+      "hash": "094a9189ac96",
+      "size": 522,
+      "mtime": 1770067836427.23,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "read_config",
+        "read_upload",
+        "write_log"
+      ],
+      "imports": [],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/path-traversal/ts-readfile.ts": {
+      "hash": "66882986c218",
+      "size": 429,
+      "mtime": 1770067838634.352,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "loadTemplate",
+        "saveUserData"
+      ],
+      "imports": [
+        "fs"
+      ],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/sql-injection/js-concat.js": {
+      "hash": "a67e810a9b74",
+      "size": 446,
+      "mtime": 1770067820011.7363,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "getUser",
+        "updateUser"
+      ],
+      "imports": [],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/sql-injection/python-concat.py": {
+      "hash": "d93b71bb345d",
+      "size": 495,
+      "mtime": 1770067815255.6807,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "search_users",
+        "delete_user"
+      ],
+      "imports": [
+        "sqlite3"
+      ],
+      "lineCount": 17,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/sql-injection/python-fstring.py": {
+      "hash": "97857bf1e78b",
+      "size": 488,
+      "mtime": 1770067813361.7021,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "get_user",
+        "get_order"
+      ],
+      "imports": [
+        "sqlite3"
+      ],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/sql-injection/ts-template.ts": {
+      "hash": "1007bc48c169",
+      "size": 464,
+      "mtime": 1770067817756.402,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "getUser",
+        "searchProducts"
+      ],
+      "imports": [
+        "./database"
+      ],
+      "lineCount": 15,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/ssrf/python-requests.py": {
+      "hash": "057994f38401",
+      "size": 374,
+      "mtime": 1770067855114.0059,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "fetch_url",
+        "proxy"
+      ],
+      "imports": [
+        "requests",
+        "flask"
+      ],
+      "lineCount": 15,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/ssrf/ts-fetch.ts": {
+      "hash": "6b9cc0db7abb",
+      "size": 399,
+      "mtime": 1770067857435.2607,
+      "lastIndexed": 1770072126661,
+      "symbols": [
+        "fetchData",
+        "proxyRequest"
+      ],
+      "imports": [],
+      "lineCount": 15,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/xss/flask-template.py": {
+      "hash": "ac2e86a38304",
+      "size": 468,
+      "mtime": 1770067828769.6038,
+      "lastIndexed": 1770072126662,
+      "symbols": [
+        "render_page",
+        "greeting"
+      ],
+      "imports": [
+        "flask"
+      ],
+      "lineCount": 17,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/xss/react-dangerous.tsx": {
+      "hash": "80a1602ae30a",
+      "size": 263,
+      "mtime": 1770067826707.8271,
+      "lastIndexed": 1770072126662,
+      "symbols": [
+        "UnsafeComponent"
+      ],
+      "imports": [
+        "react"
+      ],
+      "lineCount": 11,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/xss/ts-innerhtml.ts": {
+      "hash": "ef50ab76129f",
+      "size": 348,
+      "mtime": 1770067825078.1055,
+      "lastIndexed": 1770072126663,
+      "symbols": [
+        "renderContent",
+        "updateMessage"
+      ],
+      "imports": [],
+      "lineCount": 14,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/corpus/vulnerable/xxe/python-xml.py": {
+      "hash": "b4936b098480",
+      "size": 456,
+      "mtime": 1770067861595.3865,
+      "lastIndexed": 1770072126663,
+      "symbols": [
+        "parse_xml_lxml",
+        "parse_xml_builtin",
+        "parse_from_file"
+      ],
+      "imports": [
+        "lxml",
+        "xml.etree.ElementTree"
+      ],
+      "lineCount": 16,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/e2e/cli.test.ts": {
+      "hash": "9b8ed53a40fa",
+      "size": 10195,
+      "mtime": 1770068334732.1514,
+      "lastIndexed": 1770072126663,
+      "symbols": [
+        "runCli"
+      ],
+      "imports": [
+        "child_process",
+        "fs/promises",
+        "path",
+        "util",
+        "vitest"
+      ],
+      "lineCount": 346,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/security/path-traversal.test.ts": {
+      "hash": "883038e36d90",
+      "size": 5623,
+      "mtime": 1770068159992.9648,
+      "lastIndexed": 1770072126663,
+      "symbols": [],
+      "imports": [
+        "fs/promises",
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/core/scanner/scanner.js"
+      ],
+      "lineCount": 175,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/security/redos.test.ts": {
+      "hash": "fd65260f6f0d",
+      "size": 6998,
+      "mtime": 1770068121182.9336,
+      "lastIndexed": 1770072126664,
+      "symbols": [
+        "char"
+      ],
+      "imports": [
+        "path",
+        "vitest",
+        "@/categories/store/category-store.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 232,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
+    },
+    "tests/security/template-injection.test.ts": {
+      "hash": "ef0b18cb93c3",
+      "size": 6420,
+      "mtime": 1770068145761.7888,
+      "lastIndexed": 1770072126664,
+      "symbols": [],
+      "imports": [
+        "vitest",
+        "@/templates/renderer.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 203,
+      "relevanceScore": 50,
+      "reasons": [
+        "modified today"
+      ]
     }
   },
-  "totalFiles": 63,
-  "totalSymbols": 355
+  "totalFiles": 113,
+  "totalSymbols": 490
 }

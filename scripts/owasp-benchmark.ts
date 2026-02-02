@@ -31,7 +31,7 @@ const BENCHMARKS = {
   python: {
     repo: "https://github.com/OWASP-Benchmark/BenchmarkPython.git",
     dir: "BenchmarkPython",
-    testDir: "src/main/python/owasp/benchmark/testcode",
+    testDir: "testcode",
     expectedResults: "expectedresults-0.1.csv",
   },
 };
@@ -47,8 +47,25 @@ const CWE_CATEGORY_MAP: Record<number, string> = {
   328: "timing-attack", // Weak hash
   330: "timing-attack", // Weak random
   501: "data-validation", // Trust boundary
+  611: "xxe",
   614: "auth-failures", // Secure cookie
-  643: "xxe", // XPath injection
+  643: "xxe", // XPath injection (map to xxe for now)
+};
+
+// OWASP Benchmark category to Pinata category mapping
+const OWASP_CATEGORY_MAP: Record<string, string> = {
+  pathtraver: "path-traversal",
+  cmdi: "command-injection",
+  xss: "xss",
+  sqli: "sql-injection",
+  ldapi: "ldap-injection",
+  xxe: "xxe",
+  xpathi: "xxe", // XPath injection
+  crypto: "timing-attack",
+  hash: "timing-attack",
+  weakrand: "timing-attack",
+  trustbound: "data-validation",
+  securecookie: "auth-failures",
 };
 
 interface ExpectedResult {
@@ -110,15 +127,18 @@ function parseExpectedResults(language: "java" | "python"): ExpectedResult[] {
 
   const results: ExpectedResult[] = [];
 
-  for (const line of lines.slice(1)) {
-    // Skip header
+  for (const line of lines) {
     const parts = line.split(",");
     if (parts.length < 4) continue;
 
     const testName = parts[0]?.trim() ?? "";
+    if (!testName.startsWith("BenchmarkTest")) continue;
+
     const category = parts[1]?.trim() ?? "";
-    const cwe = parseInt(parts[2]?.trim() ?? "0", 10);
-    const isVulnerable = parts[3]?.trim().toLowerCase() === "true";
+    // Python format: name,category,isVuln,cwe
+    // Java format: name,category,cwe,isVuln
+    const isVulnerable = parts[2]?.trim().toLowerCase() === "true";
+    const cwe = parseInt(parts[3]?.trim() ?? "0", 10);
 
     results.push({ testName, category, cwe, isVulnerable });
   }
@@ -138,28 +158,46 @@ async function runScan(language: "java" | "python"): Promise<ScanResult[]> {
 
   console.log(`Scanning ${testDir}...`);
 
-  // Run Pinata scanner
-  const output = execSync(`npx pinata analyze ${testDir} --output json --quiet`, {
-    encoding: "utf-8",
-    maxBuffer: 50 * 1024 * 1024, // 50MB buffer for large output
+  // Save output to file to avoid truncation
+  mkdirSync(RESULTS_DIR, { recursive: true });
+  const outputFile = join(RESULTS_DIR, `${language}-scan-output.json`);
+
+  // Run Pinata scanner and save to file
+  execSync(`npx pinata analyze ${testDir} --output json --quiet > ${outputFile}`, {
+    maxBuffer: 100 * 1024 * 1024, // 100MB buffer
+    shell: "/bin/bash",
   });
 
-  const jsonStart = output.indexOf("{");
-  const jsonStr = output.slice(jsonStart);
-
   try {
+    const content = readFileSync(outputFile, "utf-8");
+    const jsonStart = content.indexOf("{");
+    if (jsonStart === -1) {
+      console.error("No JSON output found");
+      return [];
+    }
+
+    const jsonStr = content.slice(jsonStart);
     const scanResult = JSON.parse(jsonStr);
-    return scanResult.gaps?.map((gap: { filePath: string; categoryId: string; lineStart: number }) => ({
-      file: basename(gap.filePath),
-      detections: [
-        {
-          categoryId: gap.categoryId,
-          line: gap.lineStart,
-        },
-      ],
-    })) ?? [];
-  } catch {
-    console.error("Failed to parse scan output");
+    const gaps = scanResult.gaps ?? [];
+
+    console.log(`Found ${gaps.length} gaps`);
+
+    // Group by file
+    const byFile = new Map<string, ScanResult>();
+
+    for (const gap of gaps) {
+      const file = basename(gap.filePath);
+      const existing = byFile.get(file) ?? { file, detections: [] };
+      existing.detections.push({
+        categoryId: gap.categoryId,
+        line: gap.lineStart,
+      });
+      byFile.set(file, existing);
+    }
+
+    return [...byFile.values()];
+  } catch (err) {
+    console.error("Failed to parse scan output:", (err as Error).message);
     return [];
   }
 }
@@ -168,37 +206,37 @@ function calculateScore(
   expected: ExpectedResult[],
   actual: ScanResult[]
 ): BenchmarkScore[] {
-  // Group by CWE
-  const byCwe = new Map<number, { expected: ExpectedResult[]; actual: Set<string> }>();
+  // Group by OWASP category
+  const byCategory = new Map<string, { expected: ExpectedResult[]; actual: Set<string>; cwe: number }>();
 
   for (const exp of expected) {
-    const existing = byCwe.get(exp.cwe) ?? { expected: [], actual: new Set() };
+    const existing = byCategory.get(exp.category) ?? { expected: [], actual: new Set(), cwe: exp.cwe };
     existing.expected.push(exp);
-    byCwe.set(exp.cwe, existing);
+    byCategory.set(exp.category, existing);
   }
 
   // Map actual detections to test cases
   for (const result of actual) {
-    // Extract test name from filename (e.g., "BenchmarkTest00001.java")
+    // Extract test name from filename (e.g., "BenchmarkTest00001.py")
     const match = result.file.match(/BenchmarkTest(\d+)/);
     if (!match) continue;
 
     const testNum = parseInt(match[1]!, 10);
     const testName = `BenchmarkTest${testNum.toString().padStart(5, "0")}`;
 
-    // Find which CWE this test belongs to
-    for (const [cwe, data] of byCwe) {
-      const category = CWE_CATEGORY_MAP[cwe];
-      if (category && result.detections.some((d) => d.categoryId === category)) {
+    // Find which category this detection belongs to
+    for (const [owaspCat, data] of byCategory) {
+      const pinataCategory = OWASP_CATEGORY_MAP[owaspCat];
+      if (pinataCategory && result.detections.some((d) => d.categoryId === pinataCategory)) {
         data.actual.add(testName);
       }
     }
   }
 
-  // Calculate metrics per CWE
+  // Calculate metrics per category
   const scores: BenchmarkScore[] = [];
 
-  for (const [cwe, data] of byCwe) {
+  for (const [owaspCat, data] of byCategory) {
     let tp = 0, fp = 0, tn = 0, fn = 0;
 
     for (const exp of data.expected) {
@@ -215,8 +253,8 @@ function calculateScore(
     const accuracy = tp + fp + tn + fn > 0 ? (tp + tn) / (tp + fp + tn + fn) : 0;
 
     scores.push({
-      category: CWE_CATEGORY_MAP[cwe] ?? `CWE-${cwe}`,
-      cwe,
+      category: OWASP_CATEGORY_MAP[owaspCat] ?? owaspCat,
+      cwe: data.cwe,
       truePositives: tp,
       falsePositives: fp,
       trueNegatives: tn,
