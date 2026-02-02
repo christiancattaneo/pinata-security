@@ -1,4 +1,5 @@
 import chalk from "chalk";
+
 import type { CategorySummary } from "../categories/schema/index.js";
 
 /**

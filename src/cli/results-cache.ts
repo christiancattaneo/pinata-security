@@ -4,14 +4,15 @@
  * Stores scan results in .pinata/cache.json for use by the generate command.
  */
 
-import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
+import { readFile, writeFile, mkdir } from "fs/promises";
 import { resolve, dirname } from "path";
 
-import { ok, err } from "../lib/result.js";
-import type { Result } from "../lib/result.js";
 import { PinataError } from "../lib/errors.js";
+import { ok, err } from "../lib/result.js";
+
 import type { ScanResult, Gap } from "../core/scanner/types.js";
+import type { Result } from "../lib/result.js";
 
 /**
  * Cache file location relative to project root

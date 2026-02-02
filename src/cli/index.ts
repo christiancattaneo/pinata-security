@@ -95,7 +95,7 @@ program
 program
   .command("analyze [path]")
   .description("Analyze codebase for test coverage gaps")
-  .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif", "terminal")
+  .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif, html, junit-xml", "terminal")
   .option("-d, --domains <domains>", "Filter to specific domains (comma-separated)")
   .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "low")
   .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "low")

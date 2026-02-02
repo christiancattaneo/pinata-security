@@ -5,8 +5,13 @@
  * for the analyze command results.
  */
 
-import chalk from "chalk";
 import { relative } from "path";
+
+import chalk from "chalk";
+
+import { RISK_DOMAINS } from "../categories/schema/index.js";
+
+import type { RiskDomain } from "../categories/schema/index.js";
 import type {
   ScanResult,
   Gap,
@@ -14,13 +19,12 @@ import type {
   CoverageMetrics,
   ScanSummary,
 } from "../core/scanner/types.js";
-import type { RiskDomain } from "../categories/schema/index.js";
-import { RISK_DOMAINS } from "../categories/schema/index.js";
+
 
 /**
- * Extended output format including SARIF
+ * Extended output format including SARIF, HTML, and JUnit
  */
-export type ScanOutputFormat = "terminal" | "json" | "markdown" | "sarif";
+export type ScanOutputFormat = "terminal" | "json" | "markdown" | "sarif" | "html" | "junit-xml";
 
 /**
  * Severity colors for terminal output
@@ -476,6 +480,14 @@ export function formatScanResult(
       return formatScanMarkdown(result, basePath);
     case "sarif":
       return formatScanSarif(result, basePath);
+    case "html": {
+      const { formatHtml } = require("./html-formatter.js") as { formatHtml: (result: ScanResult) => string };
+      return formatHtml(result);
+    }
+    case "junit-xml": {
+      const { formatJunit } = require("./junit-formatter.js") as { formatJunit: (result: ScanResult) => string };
+      return formatJunit(result);
+    }
     case "terminal":
     default:
       return formatScanTerminal(result, basePath);
@@ -486,5 +498,5 @@ export function formatScanResult(
  * Validate scan output format
  */
 export function isValidScanOutputFormat(format: string): format is ScanOutputFormat {
-  return ["terminal", "json", "markdown", "sarif"].includes(format);
+  return ["terminal", "json", "markdown", "sarif", "html", "junit-xml"].includes(format);
 }

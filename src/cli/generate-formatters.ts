@@ -2,16 +2,21 @@
  * Formatters for generate command output
  */
 
-import chalk from "chalk";
-import { basename, dirname, relative, resolve } from "path";
-import { mkdir, writeFile, readFile } from "fs/promises";
 import { existsSync } from "fs";
-import type { Gap } from "../core/scanner/types.js";
-import type { RenderResult } from "../templates/index.js";
-import type { TestTemplate, Category } from "../categories/schema/index.js";
-import { ok, err } from "../lib/result.js";
-import type { Result } from "../lib/result.js";
+import { mkdir, writeFile, readFile } from "fs/promises";
+import { basename, dirname, relative, resolve } from "path";
+
+import chalk from "chalk";
+
 import { PinataError } from "../lib/errors.js";
+import { ok, err } from "../lib/result.js";
+
+import type { TestTemplate, Category } from "../categories/schema/index.js";
+import type { Gap } from "../core/scanner/types.js";
+import type { Result } from "../lib/result.js";
+import type { RenderResult } from "../templates/index.js";
+
+
 
 /**
  * Generated test with metadata
