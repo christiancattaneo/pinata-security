@@ -868,6 +868,20 @@ program
   });
 
 program
+  .command("dashboard")
+  .description("Interactive TUI dashboard for viewing scan results")
+  .action(async () => {
+    try {
+      // Dynamic import to avoid loading ink unless needed
+      const { runDashboard } = await import("./tui/index.js");
+      await runDashboard();
+    } catch (error) {
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+program
   .command("search <query>")
   .description("Search category taxonomy by name, description, or pattern")
   .option("-d, --domain <domain>", "Filter by risk domain")
