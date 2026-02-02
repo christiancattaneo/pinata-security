@@ -35,8 +35,8 @@ export async function runDashboard(): Promise<void> {
               highGaps: cached.gaps.filter((g) => g.severity === "high").length,
               mediumGaps: cached.gaps.filter((g) => g.severity === "medium").length,
               lowGaps: cached.gaps.filter((g) => g.severity === "low").length,
-              score: cached.summary?.score ?? 0,
-              grade: cached.summary?.grade ?? "?",
+              score: cached.score ?? 0,
+              grade: cached.grade ?? "?",
             },
           }}
           loading={false}

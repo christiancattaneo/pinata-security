@@ -1193,6 +1193,139 @@ thresholds:
   });
 
 // Auth command group
+// Config command for AI provider keys
+const config = program.command("config").description("Manage AI provider configuration");
+
+config
+  .command("set <key> <value>")
+  .description("Set a configuration value")
+  .addHelpText("after", `
+Available keys:
+  anthropic-api-key   Anthropic API key for Claude models
+  openai-api-key      OpenAI API key for GPT models  
+  default-provider    Default AI provider (anthropic or openai)
+
+Examples:
+  pinata config set anthropic-api-key sk-ant-xxx
+  pinata config set default-provider openai
+`)
+  .action(async (key: string, value: string) => {
+    const { setConfigValue, validateApiKey, maskApiKey, getConfigPath } = await import("./config.js");
+    
+    switch (key) {
+      case "anthropic-api-key": {
+        const validation = validateApiKey("anthropic", value);
+        if (!validation.valid) {
+          console.log(chalk.red(`Invalid API key: ${validation.error}`));
+          process.exit(1);
+        }
+        setConfigValue("anthropicApiKey", value);
+        console.log(chalk.green(`Anthropic API key set: ${maskApiKey(value)}`));
+        break;
+      }
+      case "openai-api-key": {
+        const validation = validateApiKey("openai", value);
+        if (!validation.valid) {
+          console.log(chalk.red(`Invalid API key: ${validation.error}`));
+          process.exit(1);
+        }
+        setConfigValue("openaiApiKey", value);
+        console.log(chalk.green(`OpenAI API key set: ${maskApiKey(value)}`));
+        break;
+      }
+      case "default-provider": {
+        if (value !== "anthropic" && value !== "openai") {
+          console.log(chalk.red("Provider must be 'anthropic' or 'openai'"));
+          process.exit(1);
+        }
+        setConfigValue("defaultProvider", value);
+        console.log(chalk.green(`Default provider set to: ${value}`));
+        break;
+      }
+      default:
+        console.log(chalk.red(`Unknown config key: ${key}`));
+        console.log(chalk.gray("Run 'pinata config set --help' for available keys"));
+        process.exit(1);
+    }
+    console.log(chalk.gray(`Config stored at: ${getConfigPath()}`));
+  });
+
+config
+  .command("get <key>")
+  .description("Get a configuration value")
+  .action(async (key: string) => {
+    const { loadConfig, maskApiKey } = await import("./config.js");
+    const cfg = loadConfig();
+    
+    switch (key) {
+      case "anthropic-api-key":
+        console.log(cfg.anthropicApiKey ? maskApiKey(cfg.anthropicApiKey) : chalk.gray("(not set)"));
+        break;
+      case "openai-api-key":
+        console.log(cfg.openaiApiKey ? maskApiKey(cfg.openaiApiKey) : chalk.gray("(not set)"));
+        break;
+      case "default-provider":
+        console.log(cfg.defaultProvider ?? chalk.gray("anthropic (default)"));
+        break;
+      default:
+        console.log(chalk.red(`Unknown config key: ${key}`));
+        process.exit(1);
+    }
+  });
+
+config
+  .command("list")
+  .description("List all configuration values")
+  .action(async () => {
+    const { loadConfig, maskApiKey, getConfigPath, hasApiKey } = await import("./config.js");
+    const cfg = loadConfig();
+    
+    console.log(chalk.bold("Pinata Configuration"));
+    console.log(chalk.gray(`Config file: ${getConfigPath()}`));
+    console.log();
+    
+    console.log("AI Providers:");
+    const anthropicStatus = hasApiKey("anthropic") ? chalk.green("configured") : chalk.gray("not set");
+    const openaiStatus = hasApiKey("openai") ? chalk.green("configured") : chalk.gray("not set");
+    console.log(`  Anthropic API key:  ${anthropicStatus} ${cfg.anthropicApiKey ? chalk.gray(`(${maskApiKey(cfg.anthropicApiKey)})`) : ""}`);
+    console.log(`  OpenAI API key:     ${openaiStatus} ${cfg.openaiApiKey ? chalk.gray(`(${maskApiKey(cfg.openaiApiKey)})`) : ""}`);
+    console.log(`  Default provider:   ${cfg.defaultProvider ?? "anthropic"}`);
+    console.log();
+    
+    if (!hasApiKey("anthropic") && !hasApiKey("openai")) {
+      console.log(chalk.yellow("No AI provider configured."));
+      console.log(chalk.gray("To use AI features (explain, suggest-patterns, --ai flag):"));
+      console.log(chalk.gray("  pinata config set anthropic-api-key sk-ant-xxx"));
+      console.log(chalk.gray("  # or"));
+      console.log(chalk.gray("  export ANTHROPIC_API_KEY=sk-ant-xxx"));
+    }
+  });
+
+config
+  .command("unset <key>")
+  .description("Remove a configuration value")
+  .action(async (key: string) => {
+    const { deleteConfigValue } = await import("./config.js");
+    
+    switch (key) {
+      case "anthropic-api-key":
+        deleteConfigValue("anthropicApiKey");
+        console.log(chalk.green("Anthropic API key removed"));
+        break;
+      case "openai-api-key":
+        deleteConfigValue("openaiApiKey");
+        console.log(chalk.green("OpenAI API key removed"));
+        break;
+      case "default-provider":
+        deleteConfigValue("defaultProvider");
+        console.log(chalk.green("Default provider reset to: anthropic"));
+        break;
+      default:
+        console.log(chalk.red(`Unknown config key: ${key}`));
+        process.exit(1);
+    }
+  });
+
 const auth = program.command("auth").description("Manage API key authentication");
 
 auth

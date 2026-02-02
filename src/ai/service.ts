@@ -50,12 +50,48 @@ export class AIService {
 
   /**
    * Get API key from environment variable
+   * For config file support, use the sync version below
    */
   private getApiKeyFromEnv(provider: AIProvider): string {
     if (provider === "mock") return "mock-key";
 
     const envVar = provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
-    return process.env[envVar] ?? "";
+    const envValue = process.env[envVar];
+    if (envValue !== undefined && envValue.length > 0) {
+      return envValue;
+    }
+
+    // Try sync config file read (works in Node.js)
+    return this.getApiKeyFromConfig(provider);
+  }
+
+  /**
+   * Read API key from config file synchronously
+   * Uses require() for sync file access in constructor context
+   */
+  private getApiKeyFromConfig(provider: AIProvider): string {
+    try {
+      /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
+      const { existsSync, readFileSync } = require("node:fs") as typeof import("fs");
+      const { homedir } = require("node:os") as typeof import("os");
+      const { join } = require("node:path") as typeof import("path");
+      /* eslint-enable @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires */
+
+      const configPath = join(homedir(), ".pinata", "config.json");
+      if (!existsSync(configPath)) {
+        return "";
+      }
+
+      const content = readFileSync(configPath, "utf-8");
+      const config = JSON.parse(content) as {
+        anthropicApiKey?: string;
+        openaiApiKey?: string;
+      };
+
+      return (provider === "anthropic" ? config.anthropicApiKey : config.openaiApiKey) ?? "";
+    } catch {
+      return "";
+    }
   }
 
   /**
