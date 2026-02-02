@@ -100,6 +100,15 @@ detectionPatterns:
     confidence: medium
     description: Detects URL manipulation with string concatenation
 
+  # OWASP Benchmark style - f-string with unescaped variable in HTML context
+  - id: python-fstring-unescaped-var
+    type: regex
+    language: python
+    pattern: "f[\"'].*\\{[a-z_][a-z0-9_]*\\}.*[\"']"
+    confidence: low
+    description: Detects f-string with variable interpolation (potential XSS in HTML response)
+    negativePattern: "escape_for_html|html\\.escape|markupsafe\\.escape|cgi\\.escape"
+
   # Imported from Semgrep - template patterns
   - id: django-autoescape-off
     type: regex

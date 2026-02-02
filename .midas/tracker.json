@@ -1,17 +1,21 @@
 {
-  "lastUpdated": "2026-02-02T22:48:37.971Z",
+  "lastUpdated": "2026-02-02T22:54:12.777Z",
   "recentFiles": [
     {
-      "path": "src/categories/definitions/security/path-traversal.yml",
-      "lastModified": 1770072491322.4656
+      "path": "src/categories/definitions/security/xss.yml",
+      "lastModified": 1770072832296.26
     },
     {
       "path": "src/categories/definitions/security/sql-injection.yml",
-      "lastModified": 1770072481899.0183
+      "lastModified": 1770072750544.0315
     },
     {
       "path": "scripts/llm-pattern-gen.ts",
-      "lastModified": 1770072453759.8594
+      "lastModified": 1770072535266.2664
+    },
+    {
+      "path": "src/categories/definitions/security/path-traversal.yml",
+      "lastModified": 1770072535255.224
     },
     {
       "path": "scripts/owasp-benchmark.ts",
@@ -26,10 +30,6 @@
       "lastModified": 1770071849141.346
     },
     {
-      "path": "src/categories/definitions/security/xss.yml",
-      "lastModified": 1770071849140.9163
-    },
-    {
       "path": "tests/security/output-security.test.ts",
       "lastModified": 1770069765344.1323
     },
@@ -40,44 +40,17 @@
     {
       "path": "tests/property/property-based.test.ts",
       "lastModified": 1770069351122.1323
-    },
-    {
-      "path": "package-lock.json",
-      "lastModified": 1770069215728.159
-    },
-    {
-      "path": "package.json",
-      "lastModified": 1770069215664.9392
-    },
-    {
-      "path": "tests/blindspot/concurrency.test.ts",
-      "lastModified": 1770069164485.5715
-    },
-    {
-      "path": "tests/blindspot/edge-cases.test.ts",
-      "lastModified": 1770069164478.5356
-    },
-    {
-      "path": "README.md",
-      "lastModified": 1770069164474.7166
-    },
-    {
-      "path": "src/cli/sarif-formatter.ts",
-      "lastModified": 1770069164474.7014
-    },
-    {
-      "path": "src/cli/html-formatter.ts",
-      "lastModified": 1770069164473.1494
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "96e99d36b895e24077870efe956c3dfae107d676",
-    "lastCommitMessage": "Add OWASP Benchmark baseline scoring",
-    "lastCommitTime": 1770072305000,
-    "uncommittedChanges": 5,
+    "lastCommit": "397d5eedf86dbe0291614388902cb9fd25ee09b2",
+    "lastCommitMessage": "Add LLM pattern generator and improve SQL/path patterns",
+    "lastCommitTime": 1770072519000,
+    "uncommittedChanges": 3,
     "recentCommits": [
+      "Add LLM pattern generator and improve SQL/path patterns",
       "Add OWASP Benchmark baseline scoring",
       "Add pattern improvement tooling and import Semgrep patterns",
       "Add output security tests and fix benchmark thresholds",
@@ -86,8 +59,7 @@
       "Add blindspot tests for concurrency and edge cases",
       "Relax benchmark thresholds for CI stability",
       "Add SARIF, HTML, and JUnit XML output formatters",
-      "Implement CLI commands and E2E test suite",
-      "Add security test suite for Pinata tool itself"
+      "Implement CLI commands and E2E test suite"
     ]
   },
   "completionSignals": {
