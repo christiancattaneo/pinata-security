@@ -11,16 +11,14 @@
  * - auth     - Manage API key authentication
  */
 
-import { Command } from "commander";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
 import { existsSync } from "fs";
-import ora from "ora";
-import chalk from "chalk";
+import { dirname, resolve } from "path";
+import { fileURLToPath } from "url";
 
-import { logger } from "../lib/index.js";
-import { VERSION, createScanner } from "../core/index.js";
-import { createCategoryStore } from "../categories/store/index.js";
+import chalk from "chalk";
+import { Command } from "commander";
+import ora from "ora";
+
 import {
   RISK_DOMAINS,
   TEST_LEVELS,
@@ -29,21 +27,17 @@ import {
   type Priority,
   type Severity,
 } from "../categories/schema/index.js";
+import { createCategoryStore } from "../categories/store/index.js";
+import { VERSION, createScanner } from "../core/index.js";
+import { logger } from "../lib/index.js";
+import { createRenderer } from "../templates/index.js";
+
 import {
   formatCategories,
   formatError,
   isValidOutputFormat,
   type OutputFormat,
 } from "./formatters.js";
-import {
-  formatScanResult,
-  isValidScanOutputFormat,
-  type ScanOutputFormat,
-} from "./scan-formatters.js";
-import {
-  saveScanResults,
-  loadScanResults,
-} from "./results-cache.js";
 import {
   formatGeneratedTerminal,
   formatGeneratedJson,
@@ -53,7 +47,15 @@ import {
   writeGeneratedTests,
   type GeneratedTest,
 } from "./generate-formatters.js";
-import { createRenderer } from "../templates/index.js";
+import {
+  saveScanResults,
+  loadScanResults,
+} from "./results-cache.js";
+import {
+  formatScanResult,
+  isValidScanOutputFormat,
+  type ScanOutputFormat,
+} from "./scan-formatters.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -226,7 +228,7 @@ program
       }
 
       // Format and output results
-      const output = formatScanResult(scanResult.data, outputFormat as ScanOutputFormat, targetDirectory);
+      const output = formatScanResult(scanResult.data, outputFormat, targetDirectory);
       console.log(output);
 
       // Handle warnings
@@ -284,7 +286,7 @@ program
   .action(async (options: Record<string, unknown>) => {
     const isQuiet = Boolean(options["quiet"]);
     const isVerbose = Boolean(options["verbose"]);
-    const dryRun = !Boolean(options["write"]);
+    const dryRun = !options["write"];
     const outputFormat = String(options["output"] ?? "terminal");
 
     if (isQuiet) {
@@ -517,14 +519,117 @@ program
 
 program
   .command("search <query>")
-  .description("Search category taxonomy")
+  .description("Search category taxonomy by name, description, or pattern")
   .option("-d, --domain <domain>", "Filter by risk domain")
   .option("-l, --level <level>", "Filter by test level")
   .option("--language <lang>", "Filter by language")
   .option("-o, --output <format>", "Output format: terminal, json, markdown", "terminal")
+  .option("-v, --verbose", "Show more details in results")
   .action(async (query: string, options: Record<string, unknown>) => {
-    logger.info(`Searching for: ${query}`);
-    logger.warn("Search not yet implemented. See Phase 1 of gameplan.");
+    try {
+      const definitionsPath = getDefinitionsPath();
+      const store = createCategoryStore();
+      const loadResult = await store.loadFromDirectory(definitionsPath);
+
+      if (!loadResult.success) {
+        console.error(formatError(loadResult.error));
+        process.exit(1);
+      }
+
+      // Validate output format
+      const outputFormat = String(options["output"] ?? "terminal");
+      if (!isValidOutputFormat(outputFormat)) {
+        console.error(formatError(new Error(`Invalid output format: ${outputFormat}`)));
+        process.exit(1);
+      }
+
+      // Get all categories and filter
+      const allCategories = store.toArray();
+      const queryLower = query.toLowerCase();
+
+      let results = allCategories.filter((cat) => {
+        // Search in id, name, description
+        const matchesText =
+          cat.id.toLowerCase().includes(queryLower) ||
+          cat.name.toLowerCase().includes(queryLower) ||
+          cat.description.toLowerCase().includes(queryLower);
+
+        // Search in pattern descriptions
+        const matchesPattern = cat.detectionPatterns.some(
+          (p) => p.description.toLowerCase().includes(queryLower) || p.pattern.includes(query)
+        );
+
+        return matchesText || matchesPattern;
+      });
+
+      // Apply domain filter
+      const domainFilter = options["domain"] as string | undefined;
+      if (domainFilter) {
+        if (!RISK_DOMAINS.includes(domainFilter as RiskDomain)) {
+          console.error(formatError(new Error(`Invalid domain: ${domainFilter}`)));
+          process.exit(1);
+        }
+        results = results.filter((cat) => cat.domain === domainFilter);
+      }
+
+      // Apply level filter
+      const levelFilter = options["level"] as string | undefined;
+      if (levelFilter) {
+        if (!TEST_LEVELS.includes(levelFilter as TestLevel)) {
+          console.error(formatError(new Error(`Invalid level: ${levelFilter}`)));
+          process.exit(1);
+        }
+        results = results.filter((cat) => cat.level === levelFilter);
+      }
+
+      // Apply language filter
+      const langFilter = options["language"] as string | undefined;
+      if (langFilter) {
+        results = results.filter((cat) =>
+          cat.applicableLanguages.includes(langFilter as never)
+        );
+      }
+
+      // Format output
+      if (outputFormat === "json") {
+        console.log(JSON.stringify(results, null, 2));
+      } else if (outputFormat === "markdown") {
+        console.log(`# Search Results for "${query}"\n`);
+        console.log(`Found ${results.length} matching categories.\n`);
+        for (const cat of results) {
+          console.log(`## ${cat.name}\n`);
+          console.log(`- **ID**: ${cat.id}`);
+          console.log(`- **Domain**: ${cat.domain}`);
+          console.log(`- **Level**: ${cat.level}`);
+          console.log(`- **Priority**: ${cat.priority}`);
+          console.log(`\n${cat.description}\n`);
+        }
+      } else {
+        // terminal format
+        console.log();
+        console.log(chalk.bold(`Search Results for "${query}"`));
+        console.log(chalk.gray(`Found ${results.length} matching categories.`));
+        console.log();
+
+        if (results.length === 0) {
+          console.log(chalk.yellow("No categories match your search."));
+          console.log(chalk.gray("Try a different query or broaden your filters."));
+        } else {
+          for (const cat of results) {
+            const domainColor = cat.domain === "security" ? chalk.red : chalk.blue;
+            console.log(`  ${chalk.cyan(cat.id)} - ${chalk.bold(cat.name)}`);
+            console.log(`    ${domainColor(cat.domain)} | ${cat.level} | ${cat.priority}`);
+            if (options["verbose"]) {
+              console.log(`    ${chalk.gray(cat.description.slice(0, 100))}${cat.description.length > 100 ? "..." : ""}`);
+            }
+            console.log();
+          }
+        }
+      }
+    } catch (error) {
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
   });
 
 program
@@ -610,7 +715,7 @@ program
       const categories = store.list(filter);
 
       // Format and output
-      const output = formatCategories(categories, outputFormat as OutputFormat);
+      const output = formatCategories(categories, outputFormat);
       console.log(output);
 
       // Exit with success
@@ -623,10 +728,227 @@ program
 
 program
   .command("init")
-  .description("Initialize Pinata config in project")
+  .description("Initialize Pinata configuration in project")
+  .option("-f, --force", "Overwrite existing configuration")
+  .option("--no-interactive", "Skip interactive prompts")
+  .action(async (options: Record<string, unknown>) => {
+    const configPath = resolve(process.cwd(), ".pinata.yml");
+    const cacheDir = resolve(process.cwd(), ".pinata");
+
+    // Check if config already exists
+    if (existsSync(configPath) && !options["force"]) {
+      console.log(chalk.yellow("Configuration file already exists at .pinata.yml"));
+      console.log(chalk.gray("Use --force to overwrite."));
+      process.exit(0);
+    }
+
+    // Generate default configuration
+    const defaultConfig = `# Pinata Configuration
+# https://github.com/pinata/pinata
+
+# Paths to analyze
+include:
+  - "src/**/*.ts"
+  - "src/**/*.tsx"
+  - "src/**/*.py"
+  - "src/**/*.js"
+
+# Paths to exclude from analysis
+exclude:
+  - "node_modules/**"
+  - "dist/**"
+  - "build/**"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"
+  - "**/test/**"
+  - "**/tests/**"
+  - "**/__tests__/**"
+
+# Risk domains to analyze
+# Options: security, data, concurrency, input, resource, reliability, performance, platform, business, compliance
+domains:
+  - security
+  - data
+  - concurrency
+  - input
+
+# Minimum severity to report
+# Options: critical, high, medium, low
+minSeverity: medium
+
+# Output configuration
+output:
+  format: terminal  # terminal, json, markdown, sarif, html
+  color: true
+
+# Test generation settings
+generate:
+  outputDir: tests/generated
+  framework: auto  # auto, pytest, jest, vitest, mocha
+
+# Fail CI if gaps exceed thresholds
+thresholds:
+  critical: 0
+  high: 5
+  medium: 20
+`;
+
+    const { writeFile: writeFileAsync, mkdir } = await import("fs/promises");
+
+    try {
+      // Write config file
+      await writeFileAsync(configPath, defaultConfig, "utf8");
+      console.log(chalk.green("Created .pinata.yml"));
+
+      // Create cache directory
+      await mkdir(cacheDir, { recursive: true });
+      console.log(chalk.green("Created .pinata/ directory"));
+
+      // Add to gitignore if it exists
+      const gitignorePath = resolve(process.cwd(), ".gitignore");
+      if (existsSync(gitignorePath)) {
+        const { readFile, appendFile } = await import("fs/promises");
+        const gitignore = await readFile(gitignorePath, "utf8");
+        if (!gitignore.includes(".pinata/")) {
+          await appendFile(gitignorePath, "\n# Pinata cache\n.pinata/\n");
+          console.log(chalk.green("Added .pinata/ to .gitignore"));
+        }
+      }
+
+      console.log();
+      console.log(chalk.bold("Pinata initialized successfully!"));
+      console.log();
+      console.log("Next steps:");
+      console.log(chalk.gray("  1. Review and customize .pinata.yml"));
+      console.log(chalk.gray("  2. Run: pinata analyze"));
+      console.log(chalk.gray("  3. Generate tests: pinata generate"));
+    } catch (error) {
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+// Auth command group
+const auth = program.command("auth").description("Manage API key authentication");
+
+auth
+  .command("login")
+  .description("Set API key for Pinata Cloud")
+  .option("-k, --key <key>", "API key (or set PINATA_API_KEY env var)")
+  .action(async (options: Record<string, unknown>) => {
+    const apiKey = options["key"] as string | undefined ?? process.env["PINATA_API_KEY"];
+
+    if (!apiKey) {
+      console.log(chalk.yellow("No API key provided."));
+      console.log();
+      console.log("Provide an API key using one of:");
+      console.log(chalk.gray("  pinata auth login --key <your-api-key>"));
+      console.log(chalk.gray("  PINATA_API_KEY=<your-api-key> pinata auth login"));
+      console.log();
+      console.log("Get your API key at: https://app.pinata.dev/settings/api");
+      process.exit(1);
+    }
+
+    // Validate key format (basic validation)
+    if (apiKey.length < 20 || !apiKey.startsWith("pk_")) {
+      console.log(chalk.red("Invalid API key format."));
+      console.log(chalk.gray("Keys should start with 'pk_' and be at least 20 characters."));
+      process.exit(1);
+    }
+
+    // Store in local config
+    const configDir = resolve(process.cwd(), ".pinata");
+    const authPath = resolve(configDir, "auth.json");
+
+    const { mkdir, writeFile: writeFileAsync } = await import("fs/promises");
+
+    try {
+      await mkdir(configDir, { recursive: true });
+
+      // Store masked key (only store last 8 chars for identification)
+      const maskedKey = `****${apiKey.slice(-8)}`;
+      const authData = {
+        configured: true,
+        keyId: maskedKey,
+        configuredAt: new Date().toISOString(),
+      };
+
+      await writeFileAsync(authPath, JSON.stringify(authData, null, 2), "utf8");
+
+      // Also store full key in a more secure location (env file)
+      const envPath = resolve(configDir, ".env");
+      await writeFileAsync(envPath, `PINATA_API_KEY=${apiKey}\n`, { mode: 0o600 });
+
+      console.log(chalk.green("API key configured successfully!"));
+      console.log(chalk.gray(`Key ID: ${maskedKey}`));
+      console.log();
+      console.log(chalk.yellow("Important: Add .pinata/.env to your .gitignore"));
+    } catch (error) {
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+auth
+  .command("logout")
+  .description("Remove stored API key")
   .action(async () => {
-    logger.info("Initializing .pinata.yml...");
-    logger.warn("Init not yet implemented.");
+    const configDir = resolve(process.cwd(), ".pinata");
+    const authPath = resolve(configDir, "auth.json");
+    const envPath = resolve(configDir, ".env");
+
+    const { rm } = await import("fs/promises");
+
+    try {
+      let removed = false;
+
+      if (existsSync(authPath)) {
+        await rm(authPath);
+        removed = true;
+      }
+
+      if (existsSync(envPath)) {
+        await rm(envPath);
+        removed = true;
+      }
+
+      if (removed) {
+        console.log(chalk.green("API key removed successfully."));
+      } else {
+        console.log(chalk.yellow("No stored API key found."));
+      }
+    } catch (error) {
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+auth
+  .command("status")
+  .description("Check authentication status")
+  .action(async () => {
+    const authPath = resolve(process.cwd(), ".pinata", "auth.json");
+
+    if (!existsSync(authPath)) {
+      console.log(chalk.yellow("Not authenticated."));
+      console.log(chalk.gray("Run: pinata auth login --key <your-api-key>"));
+      process.exit(0);
+    }
+
+    try {
+      const { readFile } = await import("fs/promises");
+      const authData = JSON.parse(await readFile(authPath, "utf8")) as {
+        keyId?: string;
+        configuredAt?: string;
+      };
+
+      console.log(chalk.green("Authenticated"));
+      console.log(chalk.gray(`Key ID: ${authData.keyId ?? "unknown"}`));
+      console.log(chalk.gray(`Configured: ${authData.configuredAt ?? "unknown"}`));
+    } catch (error) {
+      console.log(chalk.yellow("Authentication status unknown."));
+      console.log(chalk.gray("Run: pinata auth login to reconfigure."));
+    }
   });
 
 program.parse();
