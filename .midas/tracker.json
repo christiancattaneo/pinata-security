@@ -1,17 +1,65 @@
 {
-  "lastUpdated": "2026-02-02T22:54:52.764Z",
+  "lastUpdated": "2026-02-02T23:31:28.823Z",
   "recentFiles": [
     {
-      "path": "src/categories/definitions/security/ldap-injection.yml",
-      "lastModified": 1770072873443.57
+      "path": "src/ai/template-filler.ts",
+      "lastModified": 1770074826184.36
     },
     {
-      "path": "src/categories/definitions/security/xss.yml",
-      "lastModified": 1770072832296.26
+      "path": "src/cli/generate-formatters.ts",
+      "lastModified": 1770074826184.2466
+    },
+    {
+      "path": "src/ai/index.ts",
+      "lastModified": 1770074826167.6565
+    },
+    {
+      "path": "src/cli/index.ts",
+      "lastModified": 1770074826167.643
+    },
+    {
+      "path": "tests/benchmarks/scan-benchmark.test.ts",
+      "lastModified": 1770074826166.9387
+    },
+    {
+      "path": "tests/ai/ai-service.test.ts",
+      "lastModified": 1770074826166.9028
+    },
+    {
+      "path": "src/ai/explainer.ts",
+      "lastModified": 1770074826166.7952
+    },
+    {
+      "path": "src/ai/pattern-suggester.ts",
+      "lastModified": 1770074826166.763
+    },
+    {
+      "path": "src/ai/service.ts",
+      "lastModified": 1770074826166.7488
+    },
+    {
+      "path": "tests/benchmarks/pattern-benchmark.test.ts",
+      "lastModified": 1770074826161.4138
+    },
+    {
+      "path": "src/ai/types.ts",
+      "lastModified": 1770073927272.3445
+    },
+    {
+      "path": "src/index.ts",
+      "lastModified": 1770073927261.357
     },
     {
       "path": "src/categories/definitions/security/sql-injection.yml",
-      "lastModified": 1770072750544.0315
+      "lastModified": 1770072914030.2979
+    },
+    {
+      "path": "src/categories/definitions/security/xss.yml",
+      "lastModified": 1770072914016.8672
+    },
+    {
+      "path": "src/categories/definitions/security/ldap-injection.yml",
+      "lastModified": 1770072914016.8535
     },
     {
       "path": "scripts/llm-pattern-gen.ts",
@@ -32,28 +80,17 @@
     {
       "path": "scripts/fetch-github-advisories.ts",
       "lastModified": 1770071849141.346
-    },
-    {
-      "path": "tests/security/output-security.test.ts",
-      "lastModified": 1770069765344.1323
-    },
-    {
-      "path": "tests/benchmarks/pattern-benchmark.test.ts",
-      "lastModified": 1770069765338.5896
-    },
-    {
-      "path": "tests/property/property-based.test.ts",
-      "lastModified": 1770069351122.1323
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "ebdde7ca766194621783c4bd61f939489d5cef64",
-    "lastCommitMessage": "Improve pattern precision for SQL injection and XSS",
-    "lastCommitTime": 1770072853000,
-    "uncommittedChanges": 2,
+    "lastCommit": "536640fcf4810e6f1a2b7dd3288a194df0eae3ce",
+    "lastCommitMessage": "Add LDAP injection patterns for ldap3 library",
+    "lastCommitTime": 1770072893000,
+    "uncommittedChanges": 13,
     "recentCommits": [
+      "Add LDAP injection patterns for ldap3 library",
       "Improve pattern precision for SQL injection and XSS",
       "Add LLM pattern generator and improve SQL/path patterns",
       "Add OWASP Benchmark baseline scoring",
@@ -62,8 +99,7 @@
       "Add property-based tests with fast-check",
       "Add README, fix type errors, complete Week 6 tasks",
       "Add blindspot tests for concurrency and edge cases",
-      "Relax benchmark thresholds for CI stability",
-      "Add SARIF, HTML, and JUnit XML output formatters"
+      "Relax benchmark thresholds for CI stability"
     ]
   },
   "completionSignals": {
@@ -86,6 +122,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1770073479358,
+      "suggestion": "Run the OWASP Python benchmark and analyze results. Use: npm run benchmark:quick, then npx tsx scripts/owasp-benchmark.ts run python. Review the scorecard for categories with <80% recall and use the LLM pattern generator to improve them.",
+      "accepted": false
+    },
     {
       "timestamp": 1770072156971,
       "suggestion": "Review the codebase for security issues and API design. Check: 1) Input validation in CLI commands, 2) Path traversal protection in Scanner, 3) Template injection risks in TemplateRenderer, 4) Error message information disclosure. Focus on src/cli/index.ts, src/core/scanner/scanner.ts, and src/templates/renderer.ts.",
@@ -186,15 +227,10 @@
       "timestamp": 1768936047326,
       "suggestion": "Implement the Scanner class in src/core/scanner/scanner.ts that orchestrates codebase analysis. It should: 1) Accept a target directory and scan options, 2) Use PatternMatcher to scan files for category detections, 3) Aggregate results by category with file locations and confidence scores, 4) Return a structured ScanResult with found gaps, coverage metrics, and a pinata score. Include methods for scanDirectory(), aggregateResults(), and calculateScore(). Reference gameplan Week 11 tasks.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768935300816,
-      "suggestion": "Extend PatternMatcher to support AST patterns using tree-sitter. Add detectAstPattern() method that takes AST queries, integrate tree-sitter parsers for Python/TypeScript/JavaScript, and update scanFile() to use AST when pattern.type === 'ast'. Include tests for common patterns like SQL concatenation in different languages.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1770072156899,
+  "lastAnalysis": 1770073479346,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

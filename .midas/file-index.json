@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770072482745,
+  "lastFullScan": 1770074703630,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "31d1f68c3eec",
-      "size": 32582,
-      "mtime": 1770068489632.7117,
-      "lastIndexed": 1770072126656,
+      "hash": "271bfdf0343b",
+      "size": 46076,
+      "mtime": 1770074082343.6482,
+      "lastIndexed": 1770074098178,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -46,13 +46,14 @@
         "../categories/store/index.js",
         "../core/index.js",
         "../lib/index.js",
-        "../templates/index.js"
+        "../templates/index.js",
+        "../ai/types.js"
       ],
-      "lineCount": 955,
-      "relevanceScore": 85,
+      "lineCount": 1305,
+      "relevanceScore": 90,
       "reasons": [
         "core file",
-        "modified today"
+        "recently modified"
       ]
     },
     "src/core/detection/index.ts": {
@@ -217,10 +218,10 @@
       ]
     },
     "src/index.ts": {
-      "hash": "660c02ad0136",
-      "size": 1427,
-      "mtime": 1768788001492.766,
-      "lastIndexed": 1768934871682,
+      "hash": "62f44ff3287a",
+      "size": 1701,
+      "mtime": 1770073879989.3235,
+      "lastIndexed": 1770073883208,
       "symbols": [
         "CategorySummarySchema",
         "RiskDomainSchema",
@@ -256,13 +257,20 @@
         "all",
         "tryCatch",
         "tryCatchAsync",
-        "VERSION"
+        "VERSION",
+        "AIService",
+        "createAIService",
+        "explainGap",
+        "explainGaps",
+        "suggestVariables",
+        "suggestPatterns"
       ],
       "imports": [],
-      "lineCount": 85,
-      "relevanceScore": 80,
+      "lineCount": 104,
+      "relevanceScore": 90,
       "reasons": [
-        "core file"
+        "core file",
+        "recently modified"
       ]
     },
     "src/lib/index.ts": {
@@ -1303,15 +1311,16 @@
       ]
     },
     "src/cli/generate-formatters.ts": {
-      "hash": "c28bfbe88247",
-      "size": 12716,
-      "mtime": 1769887932772.373,
-      "lastIndexed": 1769887934132,
+      "hash": "4483a9f7b10a",
+      "size": 13622,
+      "mtime": 1770074000146.3118,
+      "lastIndexed": 1770074013178,
       "symbols": [
         "formatGeneratedTerminal",
         "formatGeneratedJson",
         "suggestTestPath",
         "extractVariablesFromGap",
+        "extractVariablesWithAI",
         "writeGeneratedTests",
         "formatWriteSummary",
         "name",
@@ -1326,11 +1335,13 @@
         "chalk",
         "../lib/errors.js",
         "../lib/result.js",
+        "../ai/template-filler.js",
         "../categories/schema/index.js",
         "../core/scanner/types.js",
-        "../templates/index.js"
+        "../templates/index.js",
+        "../ai/types.js"
       ],
-      "lineCount": 434,
+      "lineCount": 469,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -1586,10 +1597,10 @@
       ]
     },
     "tests/benchmarks/pattern-benchmark.test.ts": {
-      "hash": "0c4638ca6cb7",
-      "size": 11522,
-      "mtime": 1770069765338.5896,
-      "lastIndexed": 1770072126656,
+      "hash": "6857a4d59824",
+      "size": 11711,
+      "mtime": 1770074701993.7068,
+      "lastIndexed": 1770074703627,
       "symbols": [
         "UserService",
         "DatabaseService"
@@ -1602,10 +1613,9 @@
         "@/categories/store/category-store.js",
         "@/categories/schema/index.js"
       ],
-      "lineCount": 347,
-      "relevanceScore": 80,
+      "lineCount": 351,
+      "relevanceScore": 55,
       "reasons": [
-        "mentioned",
         "recently modified"
       ]
     },
@@ -1836,10 +1846,10 @@
       ]
     },
     "tests/benchmarks/scan-benchmark.test.ts": {
-      "hash": "b4c0d10c044f",
-      "size": 8242,
-      "mtime": 1770067505656.931,
-      "lastIndexed": 1770072126659,
+      "hash": "4a05d109a612",
+      "size": 8303,
+      "mtime": 1770074372021.398,
+      "lastIndexed": 1770074373744,
       "symbols": [],
       "imports": [
         "fs/promises",
@@ -1848,10 +1858,10 @@
         "@/categories/store/category-store.js",
         "@/core/scanner/scanner.js"
       ],
-      "lineCount": 243,
-      "relevanceScore": 50,
+      "lineCount": 244,
+      "relevanceScore": 55,
       "reasons": [
-        "modified today"
+        "recently modified"
       ]
     },
     "tests/benchmarks/template-benchmark.test.ts": {
@@ -2487,8 +2497,172 @@
       "reasons": [
         "recently modified"
       ]
+    },
+    "src/ai/index.ts": {
+      "hash": "2bd8813f4870",
+      "size": 540,
+      "mtime": 1770074097195.349,
+      "lastIndexed": 1770074098178,
+      "symbols": [
+        "AIService",
+        "createAIService",
+        "explainGap",
+        "explainGaps",
+        "generateFallbackExplanation",
+        "suggestVariables",
+        "suggestPatterns",
+        "formatPatternAsYaml"
+      ],
+      "imports": [],
+      "lineCount": 15,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/ai/types.ts": {
+      "hash": "1cf5449f91ab",
+      "size": 2223,
+      "mtime": 1770073720534.045,
+      "lastIndexed": 1770073723029,
+      "symbols": [
+        "AIProvider",
+        "AIConfig",
+        "AIResponse",
+        "Message",
+        "CompletionRequest",
+        "GapExplanation",
+        "VariableSuggestion",
+        "PatternSuggestion"
+      ],
+      "imports": [],
+      "lineCount": 101,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/ai/service.ts": {
+      "hash": "f16507719ae9",
+      "size": 10154,
+      "mtime": 1770074593014.3855,
+      "lastIndexed": 1770074603564,
+      "symbols": [
+        "createAIService",
+        "AIService"
+      ],
+      "imports": [],
+      "lineCount": 351,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
+    },
+    "src/ai/explainer.ts": {
+      "hash": "3ad66b61afc6",
+      "size": 6456,
+      "mtime": 1770074557235.933,
+      "lastIndexed": 1770074558549,
+      "symbols": [
+        "explainGap",
+        "explainGaps",
+        "buildExplainPrompt",
+        "generateFallbackExplanation"
+      ],
+      "imports": [
+        "./service.js",
+        "./types.js",
+        "../categories/schema/index.js",
+        "../core/scanner/types.js"
+      ],
+      "lineCount": 169,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/ai/template-filler.ts": {
+      "hash": "de8856ad3007",
+      "size": 9516,
+      "mtime": 1770074601138.0686,
+      "lastIndexed": 1770074603565,
+      "symbols": [
+        "names",
+        "suggestVariables",
+        "buildVariablePrompt",
+        "extractVariablesFromCode",
+        "name",
+        "definition",
+        "toPascalCase",
+        "VariableFillRequest",
+        "VariableFillResult"
+      ],
+      "imports": [
+        "./service.js",
+        "./types.js",
+        "../categories/schema/index.js",
+        "../core/scanner/types.js"
+      ],
+      "lineCount": 329,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/ai/pattern-suggester.ts": {
+      "hash": "585a62b0082b",
+      "size": 8408,
+      "mtime": 1770074563646.1453,
+      "lastIndexed": 1770074568550,
+      "symbols": [
+        "suggestPatterns",
+        "buildPatternPrompt",
+        "validatePatterns",
+        "hasRedosPotential",
+        "formatPatternAsYaml",
+        "suggestPatternsFromMissed",
+        "PatternSuggestionRequest",
+        "PatternSuggestionResult"
+      ],
+      "imports": [
+        "./service.js",
+        "./types.js"
+      ],
+      "lineCount": 294,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "tests/ai/ai-service.test.ts": {
+      "hash": "b9e7b231fa25",
+      "size": 10390,
+      "mtime": 1770074352749.0781,
+      "lastIndexed": 1770074353559,
+      "symbols": [
+        "name",
+        "UserService",
+        "Foo"
+      ],
+      "imports": [
+        "vitest",
+        "@/ai/service.js",
+        "@/ai/explainer.js",
+        "@/ai/template-filler.js",
+        "@/ai/pattern-suggester.js",
+        "@/core/scanner/types.js",
+        "@/categories/schema/index.js"
+      ],
+      "lineCount": 322,
+      "relevanceScore": 55,
+      "reasons": [
+        "recently modified"
+      ]
     }
   },
-  "totalFiles": 114,
-  "totalSymbols": 501
+  "totalFiles": 121,
+  "totalSymbols": 550
 }

@@ -80,5 +80,24 @@ export {
 
 export type { Result, LogLevel } from "./lib/index.js";
 
-// Core exports (placeholder)
+// Core exports
 export { VERSION } from "./core/index.js";
+
+// AI exports
+export {
+  AIService,
+  createAIService,
+  explainGap,
+  explainGaps,
+  suggestVariables,
+  suggestPatterns,
+} from "./ai/index.js";
+
+export type {
+  AIConfig,
+  AIProvider,
+  AIResponse,
+  GapExplanation,
+  VariableSuggestion,
+  PatternSuggestion,
+} from "./ai/types.js";

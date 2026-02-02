@@ -44,9 +44,18 @@ import {
   formatWriteSummary,
   suggestTestPath,
   extractVariablesFromGap,
+  extractVariablesWithAI,
   writeGeneratedTests,
   type GeneratedTest,
 } from "./generate-formatters.js";
+import {
+  explainGap,
+  explainGaps,
+  generateFallbackExplanation,
+  suggestPatterns,
+  createAIService,
+} from "../ai/index.js";
+import type { AIConfig, GapExplanation } from "../ai/types.js";
 import {
   saveScanResults,
   loadScanResults,
@@ -280,6 +289,8 @@ program
   .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "medium")
   .option("--output-dir <dir>", "Directory for generated test files")
   .option("--write", "Write files to disk (default is dry-run)")
+  .option("--ai", "Use AI for smarter template variable filling")
+  .option("--ai-provider <provider>", "AI provider: anthropic, openai", "anthropic")
   .option("-o, --output <format>", "Output format: terminal, json", "terminal")
   .option("-v, --verbose", "Verbose output")
   .option("-q, --quiet", "Quiet mode (errors only)")
@@ -287,6 +298,8 @@ program
     const isQuiet = Boolean(options["quiet"]);
     const isVerbose = Boolean(options["verbose"]);
     const dryRun = !options["write"];
+    const useAI = Boolean(options["ai"]);
+    const aiProvider = String(options["aiProvider"] ?? "anthropic") as "anthropic" | "openai";
     const outputFormat = String(options["output"] ?? "terminal");
 
     if (isQuiet) {
@@ -447,8 +460,15 @@ program
             continue;
           }
 
-          // Extract variables from gap
-          const variables = extractVariablesFromGap(gap);
+          // Extract variables from gap (use AI if enabled)
+          let variables: Record<string, unknown>;
+          if (useAI) {
+            variables = await extractVariablesWithAI(gap, template.variables, {
+              provider: aiProvider,
+            });
+          } else {
+            variables = extractVariablesFromGap(gap);
+          }
 
           // Render template
           const renderResult = renderer.renderTemplate(template, variables);
@@ -512,6 +532,336 @@ program
       process.exit(0);
     } catch (error) {
       spinner?.fail("Generation failed");
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("explain")
+  .description("Get natural language explanations for detected gaps")
+  .option("-n, --top <count>", "Explain top N gaps by priority", "5")
+  .option("-c, --category <id>", "Explain gaps for specific category")
+  .option("-d, --domain <domain>", "Explain gaps for specific domain")
+  .option("--ai", "Use AI for detailed explanations (requires API key)")
+  .option("--ai-provider <provider>", "AI provider: anthropic, openai", "anthropic")
+  .option("-o, --output <format>", "Output format: terminal, json, markdown", "terminal")
+  .option("-v, --verbose", "Show more details")
+  .option("-q, --quiet", "Quiet mode (errors only)")
+  .action(async (options: Record<string, unknown>) => {
+    const isQuiet = Boolean(options["quiet"]);
+    const isVerbose = Boolean(options["verbose"]);
+    const useAI = Boolean(options["ai"]);
+    const aiProvider = String(options["aiProvider"] ?? "anthropic") as "anthropic" | "openai";
+    const outputFormat = String(options["output"] ?? "terminal");
+    const topN = parseInt(String(options["top"] ?? "5"), 10);
+
+    if (isQuiet) {
+      logger.configure({ level: "error" });
+    } else if (isVerbose) {
+      logger.configure({ level: "debug" });
+    }
+
+    // Validate output format
+    if (!["terminal", "json", "markdown"].includes(outputFormat)) {
+      console.error(formatError(new Error(`Invalid output format: ${outputFormat}. Use: terminal, json, markdown`)));
+      process.exit(1);
+    }
+
+    const showSpinner = outputFormat === "terminal" && !isQuiet;
+    const spinner = showSpinner ? ora("Loading cached scan results...").start() : null;
+
+    try {
+      // Load cached scan results
+      const projectRoot = process.cwd();
+      const cacheResult = await loadScanResults(projectRoot);
+
+      if (!cacheResult.success) {
+        spinner?.fail("No cached results");
+        console.error(formatError(cacheResult.error));
+        console.error(chalk.yellow("\nRun `pinata analyze` first to scan for gaps."));
+        process.exit(1);
+      }
+
+      const cached = cacheResult.data;
+      let gaps = cached.gaps;
+
+      // Apply filters
+      const categoryFilter = options["category"] as string | undefined;
+      const domainFilter = options["domain"] as string | undefined;
+
+      if (categoryFilter) {
+        gaps = gaps.filter((g) => g.categoryId === categoryFilter);
+      }
+      if (domainFilter) {
+        if (!RISK_DOMAINS.includes(domainFilter as RiskDomain)) {
+          spinner?.fail("Invalid domain");
+          console.error(formatError(new Error(`Invalid domain: ${domainFilter}. Valid: ${RISK_DOMAINS.join(", ")}`)));
+          process.exit(1);
+        }
+        gaps = gaps.filter((g) => g.domain === domainFilter);
+      }
+
+      if (gaps.length === 0) {
+        spinner?.succeed("No gaps to explain");
+        console.log(chalk.yellow("\nNo gaps found matching the filters."));
+        process.exit(0);
+      }
+
+      // Sort by priority score and take top N
+      gaps = gaps
+        .sort((a, b) => b.priorityScore - a.priorityScore)
+        .slice(0, topN);
+
+      if (spinner) {
+        spinner.text = `Explaining ${gaps.length} gap(s)...`;
+      }
+
+      // Generate explanations
+      const explanations: Array<{ gap: typeof gaps[0]; explanation: GapExplanation }> = [];
+
+      if (useAI) {
+        // Check if AI is configured
+        const ai = createAIService({ provider: aiProvider });
+        if (!ai.isConfigured()) {
+          spinner?.warn("AI not configured, using fallback explanations");
+          console.error(chalk.yellow(`\nSet ${aiProvider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} for AI explanations.\n`));
+
+          // Use fallback
+          for (const gap of gaps) {
+            explanations.push({
+              gap,
+              explanation: generateFallbackExplanation(gap),
+            });
+          }
+        } else {
+          // Use AI for explanations
+          for (const gap of gaps) {
+            const result = await explainGap(gap, undefined, { provider: aiProvider });
+            if (result.success && result.data) {
+              explanations.push({ gap, explanation: result.data });
+            } else {
+              explanations.push({
+                gap,
+                explanation: generateFallbackExplanation(gap),
+              });
+            }
+          }
+        }
+      } else {
+        // Use fallback explanations
+        for (const gap of gaps) {
+          explanations.push({
+            gap,
+            explanation: generateFallbackExplanation(gap),
+          });
+        }
+      }
+
+      spinner?.stop();
+
+      // Format and output
+      if (outputFormat === "json") {
+        console.log(JSON.stringify(explanations.map((e) => ({
+          gap: {
+            categoryId: e.gap.categoryId,
+            categoryName: e.gap.categoryName,
+            filePath: e.gap.filePath,
+            lineStart: e.gap.lineStart,
+            severity: e.gap.severity,
+            confidence: e.gap.confidence,
+            codeSnippet: e.gap.codeSnippet,
+          },
+          explanation: e.explanation,
+        })), null, 2));
+      } else if (outputFormat === "markdown") {
+        console.log(`# Gap Explanations\n`);
+        console.log(`Generated ${explanations.length} explanation(s).\n`);
+        for (const { gap, explanation } of explanations) {
+          console.log(`## ${gap.categoryName}\n`);
+          console.log(`**File:** \`${gap.filePath}:${gap.lineStart}\`\n`);
+          console.log(`**Severity:** ${gap.severity} | **Confidence:** ${gap.confidence}\n`);
+          console.log(`### Summary\n${explanation.summary}\n`);
+          console.log(`### Explanation\n${explanation.explanation}\n`);
+          console.log(`### Risk\n${explanation.risk}\n`);
+          console.log(`### How to Fix\n${explanation.remediation}\n`);
+          if (explanation.safeExample) {
+            console.log(`### Safe Example\n\`\`\`\n${explanation.safeExample}\n\`\`\`\n`);
+          }
+          console.log("---\n");
+        }
+      } else {
+        // Terminal format
+        console.log();
+        console.log(chalk.bold.cyan("Gap Explanations"));
+        console.log(chalk.gray("─".repeat(60)));
+
+        for (const { gap, explanation } of explanations) {
+          console.log();
+          console.log(chalk.bold.white(gap.categoryName));
+          console.log(chalk.gray(`  ${gap.filePath}:${gap.lineStart}`));
+
+          const severityColor = gap.severity === "critical" ? chalk.red :
+            gap.severity === "high" ? chalk.yellow : chalk.blue;
+          console.log(`  ${severityColor(gap.severity)} | ${gap.confidence} confidence`);
+
+          console.log();
+          console.log(chalk.cyan("  Summary:"));
+          console.log(`    ${explanation.summary}`);
+
+          if (isVerbose) {
+            console.log();
+            console.log(chalk.cyan("  Explanation:"));
+            for (const line of explanation.explanation.split("\n")) {
+              console.log(`    ${line}`);
+            }
+          }
+
+          console.log();
+          console.log(chalk.red("  Risk:"));
+          console.log(`    ${explanation.risk}`);
+
+          console.log();
+          console.log(chalk.green("  How to Fix:"));
+          for (const line of explanation.remediation.split("\n")) {
+            console.log(`    ${line}`);
+          }
+
+          if (explanation.safeExample) {
+            console.log();
+            console.log(chalk.cyan("  Safe Example:"));
+            console.log(chalk.gray(`    ${explanation.safeExample}`));
+          }
+
+          console.log();
+          console.log(chalk.gray("─".repeat(60)));
+        }
+      }
+
+      process.exit(0);
+    } catch (error) {
+      spinner?.fail("Explanation failed");
+      console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("suggest-patterns")
+  .description("Use AI to suggest new detection patterns based on code samples")
+  .requiredOption("-c, --category <id>", "Category to suggest patterns for")
+  .requiredOption("-l, --language <lang>", "Language of the code samples")
+  .option("-f, --file <path>", "File containing vulnerable code samples (one per line)")
+  .option("--code <snippet>", "Vulnerable code snippet (can be specified multiple times)", (v, a: string[]) => [...a, v], [] as string[])
+  .option("--ai-provider <provider>", "AI provider: anthropic, openai", "anthropic")
+  .option("-o, --output <format>", "Output format: terminal, yaml, json", "terminal")
+  .action(async (options: Record<string, unknown>) => {
+    const categoryId = String(options["category"]);
+    const language = String(options["language"]);
+    const aiProvider = String(options["aiProvider"] ?? "anthropic") as "anthropic" | "openai";
+    const outputFormat = String(options["output"] ?? "terminal");
+    const codeSnippets = options["code"] as string[];
+    const filePath = options["file"] as string | undefined;
+
+    // Validate we have some code to analyze
+    let vulnerableCode = [...codeSnippets];
+
+    if (filePath) {
+      try {
+        const { readFile } = await import("fs/promises");
+        const content = await readFile(filePath, "utf-8");
+        vulnerableCode = [...vulnerableCode, ...content.split("\n---\n").filter(Boolean)];
+      } catch (error) {
+        console.error(formatError(new Error(`Failed to read file: ${filePath}`)));
+        process.exit(1);
+      }
+    }
+
+    if (vulnerableCode.length === 0) {
+      console.error(formatError(new Error("Provide code samples via --code or --file")));
+      process.exit(1);
+    }
+
+    const spinner = ora("Generating pattern suggestions...").start();
+
+    try {
+      const result = await suggestPatterns(
+        {
+          category: categoryId,
+          language,
+          vulnerableCode,
+          maxSuggestions: 5,
+        },
+        { provider: aiProvider }
+      );
+
+      spinner.stop();
+
+      if (!result.success) {
+        console.error(formatError(new Error(result.error ?? "Failed to generate patterns")));
+        process.exit(1);
+      }
+
+      const { suggestions, rejected } = result.data ?? { suggestions: [], rejected: [] };
+
+      if (outputFormat === "json") {
+        console.log(JSON.stringify({ suggestions, rejected }, null, 2));
+      } else if (outputFormat === "yaml") {
+        console.log(`# Suggested patterns for ${categoryId}\n`);
+        console.log(`detectionPatterns:`);
+        for (const suggestion of suggestions) {
+          const escapedPattern = suggestion.pattern.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+          console.log(`  - id: ${suggestion.id}`);
+          console.log(`    type: regex`);
+          console.log(`    language: ${language}`);
+          console.log(`    pattern: "${escapedPattern}"`);
+          console.log(`    confidence: ${suggestion.confidence}`);
+          console.log(`    description: ${suggestion.description}`);
+          console.log();
+        }
+      } else {
+        console.log();
+        console.log(chalk.bold.cyan("Pattern Suggestions"));
+        console.log(chalk.gray("─".repeat(60)));
+
+        if (suggestions.length === 0) {
+          console.log(chalk.yellow("\nNo valid patterns could be generated."));
+        } else {
+          for (const suggestion of suggestions) {
+            console.log();
+            console.log(chalk.bold.white(suggestion.id));
+            console.log(chalk.gray(`  ${suggestion.description}`));
+            console.log();
+            console.log(chalk.cyan("  Pattern:"));
+            console.log(`    ${suggestion.pattern}`);
+            console.log();
+            console.log(chalk.cyan("  Confidence:") + ` ${suggestion.confidence}`);
+            console.log();
+            console.log(chalk.green("  Would match:"));
+            console.log(chalk.gray(`    ${suggestion.matchExample}`));
+            console.log();
+            console.log(chalk.red("  Should NOT match:"));
+            console.log(chalk.gray(`    ${suggestion.safeExample}`));
+            console.log();
+            console.log(chalk.cyan("  Reasoning:"));
+            console.log(`    ${suggestion.reasoning}`);
+            console.log();
+            console.log(chalk.gray("─".repeat(60)));
+          }
+        }
+
+        if (rejected.length > 0) {
+          console.log();
+          console.log(chalk.yellow.bold(`Rejected ${rejected.length} pattern(s):`));
+          for (const r of rejected) {
+            console.log(chalk.gray(`  - ${r.pattern.slice(0, 40)}... : ${r.reason}`));
+          }
+        }
+      }
+
+      process.exit(0);
+    } catch (error) {
+      spinner.fail("Pattern generation failed");
       console.error(formatError(error instanceof Error ? error : new Error(String(error))));
       process.exit(1);
     }

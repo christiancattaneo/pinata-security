@@ -10,11 +10,13 @@ import chalk from "chalk";
 
 import { PinataError } from "../lib/errors.js";
 import { ok, err } from "../lib/result.js";
+import { suggestVariables } from "../ai/template-filler.js";
 
-import type { TestTemplate, Category } from "../categories/schema/index.js";
+import type { TestTemplate, Category, TemplateVariable } from "../categories/schema/index.js";
 import type { Gap } from "../core/scanner/types.js";
 import type { Result } from "../lib/result.js";
 import type { RenderResult } from "../templates/index.js";
+import type { AIConfig } from "../ai/types.js";
 
 
 
@@ -215,6 +217,39 @@ export function extractVariablesFromGap(gap: Gap): Record<string, unknown> {
     patternId: gap.patternId,
     patternType: gap.patternType,
   };
+}
+
+/**
+ * Extract template variables using AI for smarter filling
+ *
+ * Falls back to rule-based extraction if AI is not available
+ */
+export async function extractVariablesWithAI(
+  gap: Gap,
+  templateVariables: TemplateVariable[],
+  aiConfig?: Partial<AIConfig>
+): Promise<Record<string, unknown>> {
+  // Start with basic extraction
+  const baseVars = extractVariablesFromGap(gap);
+
+  // Use AI to fill remaining template variables
+  const result = await suggestVariables(
+    {
+      codeSnippet: gap.codeSnippet,
+      filePath: gap.filePath,
+      variables: templateVariables,
+      gap,
+      existingValues: baseVars,
+    },
+    aiConfig
+  );
+
+  if (result.success && result.data) {
+    return result.data.values;
+  }
+
+  // Fallback to base variables
+  return baseVars;
 }
 
 /**
