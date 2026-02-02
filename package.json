@@ -15,6 +15,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "benchmark": "vitest run tests/benchmarks/ --reporter=verbose",
+    "benchmark:quick": "vitest run tests/benchmarks/scan-benchmark.test.ts --reporter=verbose",
     "lint": "eslint src tests --ext .ts",
     "lint:fix": "eslint src tests --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
