@@ -100,6 +100,49 @@ detectionPatterns:
     confidence: medium
     description: Detects URL manipulation with string concatenation
 
+  # Imported from Semgrep - template patterns
+  - id: django-autoescape-off
+    type: regex
+    language: python
+    pattern: "{%\\s+autoescape\\s+off\\s+%}"
+    confidence: medium
+    description: Detects Django template block where autoescaping is explicitly disabled
+
+  - id: jinja-autoescape-false
+    type: regex
+    language: python
+    pattern: "{%\\s*autoescape\\s+false\\s*%}"
+    confidence: medium
+    description: Detects Jinja2/Flask template where autoescaping is disabled
+
+  - id: template-safe-filter
+    type: regex
+    language: python
+    pattern: "\\{\\{.*?\\|\\s*safe(\\s*\\}\\})?"
+    confidence: medium
+    description: Detects template variable with safe filter bypassing escaping
+
+  - id: template-safeseq-filter
+    type: regex
+    language: python
+    pattern: "\\{\\{.*?\\|\\s*safeseq(\\s*\\}\\})?"
+    confidence: medium
+    description: Detects template variable with safeseq filter bypassing escaping
+
+  - id: ejs-unescape
+    type: regex
+    language: javascript
+    pattern: "<%-(?!include).*?%>"
+    confidence: medium
+    description: Detects EJS explicit unescape with <%- which renders raw HTML
+
+  - id: href-template-injection
+    type: regex
+    language: javascript
+    pattern: "<a.*href\\s*=[^>]*?<%.*?%>.*?>"
+    confidence: low
+    description: Detects template variable in href attribute allowing javascript URI
+
 testTemplates:
   - id: pytest-xss
     language: python
