@@ -74,6 +74,35 @@ jobs:
           echo "- Template rendering p95: <100ms ✓"
           echo "- Memory usage: <500MB ✓"
 
+  accuracy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup WASM
+        run: npm run setup:wasm
+
+      - name: Run accuracy tests
+        run: npm test tests/accuracy/ -- --reporter=verbose
+
+      - name: Accuracy summary
+        run: |
+          echo "Accuracy tests completed!"
+          echo "- Vulnerable corpus detection verified"
+          echo "- False positive rate tracked"
+          echo "- Per-category metrics calculated"
+
   security:
     runs-on: ubuntu-latest
 
