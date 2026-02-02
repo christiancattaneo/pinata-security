@@ -1,0 +1,94 @@
+{
+  "name": "pinata-vscode",
+  "displayName": "Pinata Security",
+  "description": "AI-powered security analysis - find vulnerabilities in your code",
+  "version": "0.1.0",
+  "publisher": "pinata-security",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pinata-security/pinata.git"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "vulnerability",
+    "testing",
+    "analysis",
+    "sql injection",
+    "xss"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pinata.scan",
+        "title": "Pinata: Scan Workspace"
+      },
+      {
+        "command": "pinata.scanFile",
+        "title": "Pinata: Scan Current File"
+      },
+      {
+        "command": "pinata.explain",
+        "title": "Pinata: Explain This Gap"
+      }
+    ],
+    "configuration": {
+      "title": "Pinata",
+      "properties": {
+        "pinata.enableOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Scan file automatically on save"
+        },
+        "pinata.minSeverity": {
+          "type": "string",
+          "enum": ["critical", "high", "medium", "low"],
+          "default": "medium",
+          "description": "Minimum severity to display"
+        },
+        "pinata.aiExplanations": {
+          "type": "boolean",
+          "default": false,
+          "description": "Use AI for detailed explanations (requires API key)"
+        },
+        "pinata.anthropicApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic API key for AI features"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.0"
+  },
+  "dependencies": {
+    "@pinata-security/cli": "^0.1.0"
+  }
+}

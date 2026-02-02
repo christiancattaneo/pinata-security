@@ -15,6 +15,7 @@ applicableLanguages:
   - python
   - typescript
   - javascript
+  - go
 
 cves:
   - CVE-2021-41773
@@ -108,6 +109,35 @@ detectionPatterns:
     pattern: "require\\s*\\(.*req\\.|import\\s*\\(.*req\\."
     confidence: high
     description: Detects dynamic require/import with user input (code injection risk)
+
+  # Go patterns
+  - id: go-filepath-join-user-input
+    type: regex
+    language: go
+    pattern: "filepath\\.Join\\s*\\(.*\\s*\\+|filepath\\.Join\\s*\\(.*fmt\\.Sprintf"
+    confidence: medium
+    description: Detects filepath.Join with string concatenation or formatting
+
+  - id: go-os-open-user-input
+    type: regex
+    language: go
+    pattern: "os\\.Open\\s*\\(.*\\s*\\+|os\\.OpenFile\\s*\\(.*\\s*\\+|os\\.Create\\s*\\(.*\\s*\\+"
+    confidence: medium
+    description: Detects os.Open/Create with string concatenation
+
+  - id: go-ioutil-readfile-user-input
+    type: regex
+    language: go
+    pattern: "ioutil\\.ReadFile\\s*\\(.*\\s*\\+|os\\.ReadFile\\s*\\(.*\\s*\\+"
+    confidence: medium
+    description: Detects ReadFile with string concatenation
+
+  - id: go-http-servefile
+    type: regex
+    language: go
+    pattern: "http\\.ServeFile\\s*\\(.*r\\."
+    confidence: high
+    description: Detects http.ServeFile with request parameter (potential traversal)
 
 testTemplates:
   - id: pytest-path-traversal

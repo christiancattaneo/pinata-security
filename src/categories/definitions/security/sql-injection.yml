@@ -15,6 +15,7 @@ applicableLanguages:
   - python
   - typescript
   - javascript
+  - go
 
 cves:
   - CVE-2019-9193
@@ -108,6 +109,35 @@ detectionPatterns:
     pattern: "sequelize\\.literal\\s*\\(\\s*`.*\\$\\{"
     confidence: high
     description: Detects Sequelize literal with interpolation
+
+  # Go patterns
+  - id: go-fmt-sprintf-query
+    type: regex
+    language: go
+    pattern: "fmt\\.Sprintf\\s*\\(\\s*[\"'].*SELECT|fmt\\.Sprintf\\s*\\(\\s*[\"'].*INSERT|fmt\\.Sprintf\\s*\\(\\s*[\"'].*UPDATE|fmt\\.Sprintf\\s*\\(\\s*[\"'].*DELETE"
+    confidence: high
+    description: Detects fmt.Sprintf used for SQL query construction
+
+  - id: go-string-concat-query
+    type: regex
+    language: go
+    pattern: "(Query|Exec|QueryRow)\\s*\\(.*\\s*\\+\\s*"
+    confidence: medium
+    description: Detects SQL query with string concatenation
+
+  - id: go-db-query-sprintf
+    type: regex
+    language: go
+    pattern: "\\.Query\\s*\\(\\s*fmt\\.Sprintf|\\.Exec\\s*\\(\\s*fmt\\.Sprintf|\\.QueryRow\\s*\\(\\s*fmt\\.Sprintf"
+    confidence: high
+    description: Detects database Query/Exec with fmt.Sprintf
+
+  - id: go-gorm-raw-sprintf
+    type: regex
+    language: go
+    pattern: "\\.Raw\\s*\\(\\s*fmt\\.Sprintf|\\.Exec\\s*\\(\\s*fmt\\.Sprintf"
+    confidence: high
+    description: Detects GORM Raw with fmt.Sprintf
 
 testTemplates:
   - id: pytest-sql-injection

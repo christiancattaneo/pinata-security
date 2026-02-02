@@ -14,6 +14,7 @@ applicableLanguages:
   - python
   - typescript
   - javascript
+  - go
 
 cves:
   - CVE-2021-44228
@@ -104,6 +105,35 @@ detectionPatterns:
     pattern: "shelljs\\.exec\\s*\\(|execa\\s*\\(.*shell:\\s*true"
     confidence: high
     description: Detects shelljs.exec or execa with shell mode
+
+  # Go patterns
+  - id: go-exec-command-shell
+    type: regex
+    language: go
+    pattern: "exec\\.Command\\s*\\(\\s*[\"'](?:sh|bash|cmd)[\"']\\s*,\\s*[\"']-c[\"']"
+    confidence: high
+    description: Detects exec.Command with shell execution
+
+  - id: go-exec-command-sprintf
+    type: regex
+    language: go
+    pattern: "exec\\.Command\\s*\\(.*fmt\\.Sprintf"
+    confidence: medium
+    description: Detects exec.Command with fmt.Sprintf (potential injection)
+
+  - id: go-os-exec-string-concat
+    type: regex
+    language: go
+    pattern: "exec\\.Command\\s*\\(.*\\s*\\+\\s*"
+    confidence: medium
+    description: Detects exec.Command with string concatenation
+
+  - id: go-syscall-exec
+    type: regex
+    language: go
+    pattern: "syscall\\.Exec\\s*\\("
+    confidence: high
+    description: Detects low-level syscall.Exec usage
 
 testTemplates:
   - id: pytest-command-injection
