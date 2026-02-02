@@ -48,6 +48,21 @@ detectionPatterns:
     confidence: high
     description: Detects ldap3 library search with interpolation
 
+  # OWASP Benchmark style - f-string LDAP filter
+  - id: python-ldap-fstring-filter
+    type: regex
+    language: python
+    pattern: "filter\\s*=\\s*f[\"'].*\\{[a-z_]|f[\"']\\(&.*\\{[a-z_]|f[\"']\\(\\|.*\\{[a-z_]"
+    confidence: high
+    description: Detects LDAP filter with f-string variable interpolation
+
+  - id: python-conn-search-fstring
+    type: regex
+    language: python
+    pattern: "conn\\.search\\s*\\([^)]*,\\s*f[\"']|conn\\.search\\s*\\([^)]*,\\s*filter\\s*[,)]"
+    confidence: medium
+    description: Detects ldap3 conn.search with f-string or variable filter
+
   - id: python-django-ldap-auth
     type: regex
     language: python
