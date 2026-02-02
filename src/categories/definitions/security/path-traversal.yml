@@ -42,6 +42,14 @@ detectionPatterns:
     confidence: medium
     description: Detects pathlib.Path() with potential user input
 
+  # OWASP Benchmark style - pathlib with / operator
+  - id: python-pathlib-slash-operator
+    type: regex
+    language: python
+    pattern: "Path\\s*\\([^)]*\\)\\s*/\\s*[a-z_]|[a-z_]+\\s*/\\s*[a-z_]+"
+    confidence: low
+    description: Detects pathlib Path / variable (may be user input)
+
   - id: python-os-path-join-user
     type: regex
     language: python

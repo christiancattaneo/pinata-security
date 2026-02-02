@@ -63,6 +63,21 @@ detectionPatterns:
     confidence: high
     description: Detects Django raw() or extra() with string interpolation
 
+  # OWASP Benchmark style - f-string SQL assigned to variable
+  - id: python-fstring-sql-variable
+    type: regex
+    language: python
+    pattern: "f[\"']SELECT\\s|f[\"']INSERT\\s|f[\"']UPDATE\\s|f[\"']DELETE\\s"
+    confidence: high
+    description: Detects f-string SQL statements (SELECT/INSERT/UPDATE/DELETE)
+
+  - id: python-execute-variable
+    type: regex
+    language: python
+    pattern: "execute\\s*\\(\\s*[a-z_][a-z0-9_]*\\s*\\)"
+    confidence: medium
+    description: Detects cursor.execute() with variable (requires context analysis)
+
   # TypeScript/JavaScript patterns
   - id: ts-template-literal-query
     type: regex

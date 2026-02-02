@@ -1,6 +1,18 @@
 {
-  "lastUpdated": "2026-02-02T22:45:02.564Z",
+  "lastUpdated": "2026-02-02T22:48:37.971Z",
   "recentFiles": [
+    {
+      "path": "src/categories/definitions/security/path-traversal.yml",
+      "lastModified": 1770072491322.4656
+    },
+    {
+      "path": "src/categories/definitions/security/sql-injection.yml",
+      "lastModified": 1770072481899.0183
+    },
+    {
+      "path": "scripts/llm-pattern-gen.ts",
+      "lastModified": 1770072453759.8594
+    },
     {
       "path": "scripts/owasp-benchmark.ts",
       "lastModified": 1770072284304.1626
@@ -61,11 +73,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "45ea8da37b7696bf2c407f3e3898cdde8575f9b5",
-    "lastCommitMessage": "Add pattern improvement tooling and import Semgrep patterns",
-    "lastCommitTime": 1770071830000,
-    "uncommittedChanges": 7,
+    "lastCommit": "96e99d36b895e24077870efe956c3dfae107d676",
+    "lastCommitMessage": "Add OWASP Benchmark baseline scoring",
+    "lastCommitTime": 1770072305000,
+    "uncommittedChanges": 5,
     "recentCommits": [
+      "Add OWASP Benchmark baseline scoring",
       "Add pattern improvement tooling and import Semgrep patterns",
       "Add output security tests and fix benchmark thresholds",
       "Add property-based tests with fast-check",
@@ -74,8 +87,7 @@
       "Relax benchmark thresholds for CI stability",
       "Add SARIF, HTML, and JUnit XML output formatters",
       "Implement CLI commands and E2E test suite",
-      "Add security test suite for Pinata tool itself",
-      "Add accuracy tests to CI workflow"
+      "Add security test suite for Pinata tool itself"
     ]
   },
   "completionSignals": {

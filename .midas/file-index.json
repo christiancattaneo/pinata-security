@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770072163269,
+  "lastFullScan": 1770072482745,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -1546,10 +1546,10 @@
       ]
     },
     "scripts/owasp-benchmark.ts": {
-      "hash": "b35012976e2d",
-      "size": 10182,
-      "mtime": 1770072162462.7463,
-      "lastIndexed": 1770072163266,
+      "hash": "942fd2678089",
+      "size": 11321,
+      "mtime": 1770072284304.1626,
+      "lastIndexed": 1770072307635,
       "symbols": [
         "setup",
         "parseExpectedResults",
@@ -1563,7 +1563,7 @@
         "fs",
         "path"
       ],
-      "lineCount": 328,
+      "lineCount": 363,
       "relevanceScore": 65,
       "reasons": [
         "recently modified"
@@ -2458,8 +2458,37 @@
       "reasons": [
         "modified today"
       ]
+    },
+    "scripts/llm-pattern-gen.ts": {
+      "hash": "59c852e40a3c",
+      "size": 14343,
+      "mtime": 1770072453759.8594,
+      "lastIndexed": 1770072482742,
+      "symbols": [
+        "loadExpectedResults",
+        "loadScanResults",
+        "findMissedVulnerabilities",
+        "groupByCategory",
+        "extractVulnerableLines",
+        "generatePatternWithLLM",
+        "generatePatternFromTemplate",
+        "analyze",
+        "generate",
+        "validate",
+        "main"
+      ],
+      "imports": [
+        "fs",
+        "path",
+        "yaml"
+      ],
+      "lineCount": 464,
+      "relevanceScore": 65,
+      "reasons": [
+        "recently modified"
+      ]
     }
   },
-  "totalFiles": 113,
-  "totalSymbols": 490
+  "totalFiles": 114,
+  "totalSymbols": 501
 }
