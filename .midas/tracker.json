@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-02-03T21:07:59.512Z",
+  "lastUpdated": "2026-02-03T21:10:09.527Z",
   "recentFiles": [
     {
       "path": "planning/pricing-and-architecture.md",
@@ -21,11 +21,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "b4dcadab996d2985295010a470f000faf7da84d6",
-    "lastCommitMessage": "v0.3.0: vibe-coding security features",
-    "lastCommitTime": 1770146327000,
-    "uncommittedChanges": 5,
+    "lastCommit": "9cce1e9b1ddd4e8522e3b551344be943341dda09",
+    "lastCommitMessage": "fix tests for v0.3.0, add pricing/architecture doc",
+    "lastCommitTime": 1770152882000,
+    "uncommittedChanges": 1,
     "recentCommits": [
+      "fix tests for v0.3.0, add pricing/architecture doc",
       "v0.3.0: vibe-coding security features",
       "v0.2.3: prompt for API key if missing when using --verify",
       "v0.2.2: README updates",
@@ -34,8 +35,7 @@
       "v0.2.0: Add AI verification with --verify flag",
       "Add AI verification with timeout fixes, improve error logging",
       "Fix flaky tests: increase timeout, update secret pattern",
-      "Add AI verification for principled false positive reduction",
-      "Add comprehensive documentation"
+      "Add AI verification for principled false positive reduction"
     ]
   },
   "completionSignals": {

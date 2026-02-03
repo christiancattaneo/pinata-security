@@ -288,9 +288,12 @@ export class AIVerifier {
   ): Promise<Map<string, BatchVerificationResult>> {
     const results = new Map<string, BatchVerificationResult>();
     let completed = 0;
+    const startTime = Date.now();
+    const waveTimes: number[] = [];
 
     // Process in waves of `concurrency` batches
     for (let i = 0; i < batches.length; i += this.concurrency) {
+      const waveStart = Date.now();
       const wave = batches.slice(i, i + this.concurrency);
 
       const waveResults = await Promise.all(
@@ -320,7 +323,18 @@ export class AIVerifier {
       }
 
       completed += wave.length;
-      console.log(`Processed ${completed}/${batches.length} batches...`);
+      const waveTime = Date.now() - waveStart;
+      waveTimes.push(waveTime);
+
+      // Calculate ETA based on rolling average of last 5 waves
+      const recentWaves = waveTimes.slice(-5);
+      const avgWaveTime = recentWaves.reduce((a, b) => a + b, 0) / recentWaves.length;
+      const remainingWaves = Math.ceil((batches.length - completed) / this.concurrency);
+      const etaMs = avgWaveTime * remainingWaves;
+      const etaStr = this.formatDuration(etaMs);
+      const elapsedStr = this.formatDuration(Date.now() - startTime);
+      
+      console.log(`Processed ${completed}/${batches.length} batches... (${elapsedStr} elapsed, ~${etaStr} remaining)`);
     }
 
     return results;
@@ -344,6 +358,18 @@ export class AIVerifier {
   private extractLine(content: string, lineNumber: number): string {
     const lines = content.split("\n");
     return lines[lineNumber - 1] ?? "";
+  }
+
+  private formatDuration(ms: number): string {
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    const seconds = Math.floor(ms / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
   }
 
   private getLanguage(filePath: string): string {
