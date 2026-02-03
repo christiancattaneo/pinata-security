@@ -1,5 +1,5 @@
 {
-  "name": "@pinata-security/cli",
+  "name": "pinata-security-cli",
   "version": "0.1.0",
   "description": "AI-powered test coverage analysis and generation tool. Find security blind spots before attackers do.",
   "type": "module",
