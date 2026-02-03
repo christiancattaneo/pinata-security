@@ -5,48 +5,51 @@ AI-powered security scanner that finds vulnerabilities hiding in your codebase. 
 ## Quick Start
 
 ```bash
+# Fast scan (pattern matching only, ~2s)
 npx --yes pinata-security-cli@latest analyze .
-```
 
-That's it. No config needed.
+# AI-verified scan (eliminates false positives, ~2-3min)
+ANTHROPIC_API_KEY=sk-ant-xxx npx --yes pinata-security-cli@latest analyze . --verify
+```
 
 ## What It Does
 
-Pinata scans your code for security gaps and test coverage holes:
-
 ```
-$ pinata analyze ./src
+$ pinata analyze . --verify
 
-Pinata Score: 85/100 (B)
+Pinata Score: 100/100 (A)
 
-High Severity Gaps (3):
-  🔴 sql-injection      src/db/queries.ts:45
-  🔴 hardcoded-secrets  src/config/api.ts:12  
-  🔴 missing-timeout    src/http/client.ts:89
+AI Verification: 351 total → 18 pre-filtered → 0 verified, 333 AI-dismissed
+
+No gaps detected! Your codebase has good test coverage.
 ```
+
+Without `--verify`, you get fast pattern-based detection. With `--verify`, AI analyzes each match to filter false positives.
 
 ## Installation
 
-**npx (recommended)**
 ```bash
+# Via npx (no install)
 npx --yes pinata-security-cli@latest analyze .
-```
 
-**Global install**
-```bash
+# Global install  
 npm install -g pinata-security-cli
 pinata analyze .
 ```
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `pinata analyze [path]` | Scan for security gaps |
-| `pinata generate --gaps` | Generate tests for detected gaps |
-| `pinata explain <category> <file:line>` | AI explanation of a gap |
-| `pinata dashboard` | Interactive TUI dashboard |
-| `pinata config set <key> <value>` | Configure API keys |
+```bash
+pinata analyze .                    # Fast scan
+pinata analyze . --verify           # AI-verified scan
+pinata analyze . --confidence low   # Include all matches
+pinata analyze . --output json      # JSON output
+pinata analyze . --output sarif     # SARIF for GitHub
+pinata generate --gaps              # Generate tests for gaps
+pinata explain sql-injection src/db.ts:45   # AI explanation
+pinata dashboard                    # Interactive TUI
+pinata config set anthropic-api-key sk-ant-xxx
+```
 
 ## Detection Categories
 
@@ -78,32 +81,38 @@ node_modules/
 dist/
 ```
 
-CLI options:
+**CLI options:**
 
 ```bash
-pinata analyze . --confidence medium   # Include medium confidence
-pinata analyze . --output json         # JSON output
-pinata analyze . --output sarif        # SARIF for GitHub
-pinata analyze . --domain security     # Filter by domain
+--verify              # AI verification (requires API key)
+--confidence <level>  # high (default), medium, low
+--output <format>     # terminal, json, sarif, junit, markdown
+--domain <domain>     # security, data, concurrency, etc.
+--severity <level>    # critical, high, medium, low
+--exclude <dirs>      # Comma-separated directories to skip
 ```
 
-## AI Features
+## AI Verification
 
-Enable AI-powered explanations and test generation:
+The `--verify` flag uses AI to analyze each pattern match and filter false positives:
 
 ```bash
-# Set API key
+# Set API key (one time)
 pinata config set anthropic-api-key sk-ant-xxx
-
-# Or via environment
+# Or use environment variable
 export ANTHROPIC_API_KEY=sk-ant-xxx
 
-# Get explanation for a gap
-pinata explain sql-injection src/db/queries.ts:45
-
-# Generate tests
-pinata generate --gaps
+# Run AI-verified scan
+pinata analyze . --verify
 ```
+
+**How it works:**
+- Patterns cast a wide net (351 matches)
+- AI analyzes each match in context
+- False positives are dismissed with reasoning
+- Only real vulnerabilities remain (often 0-5)
+
+**Performance:** ~2.5 minutes for 350 matches (batched 10/request, 3 concurrent)
 
 ## CI/CD Integration
 
