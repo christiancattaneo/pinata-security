@@ -1,21 +1,21 @@
 {
-  "lastUpdated": "2026-02-03T05:00:45.739Z",
+  "lastUpdated": "2026-02-03T05:08:11.102Z",
   "recentFiles": [
     {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770094831722.831
+      "path": "src/core/index.ts",
+      "lastModified": 1770095284062.4656
     },
     {
       "path": "package-lock.json",
-      "lastModified": 1770094667590.7944
+      "lastModified": 1770095276823.621
     },
     {
       "path": "package.json",
-      "lastModified": 1770094667576.8323
+      "lastModified": 1770095276820.0403
     },
     {
-      "path": "src/core/index.ts",
-      "lastModified": 1770094663178.932
+      "path": "src/cli/index.ts",
+      "lastModified": 1770094860419.6274
     },
     {
       "path": "apps/web/vercel.json",
@@ -53,11 +53,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "e3ca8dc6d9979d4c6b9ad9bac95b0a9917c5fb97",
-    "lastCommitMessage": "v0.1.3 with tightened patterns",
-    "lastCommitTime": 1770094267000,
-    "uncommittedChanges": 5,
+    "lastCommit": "2e74958aefd6b9c2d7df23e269964822e719dd70",
+    "lastCommitMessage": "Fix default confidence to high in Commander option",
+    "lastCommitTime": 1770094847000,
+    "uncommittedChanges": 4,
     "recentCommits": [
+      "Fix default confidence to high in Commander option",
       "v0.1.3 with tightened patterns",
       "Include category definitions in npm package",
       "Add Vercel config for static deployment",
@@ -66,8 +67,7 @@
       "Tighten detection patterns, add .pinataignore support, default to medium confidence",
       "Change package name to pinata-security-cli for npm",
       "Add config command for AI provider API keys",
-      "Add LICENSE, VS Code extension package",
-      "Add VS Code extension scaffold and Go language patterns"
+      "Add LICENSE, VS Code extension package"
     ]
   },
   "completionSignals": {
