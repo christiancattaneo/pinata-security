@@ -61,8 +61,8 @@ detectionPatterns:
   - id: ts-string-compare-secret
     type: regex
     language: typescript
-    pattern: "(password|secret|token|key|apiKey).*===|===.*(password|secret|token)"
-    confidence: high
+    pattern: "(password|secret|token)\\s*===\\s*\\w+|\\w+\\s*===\\s*(password|secret|token)"
+    confidence: medium
     description: Detects direct string comparison of secrets
 
   - id: ts-buffer-compare-timing
