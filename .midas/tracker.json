@@ -1,13 +1,13 @@
 {
-  "lastUpdated": "2026-02-03T04:47:50.352Z",
+  "lastUpdated": "2026-02-03T04:51:05.508Z",
   "recentFiles": [
+    {
+      "path": "package.json",
+      "lastModified": 1770094095169.3335
+    },
     {
       "path": "package-lock.json",
       "lastModified": 1770094062298.225
-    },
-    {
-      "path": "package.json",
-      "lastModified": 1770094062295.0354
     },
     {
       "path": "apps/web/vercel.json",
@@ -45,11 +45,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "80f1fdffe1cbc9896ae282d7e97c0689d1832875",
-    "lastCommitMessage": "Add Vercel config for static deployment",
-    "lastCommitTime": 1770093776000,
-    "uncommittedChanges": 4,
+    "lastCommit": "95bebb1db606d92f2293bf85115ef292691c5cf8",
+    "lastCommitMessage": "Include category definitions in npm package",
+    "lastCommitTime": 1770094074000,
+    "uncommittedChanges": 1,
     "recentCommits": [
+      "Include category definitions in npm package",
       "Add Vercel config for static deployment",
       "Replace fake API keys with obviously fake patterns for GitHub push protection",
       "Bump to v0.1.1",
@@ -58,8 +59,7 @@
       "Add config command for AI provider API keys",
       "Add LICENSE, VS Code extension package",
       "Add VS Code extension scaffold and Go language patterns",
-      "Phase 3: npm package setup, TUI dashboard, landing page",
-      "Add AI layer for smart test generation and explanations"
+      "Phase 3: npm package setup, TUI dashboard, landing page"
     ]
   },
   "completionSignals": {
