@@ -1,29 +1,57 @@
 {
-  "lastUpdated": "2026-02-03T05:42:52.261Z",
+  "lastUpdated": "2026-02-03T05:55:12.338Z",
   "recentFiles": [
     {
-      "path": "docs/contributing.md",
-      "lastModified": 1770097358239.4185
+      "path": "src/cli/index.ts",
+      "lastModified": 1770098091562.1042
     },
     {
-      "path": "docs/authoring-categories.md",
-      "lastModified": 1770097329292.0312
+      "path": "src/core/verifier/index.ts",
+      "lastModified": 1770098044145.724
     },
     {
-      "path": "docs/api-reference.md",
-      "lastModified": 1770097275180.5903
+      "path": "src/categories/definitions/security/timing-attack.yml",
+      "lastModified": 1770098037817.8066
     },
     {
-      "path": "docs/configuration.md",
-      "lastModified": 1770097247342.9978
+      "path": "src/categories/definitions/data/precision-loss.yml",
+      "lastModified": 1770098033618.4204
     },
     {
-      "path": "docs/cli-reference.md",
-      "lastModified": 1770097222386.24
+      "path": "src/categories/definitions/performance/memory-bloat.yml",
+      "lastModified": 1770098030160.7332
+    },
+    {
+      "path": "src/core/verifier/ai-verifier.ts",
+      "lastModified": 1770098021839.7021
     },
     {
       "path": "README.md",
-      "lastModified": 1770097192476.562
+      "lastModified": 1770097397038.953
+    },
+    {
+      "path": "docs/cli-reference.md",
+      "lastModified": 1770097397022.6282
+    },
+    {
+      "path": "docs/configuration.md",
+      "lastModified": 1770097397022.5244
+    },
+    {
+      "path": "docs/api-reference.md",
+      "lastModified": 1770097397022.4968
+    },
+    {
+      "path": "docs/authoring-categories.md",
+      "lastModified": 1770097397022.4778
+    },
+    {
+      "path": "docs/contributing.md",
+      "lastModified": 1770097397020.9548
+    },
+    {
+      "path": "CHANGELOG.md",
+      "lastModified": 1770097397009.5203
     },
     {
       "path": "apps/web/index.html",
@@ -50,38 +78,19 @@
       "lastModified": 1770096851995.7927
     },
     {
-      "path": "src/categories/definitions/security/timing-attack.yml",
-      "lastModified": 1770096831123.758
-    },
-    {
-      "path": "src/categories/definitions/data/precision-loss.yml",
-      "lastModified": 1770096828400.5405
-    },
-    {
-      "path": "src/categories/definitions/performance/memory-bloat.yml",
-      "lastModified": 1770096826255.59
-    },
-    {
       "path": "package-lock.json",
       "lastModified": 1770095276823.621
-    },
-    {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770094860419.6274
-    },
-    {
-      "path": "apps/web/vercel.json",
-      "lastModified": 1770093782899.4407
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "3ac400bbae54f9be3b375216e4c563c5073f0453",
-    "lastCommitMessage": "Add documentation, categories, and how-it-works pages",
-    "lastCommitTime": 1770097141000,
-    "uncommittedChanges": 3,
+    "lastCommit": "0ec4ebe30590a326ec7d6dfd5e41058fa445d4fb",
+    "lastCommitMessage": "Add comprehensive documentation",
+    "lastCommitTime": 1770097381000,
+    "uncommittedChanges": 7,
     "recentCommits": [
+      "Add comprehensive documentation",
       "Add documentation, categories, and how-it-works pages",
       "Fix false positive patterns, bump to v0.1.6",
       "Update landing page with pinata theme and animations",
@@ -90,8 +99,7 @@
       "v0.1.3 with tightened patterns",
       "Include category definitions in npm package",
       "Add Vercel config for static deployment",
-      "Replace fake API keys with obviously fake patterns for GitHub push protection",
-      "Bump to v0.1.1"
+      "Replace fake API keys with obviously fake patterns for GitHub push protection"
     ]
   },
   "completionSignals": {

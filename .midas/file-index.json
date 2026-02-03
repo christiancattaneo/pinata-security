@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770096856919,
+  "lastFullScan": 1770098057428,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "cadc03647589",
-      "size": 51582,
-      "mtime": 1770094831722.831,
-      "lastIndexed": 1770094851145,
+      "hash": "8370da5c40d7",
+      "size": 51661,
+      "mtime": 1770098056352.8318,
+      "lastIndexed": 1770098057422,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -49,7 +49,7 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 1452,
+      "lineCount": 1453,
       "relevanceScore": 85,
       "reasons": [
         "core file",
@@ -2805,8 +2805,43 @@
         "mentioned",
         "recently modified"
       ]
+    },
+    "src/core/verifier/ai-verifier.ts": {
+      "hash": "67920ccfe860",
+      "size": 8927,
+      "mtime": 1770098021839.7021,
+      "lastIndexed": 1770098022441,
+      "symbols": [
+        "AIVerifier",
+        "VerificationResult",
+        "AIVerifierConfig"
+      ],
+      "imports": [
+        "../scanner/types.js"
+      ],
+      "lineCount": 267,
+      "relevanceScore": 70,
+      "reasons": [
+        "recently modified"
+      ]
+    },
+    "src/core/verifier/index.ts": {
+      "hash": "0fea3682721e",
+      "size": 95,
+      "mtime": 1770098044145.724,
+      "lastIndexed": 1770098047397,
+      "symbols": [
+        "AIVerifier"
+      ],
+      "imports": [],
+      "lineCount": 2,
+      "relevanceScore": 90,
+      "reasons": [
+        "core file",
+        "recently modified"
+      ]
     }
   },
-  "totalFiles": 127,
-  "totalSymbols": 582
+  "totalFiles": 129,
+  "totalSymbols": 586
 }

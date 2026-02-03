@@ -52,9 +52,9 @@ detectionPatterns:
   - id: ts-number-currency
     type: regex
     language: typescript
-    pattern: "(price|amount|cost|fee|balance|subtotal|grandTotal|unitPrice|itemPrice):\\s*number"
+    pattern: "(price|amount|total|cost|fee|balance|money|currency|payment|invoice).*:\\s*number"
     confidence: medium
-    description: Detects number type for currency values
+    description: Detects number type for potentially monetary values (requires AI verification)
 
   - id: ts-float-equality
     type: regex

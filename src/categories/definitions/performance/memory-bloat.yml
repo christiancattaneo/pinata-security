@@ -70,9 +70,9 @@ detectionPatterns:
   - id: ts-string-concat-loop
     type: regex
     language: typescript
-    pattern: "for.*\\{[^}]*\\w+\\s*\\+=\\s*[\"'`][^\"'`]+[\"'`]"
+    pattern: "for\\s*(\\(|.*of|.*in).*\\{[^}]*(\\.push\\(|\\+=)"
     confidence: medium
-    description: Detects string concatenation with += in loop
+    description: Detects potential unbounded growth in loops (requires AI verification)
 
   - id: ts-json-parse-large
     type: regex

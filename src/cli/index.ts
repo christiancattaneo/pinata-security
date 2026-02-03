@@ -110,6 +110,7 @@ program
   .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "high")
   .option("--fail-on <level>", "Exit non-zero if gaps at level: critical, high, medium")
   .option("--exclude <dirs>", "Directories to exclude (comma-separated)")
+  .option("--verify", "Use AI to verify each match (reduces false positives)")
   .option("-v, --verbose", "Verbose output")
   .option("-q, --quiet", "Quiet mode (errors only)")
   .action(async (targetPath: string | undefined, options: Record<string, unknown>) => {
@@ -229,6 +230,61 @@ program
       }
 
       spinner?.stop();
+
+      // AI verification if requested
+      const shouldVerify = Boolean(options["verify"]);
+      if (shouldVerify && scanResult.data.gaps.length > 0) {
+        const verifySpinner = showSpinner ? ora("Verifying gaps with AI...").start() : null;
+        
+        try {
+          const { AIVerifier } = await import("../core/verifier/index.js");
+          const { readFile } = await import("fs/promises");
+          
+          const verifier = new AIVerifier({ provider: "anthropic" });
+          
+          const { verified, dismissed } = await verifier.verifyAll(
+            scanResult.data.gaps,
+            async (path) => readFile(path, "utf-8")
+          );
+          
+          // Update scan result with verified gaps
+          scanResult.data.gaps = verified;
+          
+          // Recalculate score based on verified gaps
+          const severityWeights: Record<string, number> = { critical: 10, high: 5, medium: 2, low: 1 };
+          let deduction = 0;
+          for (const gap of verified) {
+            deduction += severityWeights[gap.severity] ?? 1;
+          }
+          const newOverall = Math.max(0, 100 - deduction);
+          const newGrade: "A" | "B" | "C" | "D" | "F" = 
+            newOverall >= 90 ? "A" :
+            newOverall >= 80 ? "B" :
+            newOverall >= 70 ? "C" :
+            newOverall >= 60 ? "D" : "F";
+          
+          scanResult.data.score.overall = newOverall;
+          scanResult.data.score.grade = newGrade;
+          
+          verifySpinner?.succeed(`Verified: ${verified.length} real issues, ${dismissed.length} false positives dismissed`);
+          
+          if (isVerbose && dismissed.length > 0) {
+            console.log(chalk.gray("\nDismissed as false positives:"));
+            for (const { gap, reason } of dismissed.slice(0, 5)) {
+              console.log(chalk.gray(`  - ${gap.categoryName} at ${gap.filePath}:${gap.lineStart}`));
+              console.log(chalk.gray(`    Reason: ${reason.slice(0, 100)}...`));
+            }
+            if (dismissed.length > 5) {
+              console.log(chalk.gray(`  ... and ${dismissed.length - 5} more`));
+            }
+          }
+        } catch (error) {
+          verifySpinner?.fail("AI verification failed (results unverified)");
+          if (isVerbose) {
+            console.error(chalk.yellow(`Verification error: ${error instanceof Error ? error.message : String(error)}`));
+          }
+        }
+      }
 
       // Cache results for generate command (save in current working directory)
       const cacheResult = await saveScanResults(process.cwd(), scanResult.data);
