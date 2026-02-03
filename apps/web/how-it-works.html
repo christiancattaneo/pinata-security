@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works - Pinata</title>
+  <meta name="description" content="Technical deep dive into Pinata's detection engine, pattern matching, scoring algorithm, and AI-powered test generation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text: #fafafa;
+      --text-muted: #888888;
+      --accent: #00d4aa;
+      --pink: #ff6b9d;
+      --yellow: #ffd93d;
+      --purple: #a855f7;
+      --blue: #3b82f6;
+      --border: #222222;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .container { display: flex; justify-content: space-between; align-items: center; }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    nav a { color: var(--text-muted); margin-left: 24px; font-size: 14px; }
+    nav a:hover { color: var(--text); text-decoration: none; }
+    nav a.active { color: var(--pink); }
+
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .hero h1 { font-size: 48px; margin-bottom: 16px; }
+    .hero p { color: var(--text-muted); font-size: 18px; max-width: 650px; margin: 0 auto; }
+
+    .content {
+      padding: 60px 0;
+    }
+
+    .content h2 {
+      font-size: 28px;
+      margin: 60px 0 24px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+    }
+
+    .content h2:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+
+    .content h3 { font-size: 20px; margin: 32px 0 16px; color: var(--pink); }
+    .content p { margin-bottom: 16px; color: var(--text-muted); }
+    .content ul, .content ol { margin: 16px 0 24px 24px; color: var(--text-muted); }
+    .content li { margin-bottom: 8px; }
+    .content strong { color: var(--text); }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    pre {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+
+    pre code { background: none; padding: 0; }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin: 32px 0;
+    }
+
+    .step-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+    }
+
+    .step-num {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: var(--pink);
+      color: var(--bg);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .step-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; margin-top: 8px; }
+    .step-desc { font-size: 14px; color: var(--text-muted); }
+
+    .diagram {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin: 32px 0;
+      text-align: center;
+    }
+
+    .diagram-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+
+    .diagram-box {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+    }
+
+    .diagram-box.highlight {
+      background: linear-gradient(135deg, rgba(255,107,157,0.2), rgba(168,85,247,0.2));
+      border-color: var(--pink);
+    }
+
+    .diagram-arrow { color: var(--text-muted); font-size: 20px; }
+
+    .callout {
+      background: linear-gradient(135deg, rgba(255,107,157,0.1), rgba(168,85,247,0.1));
+      border: 1px solid rgba(255,107,157,0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+
+    .callout-title { font-weight: 600; margin-bottom: 8px; color: var(--pink); }
+
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .feature-icon { font-size: 20px; margin-top: 2px; }
+    .feature-text { font-size: 14px; color: var(--text-muted); }
+
+    .formula {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      margin: 16px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    footer { padding: 48px 0; border-top: 1px solid var(--border); text-align: center; }
+    footer p { color: var(--text-muted); font-size: 14px; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .diagram-row { flex-direction: column; }
+      .diagram-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">pinata</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/categories.html">Categories</a>
+        <a href="/how-it-works.html" class="active">How It Works</a>
+        <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>How Pinata Works</h1>
+      <p>A technical deep dive into Pinata's detection engine, scoring algorithm, and AI-powered features.</p>
+    </div>
+  </section>
+
+  <div class="container content">
+
+    <h2>Architecture Overview</h2>
+    <p>Pinata is a static analysis tool that scans source code for security vulnerabilities and test coverage gaps. It uses pattern matching against a curated database of detection rules, then scores results and optionally generates tests.</p>
+
+    <div class="diagram">
+      <div class="diagram-row">
+        <div class="diagram-box">Source Code</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box highlight">Scanner</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box highlight">Pattern Matcher</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box">Gaps</div>
+      </div>
+      <div class="diagram-row" style="margin-top: 24px;">
+        <div class="diagram-box">Gaps</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box highlight">Scorer</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box">Pinata Score</div>
+      </div>
+      <div class="diagram-row" style="margin-top: 24px;">
+        <div class="diagram-box">Gaps</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box highlight">AI Service</div>
+        <div class="diagram-arrow">→</div>
+        <div class="diagram-box">Tests + Explanations</div>
+      </div>
+    </div>
+
+    <h2>Scanning Pipeline</h2>
+    <p>When you run <code>pinata analyze</code>, the following steps execute:</p>
+
+    <div class="step-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-title">File Discovery</div>
+        <div class="step-desc">Recursively walks the directory, filtering by language (TypeScript, Python, JavaScript) and respecting <code>.pinataignore</code> patterns.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <div class="step-title">Category Loading</div>
+        <div class="step-desc">Loads 45 detection categories from YAML definitions. Each category contains patterns, severity levels, and test templates.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <div class="step-title">Pattern Matching</div>
+        <div class="step-desc">For each file, runs all applicable patterns (filtered by language). Patterns are regex-based with negative patterns to reduce false positives.</div>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <div class="step-title">Scoring</div>
+        <div class="step-desc">Calculates the Pinata Score based on gap count, severity weights, and domain coverage.</div>
+      </div>
+    </div>
+
+    <h3>Pattern Definition Format</h3>
+    <p>Each detection category is defined in YAML with the following structure:</p>
+
+    <pre><code>id: sql-injection
+version: 1
+name: SQL Injection
+description: |
+  Detects SQL queries built with string concatenation...
+domain: security
+priority: P0
+severity: critical
+applicableLanguages:
+  - python
+  - typescript
+
+detectionPatterns:
+  - id: ts-template-literal-query
+    type: regex
+    language: typescript
+    pattern: "(query|execute).*`.*\\$\\{"
+    confidence: high
+    description: Detects template literals in SQL queries
+    negativePattern: "parameterized|prepared"
+
+testTemplates:
+  - id: jest-sql-injection
+    language: typescript
+    framework: jest
+    template: |
+      describe('SQL Injection', () => {
+        it('uses parameterized queries', () => {
+          // Test code...
+        });
+      });</code></pre>
+
+    <h3>Confidence Levels</h3>
+    <p>Each pattern has a confidence level that affects filtering and scoring:</p>
+    <ul>
+      <li><strong>High</strong> - Very likely a real issue. Few false positives.</li>
+      <li><strong>Medium</strong> - Likely an issue but may need manual review.</li>
+      <li><strong>Low</strong> - Possible issue. Higher false positive rate.</li>
+    </ul>
+    <p>By default, Pinata only reports <strong>high confidence</strong> findings. Use <code>--confidence medium</code> or <code>--confidence low</code> to see more.</p>
+
+    <h2>Scoring Algorithm</h2>
+    <p>The Pinata Score (0-100) represents your codebase's security health. Higher is better.</p>
+
+    <div class="formula">
+      Score = 100 - Σ(gap_weight × severity_multiplier × confidence_factor)
+    </div>
+
+    <h3>Severity Multipliers</h3>
+    <ul>
+      <li><strong>Critical</strong> - 10 points per gap</li>
+      <li><strong>High</strong> - 5 points per gap</li>
+      <li><strong>Medium</strong> - 2 points per gap</li>
+      <li><strong>Low</strong> - 1 point per gap</li>
+    </ul>
+
+    <h3>Domain Coverage</h3>
+    <p>The score also considers which risk domains have been scanned. If your codebase has no database code, the Data domain won't penalize you for missing data validation patterns.</p>
+
+    <div class="callout">
+      <div class="callout-title">Diminishing Returns</div>
+      <p>After 10 gaps of the same category, additional gaps have reduced impact. This prevents a single repeated issue from dominating the score.</p>
+    </div>
+
+    <h2>AI Features</h2>
+    <p>Pinata integrates with LLMs (Anthropic Claude, OpenAI GPT) for enhanced analysis:</p>
+
+    <div class="feature-list">
+      <div class="feature-item">
+        <div class="feature-icon">🧠</div>
+        <div class="feature-text"><strong>Natural Language Explanations</strong> - Understand vulnerabilities in plain English with remediation guidance.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">🧪</div>
+        <div class="feature-text"><strong>Test Generation</strong> - AI fills template variables intelligently based on your actual code context.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">💡</div>
+        <div class="feature-text"><strong>Pattern Suggestions</strong> - Submit vulnerable code samples and get new detection patterns.</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <div class="feature-text"><strong>Risk Assessment</strong> - AI evaluates real-world exploitability of findings.</div>
+      </div>
+    </div>
+
+    <h3>AI Service Architecture</h3>
+    <pre><code>┌─────────────────────────────────────────────────┐
+│                  AI Service                      │
+├─────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐               │
+│  │  Explainer  │  │  Generator  │               │
+│  └──────┬──────┘  └──────┬──────┘               │
+│         │                │                       │
+│         ▼                ▼                       │
+│  ┌─────────────────────────────────────┐        │
+│  │         Provider Abstraction         │        │
+│  │    (Anthropic / OpenAI / Mock)       │        │
+│  └─────────────────────────────────────┘        │
+└─────────────────────────────────────────────────┘</code></pre>
+
+    <p>The AI service abstracts away provider differences. You can switch between Anthropic and OpenAI by changing your API key configuration.</p>
+
+    <h2>Performance</h2>
+    <p>Pinata is designed for speed:</p>
+    <ul>
+      <li><strong>Parallel scanning</strong> - Multiple files processed concurrently</li>
+      <li><strong>Lazy loading</strong> - Categories loaded on-demand</li>
+      <li><strong>Early filtering</strong> - Skip files by extension before reading</li>
+      <li><strong>Pattern compilation</strong> - Regex patterns compiled once and reused</li>
+    </ul>
+
+    <div class="callout">
+      <div class="callout-title">Benchmarks</div>
+      <p>On a typical codebase (10,000 files, 500K LOC), Pinata completes in under 10 seconds. AI features add latency based on provider response times.</p>
+    </div>
+
+    <h2>Extensibility</h2>
+    <p>Pinata is designed for customization:</p>
+
+    <h3>Custom Categories</h3>
+    <p>Add your own detection categories by creating YAML files in your project:</p>
+    <pre><code># .pinata/categories/my-company-auth.yml
+id: my-company-auth
+name: MyCompany Auth Standards
+domain: security
+severity: high
+detectionPatterns:
+  - id: legacy-auth-function
+    pattern: "legacyAuthenticate\\("
+    confidence: high
+    description: Legacy auth function deprecated</code></pre>
+
+    <h3>Output Formats</h3>
+    <p>Integrate with any system using standard output formats:</p>
+    <ul>
+      <li><strong>SARIF</strong> - GitHub Advanced Security, VS Code</li>
+      <li><strong>JUnit XML</strong> - Jenkins, GitLab CI, CircleCI</li>
+      <li><strong>JSON</strong> - Custom scripting and dashboards</li>
+      <li><strong>Markdown</strong> - PR comments and documentation</li>
+    </ul>
+
+    <h2>Security Model</h2>
+    <p>Pinata is designed with security in mind:</p>
+    <ul>
+      <li><strong>Local-first</strong> - All scanning happens locally. No code leaves your machine.</li>
+      <li><strong>Optional AI</strong> - AI features are opt-in and require explicit API key configuration.</li>
+      <li><strong>Minimal dependencies</strong> - Small dependency tree reduces supply chain risk.</li>
+      <li><strong>No telemetry</strong> - We don't collect usage data or send anything home.</li>
+    </ul>
+
+    <div class="callout">
+      <div class="callout-title">AI Privacy</div>
+      <p>When using AI features, code snippets are sent to your configured AI provider (Anthropic or OpenAI). Use the <code>--no-ai</code> flag to disable all AI features in sensitive environments.</p>
+    </div>
+
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>Pinata is open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">View on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detection Categories - Pinata</title>
+  <meta name="description" content="45 detection categories across security, data integrity, concurrency, performance, reliability, input validation, and resource management.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text: #fafafa;
+      --text-muted: #888888;
+      --accent: #00d4aa;
+      --pink: #ff6b9d;
+      --yellow: #ffd93d;
+      --purple: #a855f7;
+      --blue: #3b82f6;
+      --orange: #f97316;
+      --red: #ef4444;
+      --border: #222222;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .container { display: flex; justify-content: space-between; align-items: center; }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    nav a { color: var(--text-muted); margin-left: 24px; font-size: 14px; }
+    nav a:hover { color: var(--text); text-decoration: none; }
+    nav a.active { color: var(--pink); }
+
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+    }
+
+    .hero h1 { font-size: 48px; margin-bottom: 16px; }
+    .hero p { color: var(--text-muted); font-size: 18px; max-width: 600px; margin: 0 auto; }
+
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 48px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+    }
+
+    .stat { text-align: center; }
+    .stat-num { font-size: 32px; font-weight: 700; color: var(--pink); }
+    .stat-label { font-size: 14px; color: var(--text-muted); }
+
+    .domain-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .domain-btn {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .domain-btn:hover, .domain-btn.active { 
+      background: var(--pink);
+      color: var(--bg);
+      border-color: var(--pink);
+    }
+
+    .domain-section {
+      padding: 60px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .domain-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .domain-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .domain-icon.security { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .domain-icon.data { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .domain-icon.concurrency { background: linear-gradient(135deg, #a855f7, #9333ea); }
+    .domain-icon.performance { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .domain-icon.reliability { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    .domain-icon.input { background: linear-gradient(135deg, #eab308, #ca8a04); }
+    .domain-icon.resource { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+
+    .domain-title { font-size: 28px; font-weight: 700; }
+    .domain-count { font-size: 14px; color: var(--text-muted); }
+
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .category-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .category-card:hover {
+      border-color: var(--pink);
+      transform: translateY(-2px);
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .category-name { font-size: 16px; font-weight: 600; }
+
+    .severity {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .severity.critical { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+    .severity.high { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+    .severity.medium { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+
+    .category-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .category-meta {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .category-meta span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    footer { padding: 48px 0; text-align: center; }
+    footer p { color: var(--text-muted); font-size: 14px; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .stats-bar { gap: 24px; }
+      .category-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">pinata</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/docs.html">Docs</a>
+        <a href="/categories.html" class="active">Categories</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Detection Categories</h1>
+      <p>Pinata scans for vulnerabilities across 7 risk domains, each with specialized detection patterns.</p>
+      <div class="stats-bar">
+        <div class="stat"><div class="stat-num">45</div><div class="stat-label">Categories</div></div>
+        <div class="stat"><div class="stat-num">7</div><div class="stat-label">Risk Domains</div></div>
+        <div class="stat"><div class="stat-num">3</div><div class="stat-label">Languages</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="domain-nav">
+    <a href="#security" class="domain-btn active">Security (16)</a>
+    <a href="#data" class="domain-btn">Data (8)</a>
+    <a href="#concurrency" class="domain-btn">Concurrency (6)</a>
+    <a href="#reliability" class="domain-btn">Reliability (6)</a>
+    <a href="#performance" class="domain-btn">Performance (3)</a>
+    <a href="#resource" class="domain-btn">Resource (3)</a>
+    <a href="#input" class="domain-btn">Input (3)</a>
+  </div>
+
+  <div class="container">
+
+    <!-- Security -->
+    <section class="domain-section" id="security">
+      <div class="domain-header">
+        <div class="domain-icon security">🔒</div>
+        <div>
+          <div class="domain-title">Security</div>
+          <div class="domain-count">16 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">SQL Injection</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects SQL queries built with string concatenation or template literals that include user input. Attackers can inject malicious SQL to read, modify, or delete data.</div>
+          <div class="category-meta"><span>CWE-89</span><span>OWASP A03</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Cross-Site Scripting (XSS)</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects user input rendered in HTML without sanitization. Enables attackers to inject scripts that steal cookies, credentials, or perform actions as the victim.</div>
+          <div class="category-meta"><span>CWE-79</span><span>OWASP A03</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Command Injection</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects shell commands built with user input via exec, spawn, or system calls. Allows attackers to execute arbitrary commands on the server.</div>
+          <div class="category-meta"><span>CWE-78</span><span>OWASP A03</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Path Traversal</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects file operations with unsanitized paths containing user input. Attackers can use "../" sequences to access files outside intended directories.</div>
+          <div class="category-meta"><span>CWE-22</span><span>OWASP A01</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Server-Side Request Forgery</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects HTTP requests where the URL comes from user input. Attackers can make the server request internal resources or cloud metadata endpoints.</div>
+          <div class="category-meta"><span>CWE-918</span><span>OWASP A10</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Insecure Deserialization</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects deserialization of untrusted data using pickle, yaml.load, or eval. Can lead to remote code execution when processing malicious payloads.</div>
+          <div class="category-meta"><span>CWE-502</span><span>OWASP A08</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">XML External Entity (XXE)</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects XML parsers with external entity processing enabled. Attackers can read local files, perform SSRF, or cause denial of service.</div>
+          <div class="category-meta"><span>CWE-611</span><span>OWASP A05</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">LDAP Injection</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects LDAP queries built with user input. Attackers can modify queries to bypass authentication or access unauthorized directory data.</div>
+          <div class="category-meta"><span>CWE-90</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Hardcoded Secrets</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects API keys, passwords, and tokens embedded in source code. Secrets in code are exposed in version control and compiled artifacts.</div>
+          <div class="category-meta"><span>CWE-798</span><span>OWASP A02</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Cross-Site Request Forgery</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects state-changing endpoints without CSRF token validation. Attackers can trick authenticated users into performing unintended actions.</div>
+          <div class="category-meta"><span>CWE-352</span><span>OWASP A01</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Authentication Failures</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects weak authentication patterns: missing password hashing, weak algorithms (MD5/SHA1), or authentication bypasses.</div>
+          <div class="category-meta"><span>CWE-287</span><span>OWASP A07</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Timing Attack</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects non-constant-time string comparisons for secrets. Attackers can guess secrets character-by-character by measuring response times.</div>
+          <div class="category-meta"><span>CWE-208</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Unrestricted File Upload</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects file uploads without extension/type validation. Attackers can upload executable files to achieve code execution.</div>
+          <div class="category-meta"><span>CWE-434</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Excessive Data Exposure</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects APIs returning sensitive fields (passwords, SSNs, tokens) without filtering. Overly verbose responses leak private data.</div>
+          <div class="category-meta"><span>CWE-200</span><span>OWASP A01</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Missing Rate Limiting</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects authentication and sensitive endpoints without rate limiting. Enables brute force attacks and credential stuffing.</div>
+          <div class="category-meta"><span>CWE-307</span><span>OWASP A04</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Dependency Risks</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects typosquatted package names and suspicious dependencies. Attackers register similar names to inject malicious code via supply chain.</div>
+          <div class="category-meta"><span>CWE-1357</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data -->
+    <section class="domain-section" id="data">
+      <div class="domain-header">
+        <div class="domain-icon data">📊</div>
+        <div>
+          <div class="domain-title">Data Integrity</div>
+          <div class="domain-count">8 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Data Race</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects concurrent access to shared data without synchronization. Causes corruption, lost updates, and non-deterministic behavior.</div>
+          <div class="category-meta"><span>CWE-362</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Data Truncation</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects assignments to smaller types or database columns. Silent truncation corrupts data and causes logic errors.</div>
+          <div class="category-meta"><span>CWE-197</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Precision Loss</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects floating-point arithmetic for currency or financial values. IEEE 754 floats cannot exactly represent most decimals, causing rounding errors.</div>
+          <div class="category-meta"><span>CWE-681</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Data Validation</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects missing input validation on API boundaries. Unvalidated data causes type errors, crashes, and security vulnerabilities.</div>
+          <div class="category-meta"><span>CWE-20</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Null Handling</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects missing null/undefined checks before property access or method calls. Causes runtime crashes and undefined behavior.</div>
+          <div class="category-meta"><span>CWE-476</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Encoding Mismatch</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects character encoding assumptions (UTF-8 vs Latin-1). Mojibake, data corruption, and security bypasses from encoding confusion.</div>
+          <div class="category-meta"><span>CWE-838</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Schema Migration</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects database migrations that may cause data loss or downtime. Non-reversible changes, missing backfills, and lock contention.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Bulk Operation</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects unbounded bulk operations without batching. Large operations cause timeouts, memory exhaustion, and lock contention.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Concurrency -->
+    <section class="domain-section" id="concurrency">
+      <div class="domain-header">
+        <div class="domain-icon concurrency">⚡</div>
+        <div>
+          <div class="domain-title">Concurrency</div>
+          <div class="domain-count">6 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Deadlock</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects lock ordering violations and circular wait conditions. Threads waiting on each other forever, freezing the application.</div>
+          <div class="category-meta"><span>CWE-833</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Race Condition</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects check-then-act patterns without atomicity. Time-of-check to time-of-use (TOCTOU) bugs cause security and correctness issues.</div>
+          <div class="category-meta"><span>CWE-367</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Missing Timeout</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects blocking operations without timeout. Slow or unresponsive services cause thread exhaustion and cascading failures.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Missing Idempotency</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects non-idempotent operations that may be retried. Duplicate charges, double sends, and data corruption from retry storms.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Retry Storm</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects retry logic without exponential backoff or jitter. Synchronized retries amplify load on failing services.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Thread Safety</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects shared mutable state in multi-threaded code. Missing synchronization causes data corruption and heisenbugs.</div>
+          <div class="category-meta"><span>CWE-366</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Reliability -->
+    <section class="domain-section" id="reliability">
+      <div class="domain-header">
+        <div class="domain-icon reliability">🛡️</div>
+        <div>
+          <div class="domain-title">Reliability</div>
+          <div class="domain-count">6 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Network Partition</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects distributed operations without partition tolerance. Split-brain scenarios cause data inconsistency and availability loss.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Network Timeout</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects network calls without explicit timeouts. Hung connections exhaust resources and cascade through the system.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Thundering Herd</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects cache invalidation without stampede protection. All clients hitting origin simultaneously when cache expires.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Connection Failure</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects database/API connections without error handling. Unhandled failures cause crashes instead of graceful degradation.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">High Latency</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects synchronous operations in request path without latency budgets. Slow dependencies cause cascading slowdowns.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Packet Loss</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects UDP or unreliable transport without acknowledgment. Lost messages cause silent failures and data inconsistency.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Performance -->
+    <section class="domain-section" id="performance">
+      <div class="domain-header">
+        <div class="domain-icon performance">🚀</div>
+        <div>
+          <div class="domain-title">Performance</div>
+          <div class="domain-count">3 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Blocking I/O</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects synchronous file/network operations in async contexts. Blocks the event loop, destroying throughput in Node.js and async Python.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Memory Bloat</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects unbounded memory growth: accumulating collections, string concatenation in loops, loading entire datasets. Causes OOM kills.</div>
+          <div class="category-meta"><span>CWE-400</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">CPU Spin</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects busy-wait loops and polling without sleep. Wastes CPU cycles and increases power consumption.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Resource -->
+    <section class="domain-section" id="resource">
+      <div class="domain-header">
+        <div class="domain-icon resource">💧</div>
+        <div>
+          <div class="domain-title">Resource Management</div>
+          <div class="domain-count">3 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Memory Leak</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects resources not freed: event listeners, intervals, closures capturing scope. Memory grows until OOM or restart.</div>
+          <div class="category-meta"><span>CWE-401</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Connection Pool Exhaustion</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects database connections not returned to pool. All connections blocked, new requests fail.</div>
+          <div class="category-meta"><span>CWE-400</span></div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">File Handle Leak</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects files opened without close or context manager. Exhausts file descriptors causing "too many open files" errors.</div>
+          <div class="category-meta"><span>CWE-775</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Input -->
+    <section class="domain-section" id="input">
+      <div class="domain-header">
+        <div class="domain-icon input">📝</div>
+        <div>
+          <div class="domain-title">Input Validation</div>
+          <div class="domain-count">3 categories</div>
+        </div>
+      </div>
+      <div class="category-grid">
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Injection and Fuzzing</div>
+            <span class="severity critical">Critical</span>
+          </div>
+          <div class="category-desc">Detects input handling without sanitization or validation. Enables injection attacks and undefined behavior from malformed input.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Boundary Testing</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects missing edge case handling: empty arrays, max integers, zero values, negative numbers. Off-by-one errors and overflows.</div>
+        </div>
+
+        <div class="category-card">
+          <div class="category-header">
+            <div class="category-name">Null and Undefined</div>
+            <span class="severity high">High</span>
+          </div>
+          <div class="category-desc">Detects operations on potentially null/undefined values. Runtime crashes from "cannot read property of undefined".</div>
+          <div class="category-meta"><span>CWE-476</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>Pinata is open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">View on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

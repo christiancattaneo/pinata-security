@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation - Pinata</title>
+  <meta name="description" content="Get started with Pinata. Installation, configuration, CLI commands, and CI/CD integration.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text: #fafafa;
+      --text-muted: #888888;
+      --accent: #00d4aa;
+      --pink: #ff6b9d;
+      --yellow: #ffd93d;
+      --purple: #a855f7;
+      --blue: #3b82f6;
+      --border: #222222;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .container { display: flex; justify-content: space-between; align-items: center; }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    nav a { color: var(--text-muted); margin-left: 24px; font-size: 14px; }
+    nav a:hover { color: var(--text); text-decoration: none; }
+    nav a.active { color: var(--pink); }
+
+    .docs-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 48px;
+      padding: 48px 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 100px;
+      height: fit-content;
+    }
+
+    .sidebar-section { margin-bottom: 24px; }
+    .sidebar-title { font-size: 12px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.5px; }
+    .sidebar a { display: block; color: var(--text-muted); padding: 6px 0; font-size: 14px; }
+    .sidebar a:hover { color: var(--text); text-decoration: none; }
+    .sidebar a.active { color: var(--pink); }
+
+    .content h1 { font-size: 36px; margin-bottom: 16px; font-weight: 700; }
+    .content h2 { font-size: 24px; margin: 48px 0 16px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .content h3 { font-size: 18px; margin: 32px 0 12px; color: var(--pink); }
+    .content p { margin-bottom: 16px; color: var(--text-muted); }
+    .content ul, .content ol { margin: 16px 0 16px 24px; color: var(--text-muted); }
+    .content li { margin-bottom: 8px; }
+    .content strong { color: var(--text); }
+
+    .lead { font-size: 18px; color: var(--text); margin-bottom: 32px; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    pre {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0 24px;
+    }
+
+    pre code { background: none; padding: 0; }
+
+    .command-line { color: var(--accent); }
+    .comment { color: var(--text-muted); }
+    .output { color: #888; }
+
+    .callout {
+      background: linear-gradient(135deg, rgba(255,107,157,0.1), rgba(168,85,247,0.1));
+      border: 1px solid rgba(255,107,157,0.2);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+
+    .callout-title { font-weight: 600; margin-bottom: 8px; color: var(--pink); }
+
+    .table-wrap { overflow-x: auto; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid var(--border); }
+    th { color: var(--text); font-weight: 600; }
+    td { color: var(--text-muted); }
+    td code { font-size: 13px; }
+
+    footer { padding: 48px 0; border-top: 1px solid var(--border); text-align: center; }
+    footer p { color: var(--text-muted); font-size: 14px; }
+
+    @media (max-width: 768px) {
+      .docs-layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">pinata</a>
+      <nav>
+        <a href="/" >Home</a>
+        <a href="/docs.html" class="active">Docs</a>
+        <a href="/categories.html">Categories</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="#installation" class="active">Installation</a>
+        <a href="#quick-start">Quick Start</a>
+        <a href="#configuration">Configuration</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">CLI Reference</div>
+        <a href="#analyze">analyze</a>
+        <a href="#generate">generate</a>
+        <a href="#explain">explain</a>
+        <a href="#dashboard">dashboard</a>
+        <a href="#config">config</a>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-title">Integration</div>
+        <a href="#ci-cd">CI/CD</a>
+        <a href="#output-formats">Output Formats</a>
+        <a href="#ignore-files">Ignore Files</a>
+      </div>
+    </aside>
+
+    <main class="content">
+      <h1>Documentation</h1>
+      <p class="lead">Pinata scans your codebase for security vulnerabilities and test coverage gaps across 45 detection categories. Get started in under a minute.</p>
+
+      <h2 id="installation">Installation</h2>
+      <p>Run Pinata instantly with npx (no install required):</p>
+      <pre><code><span class="command-line">$</span> npx --yes pinata-security-cli@latest analyze .</code></pre>
+
+      <p>Or install globally:</p>
+      <pre><code><span class="command-line">$</span> npm install -g pinata-security-cli</code></pre>
+
+      <h2 id="quick-start">Quick Start</h2>
+      <p>Scan any directory:</p>
+      <pre><code><span class="command-line">$</span> pinata analyze ./src
+
+<span class="output">Pinata Score: 85/100 (B)
+
+High Severity Gaps (3):
+  sql-injection     src/db/queries.ts:45
+  hardcoded-secrets src/config/api.ts:12
+  missing-timeout   src/http/client.ts:89</span></code></pre>
+
+      <h3>Understanding the Score</h3>
+      <p>Pinata calculates a <strong>coverage score</strong> from 0-100 based on:</p>
+      <ul>
+        <li><strong>Gap count</strong> - Detected vulnerabilities weighted by severity</li>
+        <li><strong>Domain coverage</strong> - Which risk domains have been scanned</li>
+        <li><strong>Confidence levels</strong> - Higher confidence findings weigh more</li>
+      </ul>
+
+      <div class="table-wrap">
+        <table>
+          <tr><th>Grade</th><th>Score</th><th>Meaning</th></tr>
+          <tr><td>A</td><td>90-100</td><td>Excellent coverage, minimal gaps</td></tr>
+          <tr><td>B</td><td>80-89</td><td>Good coverage, some gaps to address</td></tr>
+          <tr><td>C</td><td>70-79</td><td>Moderate coverage, action recommended</td></tr>
+          <tr><td>D</td><td>60-69</td><td>Below average, significant gaps</td></tr>
+          <tr><td>F</td><td>0-59</td><td>Poor coverage, immediate action needed</td></tr>
+        </table>
+      </div>
+
+      <h2 id="configuration">Configuration</h2>
+      <p>Configure Pinata via CLI flags or a <code>.pinatarc</code> file:</p>
+
+      <pre><code><span class="comment"># .pinatarc (JSON)</span>
+{
+  "excludeDirs": ["node_modules", "dist", "vendor"],
+  "minConfidence": "high",
+  "output": "terminal"
+}</code></pre>
+
+      <h3>AI Features</h3>
+      <p>Enable AI-powered explanations and test generation by setting your API key:</p>
+      <pre><code><span class="command-line">$</span> pinata config set anthropic-api-key sk-ant-xxx
+
+<span class="comment"># Or use environment variable</span>
+<span class="command-line">$</span> export ANTHROPIC_API_KEY=sk-ant-xxx</code></pre>
+
+      <h2 id="analyze">pinata analyze</h2>
+      <p>Scan a directory for security gaps:</p>
+      <pre><code><span class="command-line">$</span> pinata analyze [path] [options]</code></pre>
+
+      <div class="table-wrap">
+        <table>
+          <tr><th>Option</th><th>Description</th><th>Default</th></tr>
+          <tr><td><code>-c, --confidence</code></td><td>Minimum confidence: high, medium, low</td><td>high</td></tr>
+          <tr><td><code>-o, --output</code></td><td>Output format: terminal, json, sarif, junit</td><td>terminal</td></tr>
+          <tr><td><code>-d, --domain</code></td><td>Filter by domain (security, data, etc)</td><td>all</td></tr>
+          <tr><td><code>-v, --verbose</code></td><td>Show detailed output</td><td>false</td></tr>
+          <tr><td><code>--exclude</code></td><td>Directories to exclude</td><td>node_modules,dist</td></tr>
+        </table>
+      </div>
+
+      <h2 id="generate">pinata generate</h2>
+      <p>Generate security tests for detected gaps (requires AI API key):</p>
+      <pre><code><span class="command-line">$</span> pinata generate --gaps
+
+<span class="output">Generated 5 tests:
+  tests/security/sql-injection.test.ts
+  tests/security/xss.test.ts
+  ...</span></code></pre>
+
+      <h2 id="explain">pinata explain</h2>
+      <p>Get AI explanations for specific gaps:</p>
+      <pre><code><span class="command-line">$</span> pinata explain sql-injection src/db/queries.ts:45
+
+<span class="output">SQL Injection at src/db/queries.ts:45
+
+The query concatenates user input directly into SQL:
+  const query = `SELECT * FROM users WHERE id = ${userId}`;
+
+Risk: Attackers can inject malicious SQL to read, modify, 
+or delete data. Could lead to full database compromise.
+
+Fix: Use parameterized queries:
+  const query = 'SELECT * FROM users WHERE id = $1';
+  db.query(query, [userId]);</span></code></pre>
+
+      <h2 id="dashboard">pinata dashboard</h2>
+      <p>Launch the interactive TUI dashboard:</p>
+      <pre><code><span class="command-line">$</span> pinata dashboard</code></pre>
+      <p>Navigate with arrow keys, press Enter to drill into gaps, q to quit.</p>
+
+      <h2 id="config">pinata config</h2>
+      <p>Manage persistent configuration:</p>
+      <pre><code><span class="command-line">$</span> pinata config set anthropic-api-key sk-ant-xxx
+<span class="command-line">$</span> pinata config get anthropic-api-key
+<span class="command-line">$</span> pinata config list
+<span class="command-line">$</span> pinata config unset anthropic-api-key</code></pre>
+
+      <h2 id="ci-cd">CI/CD Integration</h2>
+
+      <h3>GitHub Actions</h3>
+      <pre><code><span class="comment"># .github/workflows/security.yml</span>
+name: Security Scan
+on: [push, pull_request]
+
+jobs:
+  pinata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Pinata
+        run: npx --yes pinata-security-cli@latest analyze . --output sarif > results.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif</code></pre>
+
+      <h3>GitLab CI</h3>
+      <pre><code><span class="comment"># .gitlab-ci.yml</span>
+security-scan:
+  image: node:20
+  script:
+    - npx --yes pinata-security-cli@latest analyze . --output json > pinata.json
+  artifacts:
+    reports:
+      sast: pinata.json</code></pre>
+
+      <div class="callout">
+        <div class="callout-title">Fail on Gaps</div>
+        <p>Use <code>--fail-on critical</code> to exit with code 1 if critical gaps are found. Perfect for blocking PRs with security issues.</p>
+      </div>
+
+      <h2 id="output-formats">Output Formats</h2>
+      <ul>
+        <li><strong>terminal</strong> - Human-readable output with colors</li>
+        <li><strong>json</strong> - Machine-readable JSON for scripting</li>
+        <li><strong>sarif</strong> - SARIF 2.1.0 for GitHub Advanced Security</li>
+        <li><strong>junit</strong> - JUnit XML for CI systems</li>
+        <li><strong>markdown</strong> - Markdown report for PRs</li>
+      </ul>
+
+      <h2 id="ignore-files">Ignore Files</h2>
+      <p>Create a <code>.pinataignore</code> file to exclude paths:</p>
+      <pre><code><span class="comment"># .pinataignore</span>
+tests/
+scripts/
+*.test.ts
+*.spec.js
+vendor/
+dist/
+node_modules/</code></pre>
+      <p>Patterns follow gitignore syntax.</p>
+
+    </main>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p>Pinata is open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">View on GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>

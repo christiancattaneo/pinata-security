@@ -1,6 +1,18 @@
 {
-  "lastUpdated": "2026-02-03T05:34:26.884Z",
+  "lastUpdated": "2026-02-03T05:38:56.955Z",
   "recentFiles": [
+    {
+      "path": "apps/web/how-it-works.html",
+      "lastModified": 1770097132483.6873
+    },
+    {
+      "path": "apps/web/categories.html",
+      "lastModified": 1770097059835.5925
+    },
+    {
+      "path": "apps/web/docs.html",
+      "lastModified": 1770096953083.8945
+    },
     {
       "path": "src/core/index.ts",
       "lastModified": 1770096853247.936
@@ -69,11 +81,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "626d3a2b2e438bb3f1741d15b237a34a9a2ac215",
-    "lastCommitMessage": "Update landing page with pinata theme and animations",
-    "lastCommitTime": 1770096194000,
-    "uncommittedChanges": 8,
+    "lastCommit": "8ddf7eaba1cfe0e1f67771c8077313023a61b426",
+    "lastCommitMessage": "Fix false positive patterns, bump to v0.1.6",
+    "lastCommitTime": 1770096869000,
+    "uncommittedChanges": 4,
     "recentCommits": [
+      "Fix false positive patterns, bump to v0.1.6",
       "Update landing page with pinata theme and animations",
       "Bump to v0.1.5",
       "Fix default confidence to high in Commander option",
@@ -82,8 +95,7 @@
       "Add Vercel config for static deployment",
       "Replace fake API keys with obviously fake patterns for GitHub push protection",
       "Bump to v0.1.1",
-      "Tighten detection patterns, add .pinataignore support, default to medium confidence",
-      "Change package name to pinata-security-cli for npm"
+      "Tighten detection patterns, add .pinataignore support, default to medium confidence"
     ]
   },
   "completionSignals": {
