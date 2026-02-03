@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770094065394,
+  "lastFullScan": 1770094800908,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "35d8aedc0b4e",
-      "size": 51583,
-      "mtime": 1770079568297.0342,
-      "lastIndexed": 1770079569840,
+      "hash": "226dabb76ecb",
+      "size": 51641,
+      "mtime": 1770094795758.4988,
+      "lastIndexed": 1770094800904,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -49,7 +49,7 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 1452,
+      "lineCount": 1453,
       "relevanceScore": 85,
       "reasons": [
         "core file",
@@ -83,10 +83,10 @@
       ]
     },
     "src/core/index.ts": {
-      "hash": "d27d70b9df50",
+      "hash": "cc87c578203a",
       "size": 940,
-      "mtime": 1768945373319.9827,
-      "lastIndexed": 1768945376500,
+      "mtime": 1770094663178.932,
+      "lastIndexed": 1770094665694,
       "symbols": [
         "VERSION",
         "PatternMatcher",
@@ -336,10 +336,10 @@
       ]
     },
     "package.json": {
-      "hash": "2e3da8f5730e",
+      "hash": "a1a9986361e6",
       "size": 2707,
-      "mtime": 1770094062295.0354,
-      "lastIndexed": 1770094065390,
+      "mtime": 1770094667576.8323,
+      "lastIndexed": 1770094672019,
       "symbols": [],
       "imports": [],
       "lineCount": 93,

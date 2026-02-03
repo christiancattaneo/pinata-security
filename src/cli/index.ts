@@ -107,7 +107,7 @@ program
   .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif, html, junit-xml", "terminal")
   .option("-d, --domains <domains>", "Filter to specific domains (comma-separated)")
   .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "low")
-  .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "low")
+  .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "high")
   .option("--fail-on <level>", "Exit non-zero if gaps at level: critical, high, medium")
   .option("--exclude <dirs>", "Directories to exclude (comma-separated)")
   .option("-v, --verbose", "Verbose output")
@@ -148,7 +148,7 @@ program
 
     // Validate confidence
     const validConfidences = ["high", "medium", "low"];
-    const minConfidence = String(options["confidence"] ?? "medium");
+    const minConfidence = String(options["confidence"] ?? "high");
     if (!validConfidences.includes(minConfidence)) {
       console.error(formatError(new Error(`Invalid confidence: ${minConfidence}. Use: high, medium, low`)));
       process.exit(1);
