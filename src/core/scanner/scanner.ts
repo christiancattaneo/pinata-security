@@ -68,7 +68,22 @@ import type { Result } from "../../lib/result.js";
  * Default scanner options
  */
 const DEFAULT_OPTIONS: Required<Omit<ScannerOptions, "targetDirectory">> = {
-  excludeDirs: ["node_modules", ".git", "dist", "build", "__pycache__", ".venv", "venv", "coverage", ".next"],
+  excludeDirs: [
+    // Package managers
+    "node_modules", ".pnpm", "vendor",
+    // Build outputs
+    "dist", "build", "out", ".next", ".nuxt", ".output",
+    // Version control
+    ".git", ".svn", ".hg",
+    // Python
+    "__pycache__", ".venv", "venv", ".tox", ".mypy_cache", ".pytest_cache",
+    // Test/coverage
+    "coverage", ".nyc_output",
+    // IDE/Editor
+    ".idea", ".vscode",
+    // Scripts (typically not production)
+    "scripts",
+  ],
   includeExtensions: [".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".java", ".rs"],
   maxFileSize: 10 * 1024 * 1024, // 10MB
   maxDepth: -1,
@@ -375,9 +390,14 @@ export class Scanner {
     targetDirectory: string,
     options: Partial<ScannerOptions>
   ): Required<ScannerOptions> {
+    // Read .pinataignore if it exists
+    const pinataIgnore = this.readPinataIgnore(targetDirectory);
+    const baseExcludes = options.excludeDirs ?? DEFAULT_OPTIONS.excludeDirs;
+    const mergedExcludes = [...new Set([...baseExcludes, ...pinataIgnore])];
+
     return {
       targetDirectory,
-      excludeDirs: options.excludeDirs ?? DEFAULT_OPTIONS.excludeDirs,
+      excludeDirs: mergedExcludes,
       includeExtensions: options.includeExtensions ?? DEFAULT_OPTIONS.includeExtensions,
       maxFileSize: options.maxFileSize ?? DEFAULT_OPTIONS.maxFileSize,
       maxDepth: options.maxDepth ?? DEFAULT_OPTIONS.maxDepth,
@@ -388,6 +408,28 @@ export class Scanner {
       detectTestFiles: options.detectTestFiles ?? DEFAULT_OPTIONS.detectTestFiles,
       testFilePatterns: options.testFilePatterns ?? DEFAULT_OPTIONS.testFilePatterns,
     };
+  }
+
+  /**
+   * Read .pinataignore file and return directory patterns
+   */
+  private readPinataIgnore(targetDirectory: string): string[] {
+    const ignorePath = resolve(targetDirectory, ".pinataignore");
+    if (!existsSync(ignorePath)) {
+      return [];
+    }
+
+    try {
+      const { readFileSync } = require("node:fs") as typeof import("fs");
+      const content = readFileSync(ignorePath, "utf-8");
+      return content
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && !line.startsWith("#"))
+        .map((line) => line.replace(/\/$/, "")); // Remove trailing slashes
+    } catch {
+      return [];
+    }
   }
 
   /**

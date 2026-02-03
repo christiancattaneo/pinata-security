@@ -74,14 +74,14 @@ detectionPatterns:
   - id: ts-ldapjs-search
     type: regex
     language: typescript
-    pattern: "client\\.search\\(.*filter.*\\+|client\\.search.*`.*\\$\\{"
+    pattern: "ldap.*client\\.search\\(.*\\+|ldapClient\\.search.*`.*\\$\\{"
     confidence: high
     description: Detects ldapjs search with string interpolation
 
   - id: ts-ldap-filter-template
     type: regex
     language: typescript
-    pattern: "\\(.*=.*\\$\\{.*\\}.*\\)|filter.*=.*`.*\\$\\{"
+    pattern: "ldap.*filter.*=.*`.*\\$\\{|ldapFilter.*\\$\\{"
     confidence: high
     description: Detects LDAP filter with template literal interpolation
 
@@ -95,9 +95,9 @@ detectionPatterns:
   - id: ts-ldap-escape-missing
     type: regex
     language: typescript
-    pattern: "ldap\\.search\\(|client\\.search\\("
-    confidence: low
-    description: Detects LDAP search (verify escaping is used)
+    pattern: "ldapClient\\.search\\(|ldapjs.*\\.search\\("
+    confidence: medium
+    description: Detects LDAP search operations
     negativePattern: "ldap\\.escape|escape.*filter|sanitize"
 
 testTemplates:

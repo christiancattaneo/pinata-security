@@ -1,114 +1,98 @@
 {
-  "lastUpdated": "2026-02-02T23:31:38.837Z",
+  "lastUpdated": "2026-02-03T00:48:19.708Z",
   "recentFiles": [
     {
-      "path": "src/ai/template-filler.ts",
-      "lastModified": 1770074826184.36
+      "path": "src/categories/definitions/security/ldap-injection.yml",
+      "lastModified": 1770079682914.385
     },
     {
-      "path": "src/cli/generate-formatters.ts",
-      "lastModified": 1770074826184.2466
+      "path": "src/categories/definitions/data/precision-loss.yml",
+      "lastModified": 1770079579843.3257
     },
     {
-      "path": "src/ai/index.ts",
-      "lastModified": 1770074826167.6565
+      "path": "src/categories/definitions/performance/memory-bloat.yml",
+      "lastModified": 1770079574796.2173
     },
     {
       "path": "src/cli/index.ts",
-      "lastModified": 1770074826167.643
+      "lastModified": 1770079568297.0342
     },
     {
-      "path": "tests/benchmarks/scan-benchmark.test.ts",
-      "lastModified": 1770074826166.9387
+      "path": "src/core/scanner/scanner.ts",
+      "lastModified": 1770079520317.1602
     },
     {
-      "path": "tests/ai/ai-service.test.ts",
-      "lastModified": 1770074826166.9028
+      "path": "package.json",
+      "lastModified": 1770077920971.069
     },
     {
-      "path": "src/ai/explainer.ts",
-      "lastModified": 1770074826166.7952
-    },
-    {
-      "path": "src/ai/pattern-suggester.ts",
-      "lastModified": 1770074826166.763
+      "path": "src/cli/tui/index.tsx",
+      "lastModified": 1770076495312.465
     },
     {
       "path": "src/ai/service.ts",
-      "lastModified": 1770074826166.7488
+      "lastModified": 1770076476507.5645
     },
     {
-      "path": "tests/benchmarks/pattern-benchmark.test.ts",
-      "lastModified": 1770074826161.4138
+      "path": "src/cli/config.ts",
+      "lastModified": 1770076384818.1145
     },
     {
-      "path": "src/ai/types.ts",
-      "lastModified": 1770073927272.3445
+      "path": "LICENSE",
+      "lastModified": 1770076239770.4402
     },
     {
-      "path": "src/index.ts",
-      "lastModified": 1770073927261.357
+      "path": "apps/vscode/package.json",
+      "lastModified": 1770076239770.4004
     },
     {
-      "path": "src/categories/definitions/security/sql-injection.yml",
-      "lastModified": 1770072914030.2979
+      "path": "apps/vscode/pinata-vscode-0.1.0.vsix",
+      "lastModified": 1770076185416.927
     },
     {
-      "path": "src/categories/definitions/security/xss.yml",
-      "lastModified": 1770072914016.8672
+      "path": "apps/vscode/out/extension.js",
+      "lastModified": 1770076184691.5427
     },
     {
-      "path": "src/categories/definitions/security/ldap-injection.yml",
-      "lastModified": 1770072914016.8535
+      "path": "apps/vscode/out/extension.js.map",
+      "lastModified": 1770076184691.302
     },
     {
-      "path": "scripts/llm-pattern-gen.ts",
-      "lastModified": 1770072535266.2664
+      "path": "apps/vscode/LICENSE.md",
+      "lastModified": 1770076170928.5288
     },
     {
-      "path": "src/categories/definitions/security/path-traversal.yml",
-      "lastModified": 1770072535255.224
-    },
-    {
-      "path": "scripts/owasp-benchmark.ts",
-      "lastModified": 1770072284304.1626
-    },
-    {
-      "path": "scripts/import-semgrep.ts",
-      "lastModified": 1770071849152.475
-    },
-    {
-      "path": "scripts/fetch-github-advisories.ts",
-      "lastModified": 1770071849141.346
+      "path": "apps/vscode/package-lock.json",
+      "lastModified": 1770076134399.0657
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "737522f1ec7191ebc50d5fcb632fd20e65acbe95",
-    "lastCommitMessage": "Add AI layer for smart test generation and explanations",
-    "lastCommitTime": 1770075089000,
-    "uncommittedChanges": 1,
+    "lastCommit": "aed1269e0c671ac6d24e6cb47e6626103dba192c",
+    "lastCommitMessage": "Change package name to pinata-security-cli for npm",
+    "lastCommitTime": 1770079327000,
+    "uncommittedChanges": 12,
     "recentCommits": [
+      "Change package name to pinata-security-cli for npm",
+      "Add config command for AI provider API keys",
+      "Add LICENSE, VS Code extension package",
+      "Add VS Code extension scaffold and Go language patterns",
+      "Phase 3: npm package setup, TUI dashboard, landing page",
       "Add AI layer for smart test generation and explanations",
       "Add LDAP injection patterns for ldap3 library",
       "Improve pattern precision for SQL injection and XSS",
       "Add LLM pattern generator and improve SQL/path patterns",
-      "Add OWASP Benchmark baseline scoring",
-      "Add pattern improvement tooling and import Semgrep patterns",
-      "Add output security tests and fix benchmark thresholds",
-      "Add property-based tests with fast-check",
-      "Add README, fix type errors, complete Week 6 tasks",
-      "Add blindspot tests for concurrency and edge cases"
+      "Add OWASP Benchmark baseline scoring"
     ]
   },
   "completionSignals": {
-    "testsExist": true,
+    "testsExist": false,
     "docsComplete": true
   },
   "inferredPhase": {
     "phase": "BUILD",
-    "step": "TEST"
+    "step": "IMPLEMENT"
   },
   "confidence": 60,
   "gates": {
@@ -122,6 +106,16 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1770079549173,
+      "suggestion": "Review package.json for npm publication readiness. Check: description, keywords, repository/homepage URLs, files array includes all necessary assets, engines requirement is appropriate, and author field is filled. Also verify README.md has installation instructions, usage examples, and badges.",
+      "accepted": false
+    },
+    {
+      "timestamp": 1770078140668,
+      "suggestion": "Review the codebase for security vulnerabilities, especially around API key handling in the config module. Check for any exposed secrets, validate input sanitization in the CLI commands, and ensure the VS Code extension properly handles untrusted workspace content. Run `npm audit` and fix any vulnerabilities.",
+      "accepted": false
+    },
     {
       "timestamp": 1770073479358,
       "suggestion": "Run the OWASP Python benchmark and analyze results. Use: npm run benchmark:quick, then npx tsx scripts/owasp-benchmark.ts run python. Review the scorecard for categories with <80% recall and use the LLM pattern generator to improve them.",
@@ -217,20 +211,10 @@
       "timestamp": 1768947092124,
       "suggestion": "Implement the 'pinata generate' command in src/cli/index.ts. Parse the --gaps, --category, and --domain options, load detected gaps from a previous analyze run (consider caching results), filter gaps based on options, then use the TemplateRenderer to generate test files. For now, just output the generated tests to console with --dry-run as default.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768946793598,
-      "suggestion": "Implement the analyze command in src/cli/index.ts. Connect it to the Scanner class, parse the command options (path, domains, severity, output format), create scanner instance with CategoryStore, run the scan, and format results based on output type (terminal/json/markdown). Handle errors and display progress with ora spinner.",
-      "accepted": false
-    },
-    {
-      "timestamp": 1768936047326,
-      "suggestion": "Implement the Scanner class in src/core/scanner/scanner.ts that orchestrates codebase analysis. It should: 1) Accept a target directory and scan options, 2) Use PatternMatcher to scan files for category detections, 3) Aggregate results by category with file locations and confidence scores, 4) Return a structured ScanResult with found gaps, coverage metrics, and a pinata score. Include methods for scanDirectory(), aggregateResults(), and calculateScore(). Reference gameplan Week 11 tasks.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1770073479346,
+  "lastAnalysis": 1770079549078,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

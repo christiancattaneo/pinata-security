@@ -148,7 +148,7 @@ program
 
     // Validate confidence
     const validConfidences = ["high", "medium", "low"];
-    const minConfidence = String(options["confidence"] ?? "low");
+    const minConfidence = String(options["confidence"] ?? "medium");
     if (!validConfidences.includes(minConfidence)) {
       console.error(formatError(new Error(`Invalid confidence: ${minConfidence}. Use: high, medium, low`)));
       process.exit(1);

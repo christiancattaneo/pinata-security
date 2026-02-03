@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770074703630,
+  "lastFullScan": 1770079569846,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "271bfdf0343b",
-      "size": 46076,
-      "mtime": 1770074082343.6482,
-      "lastIndexed": 1770074098178,
+      "hash": "35d8aedc0b4e",
+      "size": 51583,
+      "mtime": 1770079568297.0342,
+      "lastIndexed": 1770079569840,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -49,8 +49,8 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 1305,
-      "relevanceScore": 90,
+      "lineCount": 1452,
+      "relevanceScore": 85,
       "reasons": [
         "core file",
         "recently modified"
@@ -336,13 +336,13 @@
       ]
     },
     "package.json": {
-      "hash": "b6f296a39815",
-      "size": 2147,
-      "mtime": 1770069215664.9392,
-      "lastIndexed": 1770072126654,
+      "hash": "14c6450c74ed",
+      "size": 2673,
+      "mtime": 1770077920971.069,
+      "lastIndexed": 1770078102563,
       "symbols": [],
       "imports": [],
-      "lineCount": 72,
+      "lineCount": 92,
       "relevanceScore": 100,
       "reasons": [
         "config",
@@ -527,16 +527,18 @@
       ]
     },
     "tsconfig.json": {
-      "hash": "55940c9f680c",
-      "size": 856,
-      "mtime": 1768777383401.886,
-      "lastIndexed": 1768934871691,
+      "hash": "7742da671734",
+      "size": 896,
+      "mtime": 1770075318034.2263,
+      "lastIndexed": 1770078102565,
       "symbols": [],
       "imports": [],
-      "lineCount": 34,
-      "relevanceScore": 65,
+      "lineCount": 35,
+      "relevanceScore": 100,
       "reasons": [
-        "config"
+        "config",
+        "mentioned",
+        "recently modified"
       ]
     },
     "tsup.config.ts": {
@@ -1174,10 +1176,10 @@
       ]
     },
     "src/core/scanner/scanner.ts": {
-      "hash": "cf9abcdf758a",
-      "size": 23819,
-      "mtime": 1769887932772.4253,
-      "lastIndexed": 1769887934133,
+      "hash": "f688ff44e603",
+      "size": 25050,
+      "mtime": 1770079520317.1602,
+      "lastIndexed": 1770079549355,
       "symbols": [
         "createScanner",
         "Scanner"
@@ -1193,7 +1195,7 @@
         "../detection/index.js",
         "../../categories/store/category-store.js"
       ],
-      "lineCount": 834,
+      "lineCount": 876,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -2545,19 +2547,20 @@
       ]
     },
     "src/ai/service.ts": {
-      "hash": "f16507719ae9",
-      "size": 10154,
-      "mtime": 1770074593014.3855,
-      "lastIndexed": 1770074603564,
+      "hash": "ca3d408a4ed9",
+      "size": 11472,
+      "mtime": 1770076476507.5645,
+      "lastIndexed": 1770078102564,
       "symbols": [
         "createAIService",
         "AIService"
       ],
       "imports": [],
-      "lineCount": 351,
-      "relevanceScore": 90,
+      "lineCount": 387,
+      "relevanceScore": 100,
       "reasons": [
         "core file",
+        "mentioned",
         "recently modified"
       ]
     },
@@ -2661,8 +2664,151 @@
       "reasons": [
         "recently modified"
       ]
+    },
+    "apps/vscode/package.json": {
+      "hash": "b3810203b8ef",
+      "size": 2293,
+      "mtime": 1770076239770.4004,
+      "lastIndexed": 1770078102563,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 93,
+      "relevanceScore": 100,
+      "reasons": [
+        "config",
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "apps/vscode/tsconfig.json": {
+      "hash": "97bcae8e36ae",
+      "size": 358,
+      "mtime": 1770076063635.8228,
+      "lastIndexed": 1770078102563,
+      "symbols": [],
+      "imports": [],
+      "lineCount": 17,
+      "relevanceScore": 100,
+      "reasons": [
+        "config",
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "src/cli/config.ts": {
+      "hash": "7c51901f6f2b",
+      "size": 4061,
+      "mtime": 1770076384818.1145,
+      "lastIndexed": 1770078102564,
+      "symbols": [
+        "ensureConfigDir",
+        "loadConfig",
+        "saveConfig",
+        "setConfigValue",
+        "getConfigValue",
+        "deleteConfigValue",
+        "getApiKey",
+        "hasApiKey",
+        "getDefaultProvider",
+        "maskApiKey",
+        "validateApiKey",
+        "getConfigPath"
+      ],
+      "imports": [
+        "fs",
+        "os",
+        "path",
+        "zod"
+      ],
+      "lineCount": 159,
+      "relevanceScore": 100,
+      "reasons": [
+        "config",
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "src/cli/tui/index.tsx": {
+      "hash": "b58b15d754a9",
+      "size": 1668,
+      "mtime": 1770076495312.465,
+      "lastIndexed": 1770078102565,
+      "symbols": [
+        "runDashboard",
+        "App"
+      ],
+      "imports": [
+        "react",
+        "ink",
+        "./App.js",
+        "../results-cache.js"
+      ],
+      "lineCount": 62,
+      "relevanceScore": 100,
+      "reasons": [
+        "core file",
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "src/cli/tui/App.tsx": {
+      "hash": "dcb3a3cb53c0",
+      "size": 9435,
+      "mtime": 1770075284051.9602,
+      "lastIndexed": 1770078102566,
+      "symbols": [
+        "App",
+        "ListView",
+        "DetailView",
+        "formatPath",
+        "getGradeColor"
+      ],
+      "imports": [
+        "react",
+        "ink",
+        "ink-spinner",
+        "../../core/scanner/types.js"
+      ],
+      "lineCount": 335,
+      "relevanceScore": 95,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
+    },
+    "apps/vscode/src/extension.ts": {
+      "hash": "ecd15a80e257",
+      "size": 11797,
+      "mtime": 1770076063642.393,
+      "lastIndexed": 1770078102566,
+      "symbols": [
+        "activate",
+        "deactivate",
+        "scanWorkspace",
+        "scanCurrentFile",
+        "updateDiagnostics",
+        "updateFileDiagnostics",
+        "gapToDiagnostic",
+        "severityToDiagnosticSeverity",
+        "provideHover",
+        "provideCodeActions",
+        "explainGap",
+        "onDocumentSave",
+        "escapeHtml"
+      ],
+      "imports": [
+        "vscode",
+        "child_process",
+        "util"
+      ],
+      "lineCount": 406,
+      "relevanceScore": 90,
+      "reasons": [
+        "mentioned",
+        "recently modified"
+      ]
     }
   },
-  "totalFiles": 121,
-  "totalSymbols": 550
+  "totalFiles": 127,
+  "totalSymbols": 582
 }

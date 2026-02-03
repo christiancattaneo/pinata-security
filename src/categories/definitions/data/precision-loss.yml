@@ -73,9 +73,9 @@ detectionPatterns:
   - id: ts-math-operations
     type: regex
     language: typescript
-    pattern: "Math\\.round|Math\\.floor|Math\\.ceil"
-    confidence: low
-    description: Detects rounding (verify precision requirements)
+    pattern: "(price|amount|total|cost|fee|balance).*Math\\.(round|floor|ceil)"
+    confidence: medium
+    description: Detects rounding on currency values
 
 testTemplates:
   - id: pytest-precision-loss

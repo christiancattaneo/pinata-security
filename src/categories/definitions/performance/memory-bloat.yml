@@ -63,9 +63,9 @@ detectionPatterns:
   - id: ts-array-accumulate
     type: regex
     language: typescript
-    pattern: "while.*\\.push\\(|for.*\\.push\\((?!.*break|.*limit)"
+    pattern: "while\\s*\\(\\s*true\\s*\\).*\\.push\\("
     confidence: medium
-    description: Detects unbounded array growth
+    description: Detects unbounded array growth in infinite loop
 
   - id: ts-string-concat-loop
     type: regex

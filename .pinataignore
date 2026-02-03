@@ -1,0 +1,11 @@
+# Ignore non-production code
+scripts/
+tests/
+*.test.ts
+*.spec.ts
+dist/
+node_modules/
+.git/
+apps/vscode/
+planning/
+*.md
