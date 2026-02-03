@@ -1,6 +1,18 @@
 {
-  "lastUpdated": "2026-02-03T04:40:35.115Z",
+  "lastUpdated": "2026-02-03T04:47:50.352Z",
   "recentFiles": [
+    {
+      "path": "package-lock.json",
+      "lastModified": 1770094062298.225
+    },
+    {
+      "path": "package.json",
+      "lastModified": 1770094062295.0354
+    },
+    {
+      "path": "apps/web/vercel.json",
+      "lastModified": 1770093782899.4407
+    },
     {
       "path": "src/categories/definitions/security/hardcoded-secrets.yml",
       "lastModified": 1770093630415.8875
@@ -33,11 +45,13 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "423a91efe4c3c19462f2dc7448ae184759922319",
-    "lastCommitMessage": "Bump to v0.1.1",
-    "lastCommitTime": 1770079710000,
-    "uncommittedChanges": 9,
+    "lastCommit": "80f1fdffe1cbc9896ae282d7e97c0689d1832875",
+    "lastCommitMessage": "Add Vercel config for static deployment",
+    "lastCommitTime": 1770093776000,
+    "uncommittedChanges": 4,
     "recentCommits": [
+      "Add Vercel config for static deployment",
+      "Replace fake API keys with obviously fake patterns for GitHub push protection",
       "Bump to v0.1.1",
       "Tighten detection patterns, add .pinataignore support, default to medium confidence",
       "Change package name to pinata-security-cli for npm",
@@ -45,9 +59,7 @@
       "Add LICENSE, VS Code extension package",
       "Add VS Code extension scaffold and Go language patterns",
       "Phase 3: npm package setup, TUI dashboard, landing page",
-      "Add AI layer for smart test generation and explanations",
-      "Add LDAP injection patterns for ldap3 library",
-      "Improve pattern precision for SQL injection and XSS"
+      "Add AI layer for smart test generation and explanations"
     ]
   },
   "completionSignals": {

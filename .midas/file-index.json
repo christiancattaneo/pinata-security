@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770093625242,
+  "lastFullScan": 1770094065394,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -336,13 +336,13 @@
       ]
     },
     "package.json": {
-      "hash": "ebc330a8a680",
-      "size": 2673,
-      "mtime": 1770079707199.379,
-      "lastIndexed": 1770079710170,
+      "hash": "2e3da8f5730e",
+      "size": 2707,
+      "mtime": 1770094062295.0354,
+      "lastIndexed": 1770094065390,
       "symbols": [],
       "imports": [],
-      "lineCount": 92,
+      "lineCount": 93,
       "relevanceScore": 75,
       "reasons": [
         "config",
