@@ -174,10 +174,15 @@
       "toolCalls": 0,
       "tornadoCycles": 0,
       "journalsSaved": 0,
-      "promptsCopied": 0
+      "promptsCopied": 0,
+      "endTime": "2026-02-03T07:20:32.390Z",
+      "endPhase": {
+        "phase": "SHIP",
+        "step": "REVIEW"
+      }
     }
   ],
-  "averageSessionMinutes": 226,
+  "averageSessionMinutes": 254,
   "currentStreak": 2,
   "lastSessionDate": "2026-02-03"
 }

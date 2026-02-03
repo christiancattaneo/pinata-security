@@ -8,7 +8,7 @@
  * - generation/ - Test code generation (coming soon)
  */
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 
 // Detection module
 export {
