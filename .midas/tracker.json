@@ -1,17 +1,21 @@
 {
-  "lastUpdated": "2026-02-03T07:20:30.864Z",
+  "lastUpdated": "2026-02-03T07:27:33.089Z",
   "recentFiles": [
     {
-      "path": "README.md",
-      "lastModified": 1770103177205.9795
-    },
-    {
       "path": "src/core/index.ts",
-      "lastModified": 1770101960572.669
+      "lastModified": 1770103648141.106
     },
     {
       "path": "package.json",
-      "lastModified": 1770101960572.665
+      "lastModified": 1770103646530.757
+    },
+    {
+      "path": "src/cli/index.ts",
+      "lastModified": 1770103633395.053
+    },
+    {
+      "path": "README.md",
+      "lastModified": 1770103177205.9795
     },
     {
       "path": "src/categories/migrations/migrator.ts",
@@ -38,10 +42,6 @@
       "lastModified": 1770101212191.5352
     },
     {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770101212187.3318
-    },
-    {
       "path": "apps/web/vercel.json",
       "lastModified": 1770101092504.3643
     }
@@ -49,11 +49,12 @@
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "0c4adc4fc9d039d7bb7a846cd3fc692d006b6ac0",
-    "lastCommitMessage": "update README with latest commands including --verify",
-    "lastCommitTime": 1770103186000,
-    "uncommittedChanges": 1,
+    "lastCommit": "ca6b0625650c33c19ff5c1464bfdd5c47a95d35d",
+    "lastCommitMessage": "v0.2.2: README updates",
+    "lastCommitTime": 1770103290000,
+    "uncommittedChanges": 9,
     "recentCommits": [
+      "v0.2.2: README updates",
       "update README with latest commands including --verify",
       "v0.2.1: optimized AI verification with batching and race condition fixes",
       "v0.2.0: Add AI verification with --verify flag",
@@ -62,8 +63,7 @@
       "Add AI verification for principled false positive reduction",
       "Add comprehensive documentation",
       "Add documentation, categories, and how-it-works pages",
-      "Fix false positive patterns, bump to v0.1.6",
-      "Update landing page with pinata theme and animations"
+      "Fix false positive patterns, bump to v0.1.6"
     ]
   },
   "completionSignals": {
@@ -86,6 +86,11 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1770103425194,
+      "suggestion": "Review package.json for npm publishing best practices. Check that all necessary files are included in the 'files' field, verify the bin path works correctly, ensure README has installation instructions, and run 'npm pack --dry-run' to see what would be published. Also check for any sensitive data or API keys that shouldn't be published.",
+      "accepted": false
+    },
     {
       "timestamp": 1770079549173,
       "suggestion": "Review package.json for npm publication readiness. Check: description, keywords, repository/homepage URLs, files array includes all necessary assets, engines requirement is appropriate, and author field is filled. Also verify README.md has installation instructions, usage examples, and badges.",
@@ -186,15 +191,10 @@
       "timestamp": 1768948643708,
       "suggestion": "Implement the --write flag for the generate command to save generated test files. Read the cached gaps from .pinata/cache.json, generate tests using the TemplateRenderer, then write each test to its suggested path (creating directories as needed). Show a summary of files created.",
       "accepted": false
-    },
-    {
-      "timestamp": 1768947092124,
-      "suggestion": "Implement the 'pinata generate' command in src/cli/index.ts. Parse the --gaps, --category, and --domain options, load detected gaps from a previous analyze run (consider caching results), filter gaps based on options, then use the TemplateRenderer to generate test files. For now, just output the generated tests to console with --dry-run as default.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1770079549078,
+  "lastAnalysis": 1770103425180,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }

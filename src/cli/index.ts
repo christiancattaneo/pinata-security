@@ -234,13 +234,59 @@ program
       // AI verification if requested
       const shouldVerify = Boolean(options["verify"]);
       if (shouldVerify && scanResult.data.gaps.length > 0) {
+        // Check for API key, prompt if missing
+        const { hasApiKey, setConfigValue, getApiKey } = await import("./config.js");
+        const { createInterface } = await import("readline");
+        
+        let provider: "anthropic" | "openai" = "anthropic";
+        
+        if (!hasApiKey("anthropic") && !hasApiKey("openai")) {
+          spinner?.stop();
+          console.log(chalk.yellow("\nAI verification requires an API key."));
+          console.log(chalk.gray("Get one at: https://console.anthropic.com/settings/keys"));
+          console.log(chalk.gray("Or: https://platform.openai.com/api-keys\n"));
+          
+          const rl = createInterface({ input: process.stdin, output: process.stdout });
+          
+          const askQuestion = (question: string): Promise<string> => {
+            return new Promise((resolve) => {
+              rl.question(question, (answer) => resolve(answer.trim()));
+            });
+          };
+          
+          const apiKey = await askQuestion(chalk.cyan("Enter your Anthropic or OpenAI API key: "));
+          rl.close();
+          
+          if (!apiKey) {
+            console.log(chalk.red("No API key provided. Skipping AI verification."));
+          } else {
+            // Detect provider from key format
+            if (apiKey.startsWith("sk-ant-")) {
+              setConfigValue("anthropicApiKey", apiKey);
+              provider = "anthropic";
+              console.log(chalk.green("Anthropic API key saved to ~/.pinata/config.json\n"));
+            } else {
+              setConfigValue("openaiApiKey", apiKey);
+              provider = "openai";
+              console.log(chalk.green("OpenAI API key saved to ~/.pinata/config.json\n"));
+            }
+          }
+        } else if (hasApiKey("openai") && !hasApiKey("anthropic")) {
+          provider = "openai";
+        }
+        
+        // Proceed with verification if we have a key
+        if (!hasApiKey(provider)) {
+          // Skip verification - no key available
+        } else {
         const verifySpinner = showSpinner ? ora("Verifying gaps with AI...").start() : null;
         
         try {
           const { AIVerifier } = await import("../core/verifier/index.js");
           const { readFile } = await import("fs/promises");
           
-          const verifier = new AIVerifier({ provider: "anthropic" });
+          const apiKey = getApiKey(provider);
+          const verifier = new AIVerifier({ provider, ...(apiKey ? { apiKey } : {}) });
           
           const { verified, dismissed, stats } = await verifier.verifyAll(
             scanResult.data.gaps,
@@ -286,6 +332,7 @@ program
             console.error(chalk.yellow(`Verification error: ${error instanceof Error ? error.message : String(error)}`));
           }
         }
+        } // end else hasApiKey
       }
 
       // Cache results for generate command (save in current working directory)

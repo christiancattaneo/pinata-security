@@ -425,5 +425,19 @@
     "inputTokens": 83486,
     "outputTokens": 748,
     "estimatedCost": 130.84
+  },
+  {
+    "timestamp": "2026-02-03T07:23:16.056Z",
+    "provider": "anthropic",
+    "inputTokens": 83553,
+    "outputTokens": 922,
+    "estimatedCost": 132.24
+  },
+  {
+    "timestamp": "2026-02-03T07:23:45.179Z",
+    "provider": "anthropic",
+    "inputTokens": 108598,
+    "outputTokens": 697,
+    "estimatedCost": 168.12
   }
 ]
