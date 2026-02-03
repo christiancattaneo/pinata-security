@@ -111,6 +111,8 @@ program
   .option("--fail-on <level>", "Exit non-zero if gaps at level: critical, high, medium")
   .option("--exclude <dirs>", "Directories to exclude (comma-separated)")
   .option("--verify", "Use AI to verify each match (reduces false positives)")
+  .option("--execute", "Run dynamic tests in Docker sandbox to confirm vulnerabilities")
+  .option("--dry-run", "Preview generated tests without executing (use with --execute)")
   .option("-v, --verbose", "Verbose output")
   .option("-q, --quiet", "Quiet mode (errors only)")
   .action(async (targetPath: string | undefined, options: Record<string, unknown>) => {
@@ -333,6 +335,62 @@ program
           }
         }
         } // end else hasApiKey
+      }
+
+      // Dynamic execution if requested (Layer 5)
+      const shouldExecute = Boolean(options["execute"]);
+      const isDryRun = Boolean(options["dryRun"]);
+      
+      if (shouldExecute && scanResult.data.gaps.length > 0) {
+        const { createRunner, isTestable } = await import("../execution/index.js");
+        const { readFile } = await import("fs/promises");
+        
+        const testableGaps = scanResult.data.gaps.filter((g) => isTestable(g.categoryId));
+        
+        if (testableGaps.length === 0) {
+          console.log(chalk.yellow("\nNo dynamically testable gaps found."));
+          console.log(chalk.gray("Testable types: sql-injection, xss, command-injection, path-traversal"));
+        } else {
+          const runner = createRunner(undefined, isDryRun);
+          
+          // Check Docker availability
+          const initResult = await runner.initialize();
+          if (!initResult.ready) {
+            console.log(chalk.red(`\nDynamic execution unavailable: ${initResult.error}`));
+          } else {
+            // Load file contents for testable gaps
+            const fileContents = new Map<string, string>();
+            for (const gap of testableGaps) {
+              if (!fileContents.has(gap.filePath)) {
+                try {
+                  fileContents.set(gap.filePath, await readFile(gap.filePath, "utf-8"));
+                } catch {
+                  // Skip files that can't be read
+                }
+              }
+            }
+            
+            // Execute
+            const executionSummary = await runner.executeAll(testableGaps, fileContents);
+            
+            // Update gaps with execution status
+            for (const result of executionSummary.results) {
+              const gap = scanResult.data.gaps.find(
+                (g) => g.filePath === result.gap.filePath && g.lineStart === result.gap.lineStart
+              );
+              if (gap && result.status === "confirmed") {
+                // Mark as confirmed in the gap
+                (gap as any).confirmed = true;
+                (gap as any).evidence = result.evidence;
+              }
+            }
+            
+            // Update score based on confirmed count
+            if (executionSummary.confirmed > 0) {
+              console.log(chalk.red.bold(`\n⚠️  ${executionSummary.confirmed} CONFIRMED vulnerabilities found!`));
+            }
+          }
+        }
       }
 
       // Cache results for generate command (save in current working directory)
