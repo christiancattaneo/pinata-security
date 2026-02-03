@@ -1,167 +1,171 @@
 # Pinata
 
-AI-powered test coverage analysis and generation. Pinata scans codebases to identify test coverage gaps across security, data integrity, concurrency, and other risk domains, then generates targeted tests using AI-powered templates.
-
-## Features
-
-- **Multi-domain analysis**: security, data, concurrency, input validation, resources, reliability
-- **Pattern detection**: regex and AST-based pattern matching for Python, TypeScript, JavaScript
-- **Test generation**: templates for pytest, jest, vitest, mocha frameworks
-- **Multiple output formats**: terminal, JSON, markdown, SARIF, HTML, JUnit XML
-- **CI/CD ready**: GitHub Actions workflow, SARIF for Code Scanning, JUnit for test reporters
-
-## Installation
-
-```bash
-npm install -g pinata
-```
+AI-powered security scanner that finds vulnerabilities hiding in your codebase. 45 detection categories across security, data integrity, concurrency, and performance domains.
 
 ## Quick Start
 
 ```bash
-# Initialize config
-pinata init
+npx --yes pinata-security-cli@latest analyze .
+```
 
-# Analyze codebase
-pinata analyze ./src
+That's it. No config needed.
 
-# Generate tests for detected gaps
-pinata generate --write
+## What It Does
+
+Pinata scans your code for security gaps and test coverage holes:
+
+```
+$ pinata analyze ./src
+
+Pinata Score: 85/100 (B)
+
+High Severity Gaps (3):
+  🔴 sql-injection      src/db/queries.ts:45
+  🔴 hardcoded-secrets  src/config/api.ts:12  
+  🔴 missing-timeout    src/http/client.ts:89
+```
+
+## Installation
+
+**npx (recommended)**
+```bash
+npx --yes pinata-security-cli@latest analyze .
+```
+
+**Global install**
+```bash
+npm install -g pinata-security-cli
+pinata analyze .
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `pinata analyze [path]` | Scan for test coverage gaps |
-| `pinata generate` | Generate tests for detected gaps |
-| `pinata list` | List all detection categories |
-| `pinata search <query>` | Search categories by keyword |
-| `pinata init` | Create .pinata.yml config |
-| `pinata auth login` | Configure API key |
-
-## Output Formats
-
-```bash
-pinata analyze ./src --output terminal   # colored terminal output
-pinata analyze ./src --output json       # JSON for programmatic use
-pinata analyze ./src --output markdown   # markdown report
-pinata analyze ./src --output sarif      # GitHub Code Scanning
-pinata analyze ./src --output html       # standalone HTML report
-pinata analyze ./src --output junit-xml  # CI test reporter
-```
-
-## Performance
-
-Benchmarked on synthetic codebases with realistic patterns:
-
-| Metric | Target | Actual |
-|--------|--------|--------|
-| 100 files | <5s | ~0.5s |
-| 1,000 files | <60s | ~5s |
-| 10,000 files | <10min | ~50s |
-| Pattern matching p95 | <50ms | ~1.5ms |
-| Template rendering p95 | <100ms | ~0.5ms |
-| Memory (1k files) | <500MB | ~100MB |
-
-## Accuracy
-
-Measured against labeled vulnerable and safe code samples:
-
-| Metric | Current |
-|--------|---------|
-| True positive rate | >50% |
-| False positive rate | tracked |
-| Per-category metrics | tracked |
-
-Detection accuracy varies by category. Security-focused patterns (SQL injection, XSS, command injection) have higher confidence. Low-confidence patterns flag code for manual review.
+| `pinata analyze [path]` | Scan for security gaps |
+| `pinata generate --gaps` | Generate tests for detected gaps |
+| `pinata explain <category> <file:line>` | AI explanation of a gap |
+| `pinata dashboard` | Interactive TUI dashboard |
+| `pinata config set <key> <value>` | Configure API keys |
 
 ## Detection Categories
 
-45 detection categories across 10 risk domains:
+45 categories across 7 risk domains:
 
-- **Security**: SQL injection, XSS, command injection, path traversal, CSRF, XXE, deserialization, SSRF, secrets, timing attacks
-- **Data**: validation, races, migrations, truncation, encoding, null handling
-- **Concurrency**: deadlocks, race conditions, thread safety, idempotency, timeouts
-- **Input**: boundary testing, null/undefined, injection fuzzing
-- **Network**: timeouts, partitions, latency, connection failures
-- **Resource**: memory leaks, file handles, connection pools
-- **Performance**: blocking I/O, CPU spin, memory bloat
+**Security (16)** - SQL injection, XSS, command injection, path traversal, SSRF, XXE, CSRF, deserialization, hardcoded secrets, LDAP injection, timing attacks, auth failures, file upload, data exposure, rate limiting, dependency risks
+
+**Data (8)** - Data race, truncation, precision loss, validation, null handling, encoding, schema migration, bulk operations
+
+**Concurrency (6)** - Deadlock, race condition, missing timeout, missing idempotency, retry storm, thread safety
+
+**Reliability (6)** - Network partition, timeout, thundering herd, connection failure, high latency, packet loss
+
+**Performance (3)** - Blocking I/O, memory bloat, CPU spin
+
+**Resource (3)** - Memory leak, connection pool exhaustion, file handle leak
+
+**Input (3)** - Injection fuzzing, boundary testing, null/undefined handling
 
 ## Configuration
 
-Create `.pinata.yml` in your project root:
+Create `.pinataignore` to exclude paths:
 
-```yaml
-include:
-  - "src/**/*.ts"
-  - "src/**/*.py"
+```
+tests/
+scripts/
+*.test.ts
+node_modules/
+dist/
+```
 
-exclude:
-  - "node_modules/**"
-  - "**/*.test.ts"
+CLI options:
 
-domains:
-  - security
-  - data
-  - concurrency
+```bash
+pinata analyze . --confidence medium   # Include medium confidence
+pinata analyze . --output json         # JSON output
+pinata analyze . --output sarif        # SARIF for GitHub
+pinata analyze . --domain security     # Filter by domain
+```
 
-minSeverity: medium
+## AI Features
 
-thresholds:
-  critical: 0
-  high: 5
+Enable AI-powered explanations and test generation:
+
+```bash
+# Set API key
+pinata config set anthropic-api-key sk-ant-xxx
+
+# Or via environment
+export ANTHROPIC_API_KEY=sk-ant-xxx
+
+# Get explanation for a gap
+pinata explain sql-injection src/db/queries.ts:45
+
+# Generate tests
+pinata generate --gaps
 ```
 
 ## CI/CD Integration
 
-### GitHub Actions
-
+**GitHub Actions**
 ```yaml
-- name: Run Pinata
-  run: pinata analyze ./src --output sarif > results.sarif
+name: Security Scan
+on: [push, pull_request]
 
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v2
-  with:
-    sarif_file: results.sarif
+jobs:
+  pinata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Pinata
+        run: npx --yes pinata-security-cli@latest analyze . --output sarif > results.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
 ```
 
-### Fail on Critical Gaps
-
-```bash
-pinata analyze ./src --fail-on critical
+**GitLab CI**
+```yaml
+security-scan:
+  image: node:20
+  script:
+    - npx --yes pinata-security-cli@latest analyze . --output json > pinata.json
+  artifacts:
+    reports:
+      sast: pinata.json
 ```
+
+## Output Formats
+
+- `terminal` - Human-readable with colors (default)
+- `json` - Machine-readable JSON
+- `sarif` - SARIF 2.1.0 for GitHub Advanced Security
+- `junit` - JUnit XML for CI systems
+- `markdown` - Markdown report
+
+## Performance
+
+| Codebase Size | Time |
+|---------------|------|
+| 100 files | ~0.5s |
+| 1,000 files | ~2s |
+| 10,000 files | ~15s |
 
 ## Development
 
 ```bash
-# Install dependencies
+git clone https://github.com/christiancattaneo/pinata-security.git
+cd pinata-security
 npm install
-
-# Build
 npm run build
-
-# Run tests
 npm test
-
-# Run benchmarks
-npm run benchmark
-
-# Lint
-npm run lint
-
-# Type check
-npm run typecheck
 ```
 
-## Test Suite
+## Documentation
 
-- **752+ tests** covering core functionality
-- **Benchmarks** for performance regression detection
-- **Accuracy corpus** for detection quality tracking
-- **Security tests** for tool safety (path traversal, ReDoS, injection)
-- **Edge case tests** for robustness (unicode, concurrency, large files)
+- [Getting Started](https://pinata.sh/docs.html)
+- [All Categories](https://pinata.sh/categories.html)
+- [How It Works](https://pinata.sh/how-it-works.html)
 
 ## License
 

@@ -1,6 +1,34 @@
 {
-  "lastUpdated": "2026-02-03T05:38:56.955Z",
+  "lastUpdated": "2026-02-03T05:42:52.261Z",
   "recentFiles": [
+    {
+      "path": "docs/contributing.md",
+      "lastModified": 1770097358239.4185
+    },
+    {
+      "path": "docs/authoring-categories.md",
+      "lastModified": 1770097329292.0312
+    },
+    {
+      "path": "docs/api-reference.md",
+      "lastModified": 1770097275180.5903
+    },
+    {
+      "path": "docs/configuration.md",
+      "lastModified": 1770097247342.9978
+    },
+    {
+      "path": "docs/cli-reference.md",
+      "lastModified": 1770097222386.24
+    },
+    {
+      "path": "README.md",
+      "lastModified": 1770097192476.562
+    },
+    {
+      "path": "apps/web/index.html",
+      "lastModified": 1770097137671.3123
+    },
     {
       "path": "apps/web/how-it-works.html",
       "lastModified": 1770097132483.6873
@@ -20,10 +48,6 @@
     {
       "path": "package.json",
       "lastModified": 1770096851995.7927
-    },
-    {
-      "path": "apps/web/index.html",
-      "lastModified": 1770096850474.678
     },
     {
       "path": "src/categories/definitions/security/timing-attack.yml",
@@ -48,44 +72,17 @@
     {
       "path": "apps/web/vercel.json",
       "lastModified": 1770093782899.4407
-    },
-    {
-      "path": "src/categories/definitions/security/hardcoded-secrets.yml",
-      "lastModified": 1770093630415.8875
-    },
-    {
-      "path": "tests/security/output-security.test.ts",
-      "lastModified": 1770093620714.6228
-    },
-    {
-      "path": "tests/e2e/cli.test.ts",
-      "lastModified": 1770093620709.6448
-    },
-    {
-      "path": "tests/benchmarks/corpus-generator.ts",
-      "lastModified": 1770093620706.4875
-    },
-    {
-      "path": "tests/benchmarks/pattern-benchmark.test.ts",
-      "lastModified": 1770093620703.3098
-    },
-    {
-      "path": "tests/corpus/vulnerable/hardcoded-secrets/ts-secrets.ts",
-      "lastModified": 1770093620699.7908
-    },
-    {
-      "path": "tests/corpus/vulnerable/hardcoded-secrets/python-secrets.py",
-      "lastModified": 1770093620697.0417
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "8ddf7eaba1cfe0e1f67771c8077313023a61b426",
-    "lastCommitMessage": "Fix false positive patterns, bump to v0.1.6",
-    "lastCommitTime": 1770096869000,
-    "uncommittedChanges": 4,
+    "lastCommit": "3ac400bbae54f9be3b375216e4c563c5073f0453",
+    "lastCommitMessage": "Add documentation, categories, and how-it-works pages",
+    "lastCommitTime": 1770097141000,
+    "uncommittedChanges": 3,
     "recentCommits": [
+      "Add documentation, categories, and how-it-works pages",
       "Fix false positive patterns, bump to v0.1.6",
       "Update landing page with pinata theme and animations",
       "Bump to v0.1.5",
@@ -94,17 +91,16 @@
       "Include category definitions in npm package",
       "Add Vercel config for static deployment",
       "Replace fake API keys with obviously fake patterns for GitHub push protection",
-      "Bump to v0.1.1",
-      "Tighten detection patterns, add .pinataignore support, default to medium confidence"
+      "Bump to v0.1.1"
     ]
   },
   "completionSignals": {
-    "testsExist": true,
+    "testsExist": false,
     "docsComplete": true
   },
   "inferredPhase": {
     "phase": "BUILD",
-    "step": "TEST"
+    "step": "IMPLEMENT"
   },
   "confidence": 60,
   "gates": {
