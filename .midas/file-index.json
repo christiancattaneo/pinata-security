@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770099388228,
+  "lastFullScan": 1770100443990,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -83,10 +83,10 @@
       ]
     },
     "src/core/index.ts": {
-      "hash": "a142135f4e8d",
+      "hash": "9ca4005b13cb",
       "size": 940,
-      "mtime": 1770096853247.936,
-      "lastIndexed": 1770096856913,
+      "mtime": 1770100443954.704,
+      "lastIndexed": 1770100443985,
       "symbols": [
         "VERSION",
         "PatternMatcher",
@@ -336,10 +336,10 @@
       ]
     },
     "package.json": {
-      "hash": "88ae131c66c8",
+      "hash": "29e81d9db46f",
       "size": 2707,
-      "mtime": 1770096851995.7927,
-      "lastIndexed": 1770096856913,
+      "mtime": 1770100442969.1243,
+      "lastIndexed": 1770100443921,
       "symbols": [],
       "imports": [],
       "lineCount": 93,
@@ -2806,10 +2806,10 @@
       ]
     },
     "src/core/verifier/ai-verifier.ts": {
-      "hash": "1784424672b5",
-      "size": 9317,
-      "mtime": 1770099386572.7153,
-      "lastIndexed": 1770099388223,
+      "hash": "df2a3d5d2991",
+      "size": 9841,
+      "mtime": 1770099985253.7996,
+      "lastIndexed": 1770100148801,
       "symbols": [
         "AIVerifier",
         "VerificationResult",
@@ -2818,7 +2818,7 @@
       "imports": [
         "../scanner/types.js"
       ],
-      "lineCount": 278,
+      "lineCount": 294,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"

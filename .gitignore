@@ -100,3 +100,5 @@ docs/.vitepress/cache/
 *.bak
 *.backup
 .history/
+.vercel
+.env*.local

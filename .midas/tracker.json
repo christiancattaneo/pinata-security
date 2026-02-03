@@ -1,9 +1,17 @@
 {
-  "lastUpdated": "2026-02-03T06:29:03.576Z",
+  "lastUpdated": "2026-02-03T06:34:13.904Z",
   "recentFiles": [
     {
+      "path": "src/core/index.ts",
+      "lastModified": 1770100443954.704
+    },
+    {
+      "path": "package.json",
+      "lastModified": 1770100442969.1243
+    },
+    {
       "path": "src/core/verifier/ai-verifier.ts",
-      "lastModified": 1770099985253.7996
+      "lastModified": 1770100157953.4592
     },
     {
       "path": "tests/blindspot/edge-cases.test.ts",
@@ -76,24 +84,17 @@
     {
       "path": "apps/web/docs.html",
       "lastModified": 1770096953083.8945
-    },
-    {
-      "path": "src/core/index.ts",
-      "lastModified": 1770096853247.936
-    },
-    {
-      "path": "package.json",
-      "lastModified": 1770096851995.7927
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "27646994b1463e2c9878dd790db5cbf18af5cf9d",
-    "lastCommitMessage": "Fix flaky tests: increase timeout, update secret pattern",
-    "lastCommitTime": 1770099343000,
-    "uncommittedChanges": 3,
+    "lastCommit": "88eef802f5517bc34d4b3f852db83466ffa78a5a",
+    "lastCommitMessage": "Add AI verification with timeout fixes, improve error logging",
+    "lastCommitTime": 1770100146000,
+    "uncommittedChanges": 5,
     "recentCommits": [
+      "Add AI verification with timeout fixes, improve error logging",
       "Fix flaky tests: increase timeout, update secret pattern",
       "Add AI verification for principled false positive reduction",
       "Add comprehensive documentation",
@@ -102,8 +103,7 @@
       "Update landing page with pinata theme and animations",
       "Bump to v0.1.5",
       "Fix default confidence to high in Commander option",
-      "v0.1.3 with tightened patterns",
-      "Include category definitions in npm package"
+      "v0.1.3 with tightened patterns"
     ]
   },
   "completionSignals": {
