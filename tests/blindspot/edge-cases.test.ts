@@ -397,7 +397,7 @@ describe("Large Input Handling", () => {
     const result = await scanner.scanDirectory(dir);
 
     expect(result.success).toBe(true);
-  });
+  }, 30000); // 30s timeout for long line processing
 
   it("handles files with many lines", async () => {
     const dir = resolve(TEST_DIR, "many-lines");

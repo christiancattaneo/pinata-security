@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770098057428,
+  "lastFullScan": 1770099187970,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "8370da5c40d7",
-      "size": 51661,
-      "mtime": 1770098056352.8318,
-      "lastIndexed": 1770098057422,
+      "hash": "b2711ba3b718",
+      "size": 54091,
+      "mtime": 1770098091562.1042,
+      "lastIndexed": 1770098117424,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -49,7 +49,7 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 1453,
+      "lineCount": 1508,
       "relevanceScore": 85,
       "reasons": [
         "core file",
@@ -1643,10 +1643,10 @@
       ]
     },
     "tests/blindspot/edge-cases.test.ts": {
-      "hash": "8f96b9acd907",
-      "size": 14179,
-      "mtime": 1770069164478.5356,
-      "lastIndexed": 1770072126656,
+      "hash": "6725e8d4ff00",
+      "size": 14226,
+      "mtime": 1770099185675.9514,
+      "lastIndexed": 1770099187959,
       "symbols": [],
       "imports": [
         "fs/promises",
@@ -1658,9 +1658,8 @@
         "@/templates/renderer.js"
       ],
       "lineCount": 471,
-      "relevanceScore": 80,
+      "relevanceScore": 55,
       "reasons": [
-        "mentioned",
         "recently modified"
       ]
     },
@@ -1715,10 +1714,10 @@
       ]
     },
     "tests/security/output-security.test.ts": {
-      "hash": "bf5c7f45e6a7",
-      "size": 11386,
-      "mtime": 1770093620714.6228,
-      "lastIndexed": 1770093625237,
+      "hash": "0579789ca325",
+      "size": 11394,
+      "mtime": 1770099062044.7734,
+      "lastIndexed": 1770099062807,
       "symbols": [
         "createMockScanResult"
       ],

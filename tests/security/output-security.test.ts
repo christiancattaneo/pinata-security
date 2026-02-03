@@ -92,7 +92,7 @@ def test_{{functionName}}():
         framework: "pytest",
         template: `
 # This template accidentally contains a secret pattern
-API_KEY = "sk_FAKE_example_1234"
+API_KEY = "sk_test_abcdefghij1234567890"
 `,
         variables: [],
       };
