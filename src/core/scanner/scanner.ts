@@ -18,7 +18,6 @@
  * ```
  */
 
-import { existsSync } from "fs";
 import { readdir, stat, readFile } from "fs/promises";
 import { resolve, relative, extname, basename } from "path";
 
@@ -143,8 +142,13 @@ export class Scanner {
 
     this.log.info(`Starting scan of ${targetDirectory}`);
 
-    // Validate target directory exists
-    if (!existsSync(targetDirectory)) {
+    // Validate target directory exists (use stat to avoid TOCTOU race condition)
+    try {
+      const dirStat = await stat(targetDirectory);
+      if (!dirStat.isDirectory()) {
+        return err(new AnalysisError(`Not a directory: ${targetDirectory}`));
+      }
+    } catch {
       return err(new AnalysisError(`Directory not found: ${targetDirectory}`));
     }
 
@@ -415,10 +419,8 @@ export class Scanner {
    */
   private readPinataIgnore(targetDirectory: string): string[] {
     const ignorePath = resolve(targetDirectory, ".pinataignore");
-    if (!existsSync(ignorePath)) {
-      return [];
-    }
 
+    // Try to read directly instead of checking existence (avoids TOCTOU)
     try {
       const { readFileSync } = require("node:fs") as typeof import("fs");
       const content = readFileSync(ignorePath, "utf-8");

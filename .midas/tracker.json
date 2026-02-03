@@ -1,17 +1,45 @@
 {
-  "lastUpdated": "2026-02-03T06:34:13.904Z",
+  "lastUpdated": "2026-02-03T06:58:59.955Z",
   "recentFiles": [
     {
       "path": "src/core/index.ts",
-      "lastModified": 1770100443954.704
+      "lastModified": 1770101933319.4202
     },
     {
       "path": "package.json",
-      "lastModified": 1770100442969.1243
+      "lastModified": 1770101924329.6177
+    },
+    {
+      "path": "src/categories/migrations/migrator.ts",
+      "lastModified": 1770101722505.272
+    },
+    {
+      "path": "src/cli/generate-formatters.ts",
+      "lastModified": 1770101722504.867
+    },
+    {
+      "path": "src/cli/config.ts",
+      "lastModified": 1770101722504.8604
+    },
+    {
+      "path": "src/cli/results-cache.ts",
+      "lastModified": 1770101722495.567
+    },
+    {
+      "path": "src/core/scanner/scanner.ts",
+      "lastModified": 1770101722495.2725
     },
     {
       "path": "src/core/verifier/ai-verifier.ts",
-      "lastModified": 1770100157953.4592
+      "lastModified": 1770101212191.5352
+    },
+    {
+      "path": "src/cli/index.ts",
+      "lastModified": 1770101212187.3318
+    },
+    {
+      "path": "apps/web/vercel.json",
+      "lastModified": 1770101092504.3643
     },
     {
       "path": "tests/blindspot/edge-cases.test.ts",
@@ -20,80 +48,17 @@
     {
       "path": "tests/security/output-security.test.ts",
       "lastModified": 1770099062044.7734
-    },
-    {
-      "path": "src/categories/definitions/data/precision-loss.yml",
-      "lastModified": 1770098134012.267
-    },
-    {
-      "path": "src/categories/definitions/security/timing-attack.yml",
-      "lastModified": 1770098134012.2664
-    },
-    {
-      "path": "src/categories/definitions/performance/memory-bloat.yml",
-      "lastModified": 1770098134012.261
-    },
-    {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770098134012.2444
-    },
-    {
-      "path": "src/core/verifier/index.ts",
-      "lastModified": 1770098134012.2441
-    },
-    {
-      "path": "README.md",
-      "lastModified": 1770097397038.953
-    },
-    {
-      "path": "docs/cli-reference.md",
-      "lastModified": 1770097397022.6282
-    },
-    {
-      "path": "docs/configuration.md",
-      "lastModified": 1770097397022.5244
-    },
-    {
-      "path": "docs/api-reference.md",
-      "lastModified": 1770097397022.4968
-    },
-    {
-      "path": "docs/authoring-categories.md",
-      "lastModified": 1770097397022.4778
-    },
-    {
-      "path": "docs/contributing.md",
-      "lastModified": 1770097397020.9548
-    },
-    {
-      "path": "CHANGELOG.md",
-      "lastModified": 1770097397009.5203
-    },
-    {
-      "path": "apps/web/index.html",
-      "lastModified": 1770097137671.3123
-    },
-    {
-      "path": "apps/web/how-it-works.html",
-      "lastModified": 1770097132483.6873
-    },
-    {
-      "path": "apps/web/categories.html",
-      "lastModified": 1770097059835.5925
-    },
-    {
-      "path": "apps/web/docs.html",
-      "lastModified": 1770096953083.8945
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "88eef802f5517bc34d4b3f852db83466ffa78a5a",
-    "lastCommitMessage": "Add AI verification with timeout fixes, improve error logging",
-    "lastCommitTime": 1770100146000,
-    "uncommittedChanges": 5,
+    "lastCommit": "0c4e9e175d74f08e6cf6d3651f8702ea49c04ac8",
+    "lastCommitMessage": "v0.2.0: Add AI verification with --verify flag",
+    "lastCommitTime": 1770100455000,
+    "uncommittedChanges": 12,
     "recentCommits": [
+      "v0.2.0: Add AI verification with --verify flag",
       "Add AI verification with timeout fixes, improve error logging",
       "Fix flaky tests: increase timeout, update secret pattern",
       "Add AI verification for principled false positive reduction",
@@ -102,8 +67,7 @@
       "Fix false positive patterns, bump to v0.1.6",
       "Update landing page with pinata theme and animations",
       "Bump to v0.1.5",
-      "Fix default confidence to high in Commander option",
-      "v0.1.3 with tightened patterns"
+      "Fix default confidence to high in Commander option"
     ]
   },
   "completionSignals": {

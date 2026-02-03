@@ -1,6 +1,6 @@
 {
   "name": "pinata-security-cli",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "AI-powered test coverage analysis and generation tool. Find security blind spots before attackers do.",
   "type": "module",
   "main": "dist/index.js",
@@ -38,6 +38,7 @@
     "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
+    "deploy:web": "vercel --prod",
     "prepublishOnly": "npm run build",
     "setup:wasm": "npx tsx scripts/setup-wasm.ts",
     "postinstall": "node -e \"try { require('child_process').execSync('npm run setup:wasm', {stdio: 'inherit'}); } catch(e) { console.log('WASM setup skipped (run npm run setup:wasm manually)'); }\""

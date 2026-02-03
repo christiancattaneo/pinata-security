@@ -5,7 +5,7 @@
  * Uses OS-appropriate config directory with secure file permissions.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync, chmodSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { z } from "zod";
@@ -26,27 +26,27 @@ const ConfigSchema = z.object({
 type Config = z.infer<typeof ConfigSchema>;
 
 /**
- * Ensure config directory exists with secure permissions
+ * Ensure config directory exists with secure permissions.
+ * Uses mkdir with recursive:true which is idempotent (no race condition).
  */
 function ensureConfigDir(): void {
-  if (!existsSync(CONFIG_DIR)) {
-    mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
-  }
+  // mkdir with recursive:true is idempotent - safe to call even if exists
+  mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
 }
 
 /**
- * Load configuration from disk
+ * Load configuration from disk.
+ * Uses try-catch instead of existsSync to avoid TOCTOU race condition.
  */
 export function loadConfig(): Config {
   try {
-    if (!existsSync(CONFIG_FILE)) {
-      return {};
-    }
+    // Just try to read - catches ENOENT if file doesn't exist
     const content = readFileSync(CONFIG_FILE, "utf-8");
     const parsed = JSON.parse(content) as unknown;
     const result = ConfigSchema.safeParse(parsed);
     return result.success ? result.data : {};
   } catch {
+    // File doesn't exist or is unreadable - return empty config
     return {};
   }
 }

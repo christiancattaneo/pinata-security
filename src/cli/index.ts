@@ -242,7 +242,7 @@ program
           
           const verifier = new AIVerifier({ provider: "anthropic" });
           
-          const { verified, dismissed } = await verifier.verifyAll(
+          const { verified, dismissed, stats } = await verifier.verifyAll(
             scanResult.data.gaps,
             async (path) => readFile(path, "utf-8")
           );
@@ -266,7 +266,9 @@ program
           scanResult.data.score.overall = newOverall;
           scanResult.data.score.grade = newGrade;
           
-          verifySpinner?.succeed(`Verified: ${verified.length} real issues, ${dismissed.length} false positives dismissed`);
+          verifySpinner?.succeed(
+            `AI Verification: ${stats.total} total → ${stats.preFiltered} pre-filtered → ${stats.aiVerified} verified, ${stats.aiDismissed} AI-dismissed`
+          );
           
           if (isVerbose && dismissed.length > 0) {
             console.log(chalk.gray("\nDismissed as false positives:"));

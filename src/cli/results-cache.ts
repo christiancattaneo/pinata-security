@@ -4,7 +4,6 @@
  * Stores scan results in .pinata/cache.json for use by the generate command.
  */
 
-import { existsSync } from "fs";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { resolve, dirname } from "path";
 
@@ -70,10 +69,8 @@ export async function saveScanResults(
     const cacheDir = resolve(projectRoot, CACHE_DIR);
     const cachePath = getCachePath(projectRoot);
 
-    // Ensure cache directory exists
-    if (!existsSync(cacheDir)) {
-      await mkdir(cacheDir, { recursive: true });
-    }
+    // Ensure cache directory exists (idempotent, no race condition)
+    await mkdir(cacheDir, { recursive: true });
 
     // Create serializable cache object
     const cached: CachedScanResult = {
@@ -109,7 +106,11 @@ export async function loadScanResults(
   try {
     const cachePath = getCachePath(projectRoot);
 
-    if (!existsSync(cachePath)) {
+    // Try to read directly instead of checking existence (avoids TOCTOU)
+    let content: string;
+    try {
+      content = await readFile(cachePath, "utf-8");
+    } catch {
       return err(
         new PinataError(
           "No cached scan results found. Run `pinata analyze` first.",
@@ -117,8 +118,6 @@ export async function loadScanResults(
         )
       );
     }
-
-    const content = await readFile(cachePath, "utf-8");
     const cached = JSON.parse(content) as CachedScanResult;
 
     // Check version compatibility

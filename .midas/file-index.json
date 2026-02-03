@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770100443990,
+  "lastFullScan": 1770101935024,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -29,10 +29,10 @@
       ]
     },
     "src/cli/index.ts": {
-      "hash": "b2711ba3b718",
-      "size": 54091,
-      "mtime": 1770098091562.1042,
-      "lastIndexed": 1770098117424,
+      "hash": "f0a36efc626a",
+      "size": 54178,
+      "mtime": 1770100996641.824,
+      "lastIndexed": 1770100999141,
       "symbols": [
         "getDefinitionsPath"
       ],
@@ -49,7 +49,7 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 1508,
+      "lineCount": 1510,
       "relevanceScore": 85,
       "reasons": [
         "core file",
@@ -83,10 +83,10 @@
       ]
     },
     "src/core/index.ts": {
-      "hash": "9ca4005b13cb",
+      "hash": "50e054c9cb63",
       "size": 940,
-      "mtime": 1770100443954.704,
-      "lastIndexed": 1770100443985,
+      "mtime": 1770101933319.4202,
+      "lastIndexed": 1770101935019,
       "symbols": [
         "VERSION",
         "PatternMatcher",
@@ -336,13 +336,13 @@
       ]
     },
     "package.json": {
-      "hash": "29e81d9db46f",
-      "size": 2707,
-      "mtime": 1770100442969.1243,
-      "lastIndexed": 1770100443921,
+      "hash": "a77028d61935",
+      "size": 2742,
+      "mtime": 1770101924329.6177,
+      "lastIndexed": 1770101924974,
       "symbols": [],
       "imports": [],
-      "lineCount": 93,
+      "lineCount": 94,
       "relevanceScore": 75,
       "reasons": [
         "config",
@@ -407,10 +407,10 @@
       ]
     },
     "src/categories/migrations/migrator.ts": {
-      "hash": "a36458d22a5d",
-      "size": 19462,
-      "mtime": 1769887932772.3533,
-      "lastIndexed": 1769887934131,
+      "hash": "9fee23de5bd4",
+      "size": 19542,
+      "mtime": 1770101428763.5466,
+      "lastIndexed": 1770101429860,
       "symbols": [
         "const",
         "to",
@@ -428,7 +428,7 @@
         "../../lib/logger.js",
         "../../lib/result.js"
       ],
-      "lineCount": 682,
+      "lineCount": 684,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -1175,16 +1175,15 @@
       ]
     },
     "src/core/scanner/scanner.ts": {
-      "hash": "f688ff44e603",
-      "size": 25050,
-      "mtime": 1770079520317.1602,
-      "lastIndexed": 1770079549355,
+      "hash": "b6813e1c6ed6",
+      "size": 25232,
+      "mtime": 1770101722495.2725,
+      "lastIndexed": 1770101724962,
       "symbols": [
         "createScanner",
         "Scanner"
       ],
       "imports": [
-        "fs",
         "fs/promises",
         "path",
         "minimatch",
@@ -1194,7 +1193,7 @@
         "../detection/index.js",
         "../../categories/store/category-store.js"
       ],
-      "lineCount": 876,
+      "lineCount": 878,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -1285,10 +1284,10 @@
       ]
     },
     "src/cli/results-cache.ts": {
-      "hash": "fa36b2225587",
-      "size": 4642,
-      "mtime": 1769887932772.3833,
-      "lastIndexed": 1769887934132,
+      "hash": "4bf789772ac2",
+      "size": 4684,
+      "mtime": 1770101662381.3174,
+      "lastIndexed": 1770101669926,
       "symbols": [
         "getCachePath",
         "saveScanResults",
@@ -1298,24 +1297,23 @@
         "CachedScanResult"
       ],
       "imports": [
-        "fs",
         "fs/promises",
         "path",
         "../lib/errors.js",
         "../lib/result.js",
         "../core/scanner/types.js"
       ],
-      "lineCount": 186,
+      "lineCount": 185,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
       ]
     },
     "src/cli/generate-formatters.ts": {
-      "hash": "4483a9f7b10a",
-      "size": 13622,
-      "mtime": 1770074000146.3118,
-      "lastIndexed": 1770074013178,
+      "hash": "d22e6cf926db",
+      "size": 13672,
+      "mtime": 1770101467087.301,
+      "lastIndexed": 1770101660148,
       "symbols": [
         "formatGeneratedTerminal",
         "formatGeneratedJson",
@@ -1330,7 +1328,6 @@
         "WriteSummary"
       ],
       "imports": [
-        "fs",
         "fs/promises",
         "path",
         "chalk",
@@ -1342,7 +1339,7 @@
         "../templates/index.js",
         "../ai/types.js"
       ],
-      "lineCount": 469,
+      "lineCount": 468,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -2693,10 +2690,10 @@
       ]
     },
     "src/cli/config.ts": {
-      "hash": "7c51901f6f2b",
-      "size": 4061,
-      "mtime": 1770076384818.1145,
-      "lastIndexed": 1770078102564,
+      "hash": "6dd74c3a344e",
+      "size": 4303,
+      "mtime": 1770101447667.5947,
+      "lastIndexed": 1770101459846,
       "symbols": [
         "ensureConfigDir",
         "loadConfig",
@@ -2718,10 +2715,9 @@
         "zod"
       ],
       "lineCount": 159,
-      "relevanceScore": 100,
+      "relevanceScore": 80,
       "reasons": [
         "config",
-        "mentioned",
         "recently modified"
       ]
     },
@@ -2806,19 +2802,20 @@
       ]
     },
     "src/core/verifier/ai-verifier.ts": {
-      "hash": "df2a3d5d2991",
-      "size": 9841,
-      "mtime": 1770099985253.7996,
-      "lastIndexed": 1770100148801,
+      "hash": "f5874bb235db",
+      "size": 14748,
+      "mtime": 1770100975978.5627,
+      "lastIndexed": 1770100979867,
       "symbols": [
         "AIVerifier",
         "VerificationResult",
+        "BatchVerificationResult",
         "AIVerifierConfig"
       ],
       "imports": [
         "../scanner/types.js"
       ],
-      "lineCount": 294,
+      "lineCount": 494,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
@@ -2842,5 +2839,5 @@
     }
   },
   "totalFiles": 129,
-  "totalSymbols": 586
+  "totalSymbols": 587
 }

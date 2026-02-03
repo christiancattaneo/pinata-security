@@ -2,7 +2,6 @@
  * Formatters for generate command output
  */
 
-import { existsSync } from "fs";
 import { mkdir, writeFile, readFile } from "fs/promises";
 import { basename, dirname, relative, resolve } from "path";
 
@@ -323,18 +322,18 @@ export async function writeGeneratedTests(
   // Write each file
   for (const [outputPath, fileTests] of testsByFile) {
     try {
-      // Ensure directory exists
+      // Ensure directory exists (idempotent, no race condition)
       const dir = dirname(outputPath);
-      if (!existsSync(dir)) {
-        await mkdir(dir, { recursive: true });
-      }
+      await mkdir(dir, { recursive: true });
 
-      // Check if file already exists
-      const fileExists = existsSync(outputPath);
+      // Try to read existing file content (avoids TOCTOU race condition)
       let existingContent = "";
-
-      if (fileExists) {
+      let fileExists = false;
+      try {
         existingContent = await readFile(outputPath, "utf-8");
+        fileExists = true;
+      } catch {
+        // File doesn't exist - that's fine
       }
 
       // Build content for this file

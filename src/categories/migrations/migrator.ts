@@ -97,13 +97,15 @@ export class CategoryMigrator {
    */
   private async loadMigrations(): Promise<Result<void, PinataError>> {
     try {
-      // Check if migrations directory exists
+      // Ensure migrations directory exists (idempotent, no race condition)
+      await mkdir(this.migrationsDir, { recursive: true });
+
+      // Check if it's actually a directory (handles edge case where path is a file)
       const dirStat = await stat(this.migrationsDir).catch(() => null);
       if (!dirStat?.isDirectory()) {
-        // Create migrations directory if it doesn't exist
-        await mkdir(this.migrationsDir, { recursive: true });
-        logger.debug(`Created migrations directory: ${this.migrationsDir}`);
-        return ok(undefined);
+        return err(
+          new MigrationError(`Migrations path exists but is not a directory: ${this.migrationsDir}`)
+        );
       }
 
       // Find all migration files (.ts or .js)
