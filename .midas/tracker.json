@@ -1,43 +1,32 @@
 {
-  "lastUpdated": "2026-02-03T19:18:43.921Z",
+  "lastUpdated": "2026-02-03T21:07:59.512Z",
   "recentFiles": [
     {
-      "path": "planning/vibe-coding-threats.md",
-      "lastModified": 1770146307303.3137
+      "path": "planning/pricing-and-architecture.md",
+      "lastModified": 1770152853786.1987
     },
     {
-      "path": "src/core/index.ts",
-      "lastModified": 1770146291663.5098
-    },
-    {
-      "path": "package.json",
-      "lastModified": 1770146290589.545
-    },
-    {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770146264571.773
+      "path": "tests/ai/ai-service.test.ts",
+      "lastModified": 1770152781201.5122
     },
     {
       "path": "src/categories/definitions/security/prompt-injection.yml",
-      "lastModified": 1770146193054.4612
+      "lastModified": 1770152679182.8457
     },
     {
-      "path": "src/categories/definitions/security/hardcoded-secrets.yml",
-      "lastModified": 1770146132432.381
-    },
-    {
-      "path": "src/categories/definitions/security/dependency-risks.yml",
-      "lastModified": 1770146116416.456
+      "path": "tests/categories/definitions/all-categories.test.ts",
+      "lastModified": 1770152591097.043
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "bc840648c86b8cdc2eea950234ee244ee27ad7a3",
-    "lastCommitMessage": "v0.2.3: prompt for API key if missing when using --verify",
-    "lastCommitTime": 1770103655000,
-    "uncommittedChanges": 12,
+    "lastCommit": "b4dcadab996d2985295010a470f000faf7da84d6",
+    "lastCommitMessage": "v0.3.0: vibe-coding security features",
+    "lastCommitTime": 1770146327000,
+    "uncommittedChanges": 5,
     "recentCommits": [
+      "v0.3.0: vibe-coding security features",
       "v0.2.3: prompt for API key if missing when using --verify",
       "v0.2.2: README updates",
       "update README with latest commands including --verify",
@@ -46,17 +35,16 @@
       "Add AI verification with timeout fixes, improve error logging",
       "Fix flaky tests: increase timeout, update secret pattern",
       "Add AI verification for principled false positive reduction",
-      "Add comprehensive documentation",
-      "Add documentation, categories, and how-it-works pages"
+      "Add comprehensive documentation"
     ]
   },
   "completionSignals": {
-    "testsExist": false,
+    "testsExist": true,
     "docsComplete": true
   },
   "inferredPhase": {
     "phase": "BUILD",
-    "step": "IMPLEMENT"
+    "step": "TEST"
   },
   "confidence": 60,
   "gates": {

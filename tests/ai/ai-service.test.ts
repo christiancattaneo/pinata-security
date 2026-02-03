@@ -167,6 +167,8 @@ describe("Template Filler", () => {
   ];
 
   describe("rule-based extraction", () => {
+    // Note: If AI is configured (ANTHROPIC_API_KEY set), these may make real API calls
+    // and could be slow. Use longer timeout to accommodate.
     it("extracts class name from code", async () => {
       const result = await suggestVariables({
         codeSnippet: "class UserService:\n    def get_user(self, id):\n        pass",
@@ -176,7 +178,7 @@ describe("Template Filler", () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.values["className"]).toBe("UserService");
-    });
+    }, 30000);
 
     it("extracts function name from code", async () => {
       const result = await suggestVariables({
@@ -198,7 +200,7 @@ describe("Template Filler", () => {
 
       expect(result.success).toBe(true);
       expect(result.data?.values["modulePath"]).toContain("services");
-    });
+    }, 30000);
 
     it("uses default values for optional variables", async () => {
       const result = await suggestVariables({
