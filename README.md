@@ -1,6 +1,6 @@
 # Pinata
 
-AI-powered security scanner that finds vulnerabilities hiding in your codebase. 45 detection categories across security, data integrity, concurrency, and performance domains.
+AI-powered security scanner that finds vulnerabilities hiding in your codebase. 47 detection categories across security, data integrity, concurrency, and performance domains.
 
 ## Quick Start
 
@@ -42,20 +42,21 @@ pinata analyze .
 ```bash
 pinata analyze .                    # Fast scan
 pinata analyze . --verify           # AI-verified scan
+pinata analyze . --execute          # Dynamic execution (requires Docker)
+pinata analyze . --execute --dry-run  # Preview tests without running
 pinata analyze . --confidence low   # Include all matches
 pinata analyze . --output json      # JSON output
 pinata analyze . --output sarif     # SARIF for GitHub
 pinata generate --gaps              # Generate tests for gaps
-pinata explain sql-injection src/db.ts:45   # AI explanation
-pinata dashboard                    # Interactive TUI
+pinata audit-deps                   # Check npm dependencies
 pinata config set anthropic-api-key sk-ant-xxx
 ```
 
 ## Detection Categories
 
-45 categories across 7 risk domains:
+47 categories across 7 risk domains:
 
-**Security (16)** - SQL injection, XSS, command injection, path traversal, SSRF, XXE, CSRF, deserialization, hardcoded secrets, LDAP injection, timing attacks, auth failures, file upload, data exposure, rate limiting, dependency risks
+**Security (17)** - SQL injection, XSS, command injection, path traversal, SSRF, XXE, CSRF, deserialization, hardcoded secrets, LDAP injection, timing attacks, auth failures, file upload, data exposure, rate limiting, dependency risks, prompt injection
 
 **Data (8)** - Data race, truncation, precision loss, validation, null handling, encoding, schema migration, bulk operations
 
@@ -85,6 +86,8 @@ dist/
 
 ```bash
 --verify              # AI verification (requires API key)
+--execute             # Dynamic test execution (requires Docker)
+--dry-run             # Preview generated tests without running
 --confidence <level>  # high (default), medium, low
 --output <format>     # terminal, json, sarif, junit, markdown
 --domain <domain>     # security, data, concurrency, etc.
@@ -113,6 +116,36 @@ pinata analyze . --verify
 - Only real vulnerabilities remain (often 0-5)
 
 **Performance:** ~2.5 minutes for 350 matches (batched 10/request, 3 concurrent)
+
+## Dynamic Execution (Layer 5)
+
+The `--execute` flag runs generated exploit tests in a Docker sandbox to **prove** vulnerabilities exist:
+
+```bash
+# Requires Docker
+pinata analyze . --execute
+
+# Preview tests without running
+pinata analyze . --execute --dry-run
+```
+
+**How it works:**
+- Generates exploit tests for each vulnerability
+- Runs tests in isolated Docker container (no network, limited resources)
+- Reports **CONFIRMED** vs **POTENTIAL** vulnerabilities
+- Evidence includes payload and actual exploit result
+
+**Testable vulnerability types:**
+- SQL injection (boolean blind, UNION attacks)
+- XSS (script injection, innerHTML)
+- Command injection (shell metacharacters)
+- Path traversal (../ attacks)
+
+**Security constraints:**
+- Network disabled (no exfiltration)
+- 1 CPU, 512MB RAM, 30s timeout
+- Read-only filesystem, unprivileged user
+- No capabilities
 
 ## CI/CD Integration
 
