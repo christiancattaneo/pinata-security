@@ -92,7 +92,7 @@ def test_{{functionName}}():
         framework: "pytest",
         template: `
 # This template accidentally contains a secret pattern
-API_KEY = "sk_FAKE_example"
+API_KEY = "sk_FAKE_example_1234"
 `,
         variables: [],
       };
@@ -125,7 +125,7 @@ API_KEY = "sk_FAKE_example"
         columnStart: 0,
         columnEnd: 50,
         // This code snippet contains a secret
-        codeSnippet: 'API_KEY = "sk_FAKE_example"',
+        codeSnippet: 'API_KEY = "sk_FAKE_example_key_12345678"',
         patternId: "api-key-assignment",
         patternType: "regex",
         priorityScore: 15,

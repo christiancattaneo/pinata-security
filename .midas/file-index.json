@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770079569846,
+  "lastFullScan": 1770093625242,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -336,17 +336,16 @@
       ]
     },
     "package.json": {
-      "hash": "14c6450c74ed",
+      "hash": "ebc330a8a680",
       "size": 2673,
-      "mtime": 1770077920971.069,
-      "lastIndexed": 1770078102563,
+      "mtime": 1770079707199.379,
+      "lastIndexed": 1770079710170,
       "symbols": [],
       "imports": [],
       "lineCount": 92,
-      "relevanceScore": 100,
+      "relevanceScore": 75,
       "reasons": [
         "config",
-        "mentioned",
         "recently modified"
       ]
     },
@@ -1599,10 +1598,10 @@
       ]
     },
     "tests/benchmarks/pattern-benchmark.test.ts": {
-      "hash": "6857a4d59824",
-      "size": 11711,
-      "mtime": 1770074701993.7068,
-      "lastIndexed": 1770074703627,
+      "hash": "7d60799a8d85",
+      "size": 11703,
+      "mtime": 1770093620703.3098,
+      "lastIndexed": 1770093625236,
       "symbols": [
         "UserService",
         "DatabaseService"
@@ -1716,10 +1715,10 @@
       ]
     },
     "tests/security/output-security.test.ts": {
-      "hash": "d3e34e3a5aa9",
-      "size": 11400,
-      "mtime": 1770069765344.1323,
-      "lastIndexed": 1770072126657,
+      "hash": "bf5c7f45e6a7",
+      "size": 11386,
+      "mtime": 1770093620714.6228,
+      "lastIndexed": 1770093625237,
       "symbols": [
         "createMockScanResult"
       ],
@@ -1733,9 +1732,8 @@
         "@/categories/schema/index.js"
       ],
       "lineCount": 368,
-      "relevanceScore": 80,
+      "relevanceScore": 55,
       "reasons": [
-        "mentioned",
         "recently modified"
       ]
     },
@@ -1781,10 +1779,10 @@
       ]
     },
     "tests/benchmarks/corpus-generator.ts": {
-      "hash": "fc5738905277",
-      "size": 12187,
-      "mtime": 1770067472531.7231,
-      "lastIndexed": 1770072126659,
+      "hash": "4e2e88444302",
+      "size": 12171,
+      "mtime": 1770093620706.4875,
+      "lastIndexed": 1770093625235,
       "symbols": [
         "getUser",
         "renderContent",
@@ -1820,9 +1818,9 @@
         "./database"
       ],
       "lineCount": 488,
-      "relevanceScore": 50,
+      "relevanceScore": 55,
       "reasons": [
-        "modified today"
+        "recently modified"
       ]
     },
     "tests/benchmarks/memory-benchmark.test.ts": {
@@ -2154,33 +2152,33 @@
       ]
     },
     "tests/corpus/vulnerable/hardcoded-secrets/python-secrets.py": {
-      "hash": "f7e69ca89aaa",
-      "size": 395,
-      "mtime": 1770067841660.2998,
-      "lastIndexed": 1770072126660,
+      "hash": "c4c6ccfd5bd0",
+      "size": 391,
+      "mtime": 1770093620697.0417,
+      "lastIndexed": 1770093625237,
       "symbols": [
         "get_api_key"
       ],
       "imports": [],
       "lineCount": 11,
-      "relevanceScore": 50,
+      "relevanceScore": 55,
       "reasons": [
-        "modified today"
+        "recently modified"
       ]
     },
     "tests/corpus/vulnerable/hardcoded-secrets/ts-secrets.ts": {
-      "hash": "4c34c5018564",
-      "size": 447,
-      "mtime": 1770067844624.3657,
-      "lastIndexed": 1770072126661,
+      "hash": "a5b4af402483",
+      "size": 443,
+      "mtime": 1770093620699.7908,
+      "lastIndexed": 1770093625237,
       "symbols": [
         "getConfig"
       ],
       "imports": [],
       "lineCount": 14,
-      "relevanceScore": 50,
+      "relevanceScore": 55,
       "reasons": [
-        "modified today"
+        "recently modified"
       ]
     },
     "tests/corpus/vulnerable/path-traversal/python-open.py": {
@@ -2395,10 +2393,10 @@
       ]
     },
     "tests/e2e/cli.test.ts": {
-      "hash": "9b8ed53a40fa",
-      "size": 10195,
-      "mtime": 1770068334732.1514,
-      "lastIndexed": 1770072126663,
+      "hash": "3389ab1fb9c5",
+      "size": 10189,
+      "mtime": 1770093620709.6448,
+      "lastIndexed": 1770093625237,
       "symbols": [
         "runCli"
       ],
@@ -2410,9 +2408,9 @@
         "vitest"
       ],
       "lineCount": 346,
-      "relevanceScore": 50,
+      "relevanceScore": 55,
       "reasons": [
-        "modified today"
+        "recently modified"
       ]
     },
     "tests/security/path-traversal.test.ts": {

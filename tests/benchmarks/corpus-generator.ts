@@ -89,7 +89,7 @@ def render_page():
     return pickle.loads(data)`,
 
     // Hardcoded Secret
-    `API_KEY = "sk_FAKE_example"
+    `API_KEY = "sk_FAKE_key_1234"
 AWS_SECRET = "AKIAIOSFODNN7EXAMPLE"`,
   ],
 
@@ -124,7 +124,7 @@ function loadFile(name: string) {
 }`,
 
     // Hardcoded Secret
-    `const API_KEY = "sk_FAKE_test";
+    `const API_KEY = "sk_FAKE_key_5678";
 const JWT_SECRET = "super-secret-key-12345";`,
   ],
 

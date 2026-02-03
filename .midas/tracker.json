@@ -1,79 +1,45 @@
 {
-  "lastUpdated": "2026-02-03T00:48:19.708Z",
+  "lastUpdated": "2026-02-03T04:40:35.115Z",
   "recentFiles": [
     {
-      "path": "src/categories/definitions/security/ldap-injection.yml",
-      "lastModified": 1770079682914.385
+      "path": "src/categories/definitions/security/hardcoded-secrets.yml",
+      "lastModified": 1770093630415.8875
     },
     {
-      "path": "src/categories/definitions/data/precision-loss.yml",
-      "lastModified": 1770079579843.3257
+      "path": "tests/security/output-security.test.ts",
+      "lastModified": 1770093620714.6228
     },
     {
-      "path": "src/categories/definitions/performance/memory-bloat.yml",
-      "lastModified": 1770079574796.2173
+      "path": "tests/e2e/cli.test.ts",
+      "lastModified": 1770093620709.6448
     },
     {
-      "path": "src/cli/index.ts",
-      "lastModified": 1770079568297.0342
+      "path": "tests/benchmarks/corpus-generator.ts",
+      "lastModified": 1770093620706.4875
     },
     {
-      "path": "src/core/scanner/scanner.ts",
-      "lastModified": 1770079520317.1602
+      "path": "tests/benchmarks/pattern-benchmark.test.ts",
+      "lastModified": 1770093620703.3098
     },
     {
-      "path": "package.json",
-      "lastModified": 1770077920971.069
+      "path": "tests/corpus/vulnerable/hardcoded-secrets/ts-secrets.ts",
+      "lastModified": 1770093620699.7908
     },
     {
-      "path": "src/cli/tui/index.tsx",
-      "lastModified": 1770076495312.465
-    },
-    {
-      "path": "src/ai/service.ts",
-      "lastModified": 1770076476507.5645
-    },
-    {
-      "path": "src/cli/config.ts",
-      "lastModified": 1770076384818.1145
-    },
-    {
-      "path": "LICENSE",
-      "lastModified": 1770076239770.4402
-    },
-    {
-      "path": "apps/vscode/package.json",
-      "lastModified": 1770076239770.4004
-    },
-    {
-      "path": "apps/vscode/pinata-vscode-0.1.0.vsix",
-      "lastModified": 1770076185416.927
-    },
-    {
-      "path": "apps/vscode/out/extension.js",
-      "lastModified": 1770076184691.5427
-    },
-    {
-      "path": "apps/vscode/out/extension.js.map",
-      "lastModified": 1770076184691.302
-    },
-    {
-      "path": "apps/vscode/LICENSE.md",
-      "lastModified": 1770076170928.5288
-    },
-    {
-      "path": "apps/vscode/package-lock.json",
-      "lastModified": 1770076134399.0657
+      "path": "tests/corpus/vulnerable/hardcoded-secrets/python-secrets.py",
+      "lastModified": 1770093620697.0417
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "aed1269e0c671ac6d24e6cb47e6626103dba192c",
-    "lastCommitMessage": "Change package name to pinata-security-cli for npm",
-    "lastCommitTime": 1770079327000,
-    "uncommittedChanges": 12,
+    "lastCommit": "423a91efe4c3c19462f2dc7448ae184759922319",
+    "lastCommitMessage": "Bump to v0.1.1",
+    "lastCommitTime": 1770079710000,
+    "uncommittedChanges": 9,
     "recentCommits": [
+      "Bump to v0.1.1",
+      "Tighten detection patterns, add .pinataignore support, default to medium confidence",
       "Change package name to pinata-security-cli for npm",
       "Add config command for AI provider API keys",
       "Add LICENSE, VS Code extension package",
@@ -81,18 +47,16 @@
       "Phase 3: npm package setup, TUI dashboard, landing page",
       "Add AI layer for smart test generation and explanations",
       "Add LDAP injection patterns for ldap3 library",
-      "Improve pattern precision for SQL injection and XSS",
-      "Add LLM pattern generator and improve SQL/path patterns",
-      "Add OWASP Benchmark baseline scoring"
+      "Improve pattern precision for SQL injection and XSS"
     ]
   },
   "completionSignals": {
-    "testsExist": false,
+    "testsExist": true,
     "docsComplete": true
   },
   "inferredPhase": {
     "phase": "BUILD",
-    "step": "IMPLEMENT"
+    "step": "TEST"
   },
   "confidence": 60,
   "gates": {

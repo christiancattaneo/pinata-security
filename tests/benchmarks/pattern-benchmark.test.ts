@@ -107,7 +107,7 @@ def admin_panel():
     return "Admin Panel"
 
 # Hardcoded secrets
-API_KEY = "sk_FAKE_example"
+API_KEY = "sk_FAKE_key_1234"
 AWS_ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE"
 JWT_SECRET = "super-secret-jwt-key-12345"
 
