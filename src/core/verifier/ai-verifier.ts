@@ -99,6 +99,8 @@ export class AIVerifier {
     const verified: Gap[] = [];
     const dismissed: Array<{ gap: Gap; reason: string }> = [];
 
+    let aiFailures = 0;
+    
     for (const gap of gaps) {
       try {
         const content = await getFileContent(gap.filePath);
@@ -116,8 +118,17 @@ export class AIVerifier {
         }
       } catch (error) {
         // If AI fails, keep the gap (fail-safe)
+        aiFailures++;
+        if (aiFailures === 1) {
+          // Log first failure for debugging
+          console.error(`AI verification failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
         verified.push(gap);
       }
+    }
+    
+    if (aiFailures > 0) {
+      console.error(`AI verification failed for ${aiFailures}/${gaps.length} gaps (kept as fail-safe)`);
     }
 
     return { verified, dismissed };
@@ -178,52 +189,68 @@ export class AIVerifier {
   }
 
   private async callAnthropic(prompt: string, apiKey: string): Promise<string> {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: this.config.model ?? "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    if (!response.ok) {
-      throw new Error(`Anthropic API error: ${response.status}`);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: this.config.model ?? "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          messages: [{ role: "user", content: prompt }],
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Anthropic API error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as {
+        content: Array<{ type: string; text: string }>;
+      };
+      return data.content[0]?.text ?? "";
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await response.json()) as {
-      content: Array<{ type: string; text: string }>;
-    };
-    return data.content[0]?.text ?? "";
   }
 
   private async callOpenAI(prompt: string, apiKey: string): Promise<string> {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: this.config.model ?? "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-      }),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.config.model ?? "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 1024,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      return data.choices[0]?.message?.content ?? "";
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    return data.choices[0]?.message?.content ?? "";
   }
 
   private getApiKeyFromEnv(): string {

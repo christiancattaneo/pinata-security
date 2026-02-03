@@ -1,7 +1,7 @@
 {
   "version": 1,
   "projectPath": "/Users/christiancattaneo/Projects/pinata",
-  "lastFullScan": 1770099187970,
+  "lastFullScan": 1770099388228,
   "files": {
     "src/categories/migrations/index.ts": {
       "hash": "e32ee00cb1a7",
@@ -2806,10 +2806,10 @@
       ]
     },
     "src/core/verifier/ai-verifier.ts": {
-      "hash": "67920ccfe860",
-      "size": 8927,
-      "mtime": 1770098021839.7021,
-      "lastIndexed": 1770098022441,
+      "hash": "1784424672b5",
+      "size": 9317,
+      "mtime": 1770099386572.7153,
+      "lastIndexed": 1770099388223,
       "symbols": [
         "AIVerifier",
         "VerificationResult",
@@ -2818,7 +2818,7 @@
       "imports": [
         "../scanner/types.js"
       ],
-      "lineCount": 267,
+      "lineCount": 278,
       "relevanceScore": 70,
       "reasons": [
         "recently modified"
