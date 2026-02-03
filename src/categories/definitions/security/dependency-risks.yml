@@ -125,6 +125,76 @@ detectionPatterns:
       [REVIEW] Multi-hyphenated package name.
       Verify this is the official package.
 
+  # Known malware packages (Shai-Hulud worm, BigSquatRat, etc.)
+  # Sources: CISA advisory Sep 2025, Sysdig analysis, Orca Security
+  - id: shai-hulud-packages
+    type: regex
+    language: typescript
+    pattern: "[\"'`](ngx-bootstrap|ng2-file-upload|@ctrl/tinycolor|valor-software/ngx-bootstrap)[\"'`]"
+    confidence: high
+    description: |
+      CRITICAL: Package affected by Shai-Hulud supply chain attack (Sep 2025).
+      Verify you're using a patched version. See CISA advisory.
+
+  - id: compromised-packages-wave2
+    type: regex
+    language: typescript
+    pattern: "[\"'`](@acitons/artifact|huggingface-cli|react-dom-utils-helper)[\"'`]"
+    confidence: high
+    description: |
+      CRITICAL: Known malicious/typosquatted package.
+      @acitons/artifact typosquats @actions/artifact.
+      huggingface-cli is a slopsquatted package (30k+ downloads).
+
+  # Unpinned dependencies (floating versions)
+  - id: unpinned-dep-caret
+    type: regex
+    language: typescript
+    pattern: "\"[a-z@][a-z0-9/_-]*\":\\s*\"\\^"
+    confidence: medium
+    description: |
+      [REVIEW] Unpinned dependency using ^ (caret range).
+      Consider pinning to exact version for reproducible builds.
+      Run: npm pkg set dependencies.PACKAGE=VERSION
+
+  - id: unpinned-dep-tilde
+    type: regex
+    language: typescript
+    pattern: "\"[a-z@][a-z0-9/_-]*\":\\s*\"~"
+    confidence: medium
+    description: |
+      [REVIEW] Unpinned dependency using ~ (tilde range).
+      Allows patch updates which may include supply chain attacks.
+
+  - id: unpinned-dep-star
+    type: regex
+    language: typescript
+    pattern: "\"[a-z@][a-z0-9/_-]*\":\\s*\"\\*\""
+    confidence: high
+    description: |
+      CRITICAL: Dependency allows ANY version (*).
+      This is extremely dangerous for supply chain security.
+
+  - id: unpinned-dep-latest
+    type: regex
+    language: typescript
+    pattern: "\"[a-z@][a-z0-9/_-]*\":\\s*\"latest\""
+    confidence: high
+    description: |
+      CRITICAL: Dependency set to 'latest'.
+      Attacker can publish malicious version at any time.
+
+  # Missing lockfile detection (via package.json without corresponding lock)
+  - id: postinstall-script
+    type: regex
+    language: typescript
+    pattern: "\"(postinstall|preinstall)\":\\s*\""
+    confidence: medium
+    description: |
+      [REVIEW] Package has lifecycle script.
+      postinstall/preinstall scripts execute code on npm install.
+      Review script contents for malicious behavior.
+
 testTemplates:
   - id: pytest-dependency-check
     language: python

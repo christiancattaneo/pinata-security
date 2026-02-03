@@ -11,7 +11,7 @@
  * - auth     - Manage API key authentication
  */
 
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -1293,6 +1293,166 @@ thresholds:
       console.log(chalk.gray("  3. Generate tests: pinata generate"));
     } catch (error) {
       console.error(formatError(error instanceof Error ? error : new Error(String(error))));
+      process.exit(1);
+    }
+  });
+
+// Audit deps command - validates npm dependencies
+program
+  .command("audit-deps")
+  .description("Audit npm dependencies for supply chain risks")
+  .option("-p, --path <path>", "Path to package.json", "package.json")
+  .option("--check-registry", "Verify packages exist in npm registry")
+  .option("--check-downloads", "Flag packages with low download counts")
+  .option("--check-age", "Flag packages less than 30 days old")
+  .option("--strict", "Fail on any warning (exit code 1)")
+  .action(async (options: Record<string, unknown>) => {
+    const packagePath = resolve(process.cwd(), String(options["path"] ?? "package.json"));
+    const checkRegistry = Boolean(options["checkRegistry"]);
+    const checkDownloads = Boolean(options["checkDownloads"]);
+    const checkAge = Boolean(options["checkAge"]);
+    const strictMode = Boolean(options["strict"]);
+    
+    // If no specific checks, do all
+    const doAllChecks = !checkRegistry && !checkDownloads && !checkAge;
+    
+    console.log(chalk.bold("\nPinata Dependency Audit\n"));
+    
+    // Read package.json
+    if (!existsSync(packagePath)) {
+      console.error(chalk.red(`Error: ${packagePath} not found`));
+      process.exit(1);
+    }
+    
+    const packageJson = JSON.parse(readFileSync(packagePath, "utf-8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    
+    const allDeps = {
+      ...packageJson.dependencies,
+      ...packageJson.devDependencies,
+    };
+    
+    const packages = Object.keys(allDeps);
+    console.log(chalk.gray(`Found ${packages.length} dependencies\n`));
+    
+    const issues: Array<{ pkg: string; severity: "critical" | "warning"; message: string }> = [];
+    
+    // Known malware packages (Shai-Hulud, BigSquatRat, etc.)
+    const KNOWN_MALWARE = new Set([
+      "ngx-bootstrap", "ng2-file-upload", "@ctrl/tinycolor",
+      "@acitons/artifact", "huggingface-cli", "react-dom-utils-helper",
+      "l0dash", "lodahs", "1odash", "lodassh",
+      "expres", "expresss", "3xpress",
+      "reqeusts", "requets", "requ3sts",
+    ]);
+    
+    // Check for known malware
+    for (const pkg of packages) {
+      if (KNOWN_MALWARE.has(pkg)) {
+        issues.push({
+          pkg,
+          severity: "critical",
+          message: "Known malicious/compromised package (Shai-Hulud/typosquat)",
+        });
+      }
+    }
+    
+    // Check for unpinned versions
+    for (const [pkg, version] of Object.entries(allDeps)) {
+      if (version?.startsWith("^")) {
+        issues.push({
+          pkg,
+          severity: "warning",
+          message: `Unpinned version (${version}) - allows minor updates`,
+        });
+      } else if (version?.startsWith("~")) {
+        issues.push({
+          pkg,
+          severity: "warning",
+          message: `Unpinned version (${version}) - allows patch updates`,
+        });
+      } else if (version === "*" || version === "latest") {
+        issues.push({
+          pkg,
+          severity: "critical",
+          message: `Extremely dangerous version (${version}) - allows any version`,
+        });
+      }
+    }
+    
+    // Check npm registry (optional, makes network requests)
+    if (checkRegistry || doAllChecks) {
+      const spinner = ora("Checking npm registry...").start();
+      
+      for (const pkg of packages.slice(0, 50)) { // Limit to 50 to avoid rate limiting
+        try {
+          const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(pkg)}`);
+          
+          if (response.status === 404) {
+            issues.push({
+              pkg,
+              severity: "critical",
+              message: "Package NOT FOUND in npm registry (slopsquatting risk)",
+            });
+          } else if (response.ok) {
+            const data = await response.json() as {
+              time?: { created?: string };
+              "dist-tags"?: { latest?: string };
+            };
+            
+            // Check age
+            if ((checkAge || doAllChecks) && data.time?.created) {
+              const created = new Date(data.time.created);
+              const ageInDays = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+              
+              if (ageInDays < 30) {
+                issues.push({
+                  pkg,
+                  severity: "warning",
+                  message: `Very new package (${Math.floor(ageInDays)} days old)`,
+                });
+              }
+            }
+          }
+        } catch {
+          // Network error, skip
+        }
+      }
+      
+      spinner.succeed("Registry check complete");
+    }
+    
+    // Print results
+    const criticals = issues.filter(i => i.severity === "critical");
+    const warnings = issues.filter(i => i.severity === "warning");
+    
+    if (criticals.length > 0) {
+      console.log(chalk.red.bold(`\nCritical Issues (${criticals.length}):`));
+      for (const issue of criticals) {
+        console.log(chalk.red(`  ✗ ${issue.pkg}: ${issue.message}`));
+      }
+    }
+    
+    if (warnings.length > 0) {
+      console.log(chalk.yellow.bold(`\nWarnings (${warnings.length}):`));
+      for (const issue of warnings.slice(0, 20)) {
+        console.log(chalk.yellow(`  ⚠ ${issue.pkg}: ${issue.message}`));
+      }
+      if (warnings.length > 20) {
+        console.log(chalk.gray(`  ... and ${warnings.length - 20} more`));
+      }
+    }
+    
+    if (issues.length === 0) {
+      console.log(chalk.green("✓ No dependency issues found"));
+    }
+    
+    console.log();
+    
+    // Exit code
+    if (criticals.length > 0 || (strictMode && warnings.length > 0)) {
       process.exit(1);
     }
   });

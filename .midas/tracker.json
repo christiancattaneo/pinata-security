@@ -1,59 +1,44 @@
 {
-  "lastUpdated": "2026-02-03T07:27:33.089Z",
+  "lastUpdated": "2026-02-03T19:18:43.921Z",
   "recentFiles": [
     {
+      "path": "planning/vibe-coding-threats.md",
+      "lastModified": 1770146307303.3137
+    },
+    {
       "path": "src/core/index.ts",
-      "lastModified": 1770103648141.106
+      "lastModified": 1770146291663.5098
     },
     {
       "path": "package.json",
-      "lastModified": 1770103646530.757
+      "lastModified": 1770146290589.545
     },
     {
       "path": "src/cli/index.ts",
-      "lastModified": 1770103633395.053
+      "lastModified": 1770146264571.773
     },
     {
-      "path": "README.md",
-      "lastModified": 1770103177205.9795
+      "path": "src/categories/definitions/security/prompt-injection.yml",
+      "lastModified": 1770146193054.4612
     },
     {
-      "path": "src/categories/migrations/migrator.ts",
-      "lastModified": 1770101722505.272
+      "path": "src/categories/definitions/security/hardcoded-secrets.yml",
+      "lastModified": 1770146132432.381
     },
     {
-      "path": "src/cli/generate-formatters.ts",
-      "lastModified": 1770101722504.867
-    },
-    {
-      "path": "src/cli/config.ts",
-      "lastModified": 1770101722504.8604
-    },
-    {
-      "path": "src/cli/results-cache.ts",
-      "lastModified": 1770101722495.567
-    },
-    {
-      "path": "src/core/scanner/scanner.ts",
-      "lastModified": 1770101722495.2725
-    },
-    {
-      "path": "src/core/verifier/ai-verifier.ts",
-      "lastModified": 1770101212191.5352
-    },
-    {
-      "path": "apps/web/vercel.json",
-      "lastModified": 1770101092504.3643
+      "path": "src/categories/definitions/security/dependency-risks.yml",
+      "lastModified": 1770146116416.456
     }
   ],
   "recentToolCalls": [],
   "gitActivity": {
     "branch": "main",
-    "lastCommit": "ca6b0625650c33c19ff5c1464bfdd5c47a95d35d",
-    "lastCommitMessage": "v0.2.2: README updates",
-    "lastCommitTime": 1770103290000,
-    "uncommittedChanges": 9,
+    "lastCommit": "bc840648c86b8cdc2eea950234ee244ee27ad7a3",
+    "lastCommitMessage": "v0.2.3: prompt for API key if missing when using --verify",
+    "lastCommitTime": 1770103655000,
+    "uncommittedChanges": 12,
     "recentCommits": [
+      "v0.2.3: prompt for API key if missing when using --verify",
       "v0.2.2: README updates",
       "update README with latest commands including --verify",
       "v0.2.1: optimized AI verification with batching and race condition fixes",
@@ -62,8 +47,7 @@
       "Fix flaky tests: increase timeout, update secret pattern",
       "Add AI verification for principled false positive reduction",
       "Add comprehensive documentation",
-      "Add documentation, categories, and how-it-works pages",
-      "Fix false positive patterns, bump to v0.1.6"
+      "Add documentation, categories, and how-it-works pages"
     ]
   },
   "completionSignals": {
@@ -86,6 +70,21 @@
   "errorMemory": [],
   "currentTask": null,
   "suggestionHistory": [
+    {
+      "timestamp": 1770105879322,
+      "suggestion": "Create an interactive first-run setup wizard that guides new users through: 1) API key configuration with provider selection, 2) Initial project scan with progress indicators, 3) Explanation of key features (--verify, --explain, output formats). Add to src/cli/setup-wizard.ts and integrate into the main CLI when no config exists.",
+      "accepted": false
+    },
+    {
+      "timestamp": 1770105707178,
+      "suggestion": "Create new category definition files in src/categories/definitions/ for OWASP Top 10 vulnerabilities. Start with A01-Broken-Access-Control: implement detection patterns for missing authorization checks, privilege escalation, and CORS misconfigurations. Use the existing SQL injection category as a template.",
+      "accepted": false
+    },
+    {
+      "timestamp": 1770105117304,
+      "suggestion": "Create a feedback collection script that emails the first 10 npm downloaders asking for testimonials. Include questions about: false positive rate, most useful features, missing categories, and integration pain points. Add analytics tracking to understand CLI command usage patterns.",
+      "accepted": false
+    },
     {
       "timestamp": 1770103425194,
       "suggestion": "Review package.json for npm publishing best practices. Check that all necessary files are included in the 'files' field, verify the bin path works correctly, ensure README has installation instructions, and run 'npm pack --dry-run' to see what would be published. Also check for any sensitive data or API keys that shouldn't be published.",
@@ -176,25 +175,10 @@
       "timestamp": 1769099065672,
       "suggestion": "Debug the failing security category tests. Run 'npm test tests/categories/definitions/all-categories.test.ts' and check if all 16 security YAML files exist in src/categories/definitions/security/. The test expects: sql-injection, xss, path-traversal, csrf, xxe, command-injection, deserialization, ldap-injection, ssrf, timing-attack, plus the 6 new ones (hardcoded-secrets, auth-failures, rate-limiting, data-exposure, file-upload, dependency-risks).",
       "accepted": false
-    },
-    {
-      "timestamp": 1769025034879,
-      "suggestion": "Run `npm test` to check test suite status. If tests fail, identify the failures and fix them one by one. Focus on: 1) Import path issues 2) Mock setup for tree-sitter WASM 3) File system operations in tests. Once all tests pass, we can move to DEBUG step.",
-      "accepted": false
-    },
-    {
-      "timestamp": 1768968203609,
-      "suggestion": "Run the test suite and fix any failing tests. Start with `npm test` to see failures, then fix them one by one. Focus on the core modules first: pattern-matcher, scanner, and CLI commands.",
-      "accepted": false
-    },
-    {
-      "timestamp": 1768948643708,
-      "suggestion": "Implement the --write flag for the generate command to save generated test files. Read the cached gaps from .pinata/cache.json, generate tests using the TemplateRenderer, then write each test to its suggested path (creating directories as needed). Show a summary of files created.",
-      "accepted": false
     }
   ],
   "fileSnapshot": [],
-  "lastAnalysis": 1770103425180,
+  "lastAnalysis": 1770105879310,
   "phaseEnteredAt": null,
   "lastProgressAt": null
 }
