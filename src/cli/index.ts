@@ -1515,6 +1515,63 @@ program
     }
   });
 
+// Feedback command - view pattern performance metrics
+program
+  .command("feedback")
+  .description("View pattern performance feedback (Layer 6)")
+  .option("--reset", "Reset all feedback data")
+  .option("-o, --output <format>", "Output format: terminal, json, markdown", "terminal")
+  .action(async (options: Record<string, unknown>) => {
+    const { loadFeedback, saveFeedback, generateReport, EMPTY_FEEDBACK_STATE } = await import("../feedback/index.js");
+    
+    const outputFormat = String(options["output"] ?? "terminal");
+    const shouldReset = Boolean(options["reset"]);
+    
+    if (shouldReset) {
+      await saveFeedback({ ...EMPTY_FEEDBACK_STATE });
+      console.log(chalk.green("Feedback data reset."));
+      return;
+    }
+    
+    const state = await loadFeedback();
+    
+    if (outputFormat === "json") {
+      console.log(JSON.stringify(state, null, 2));
+      return;
+    }
+    
+    if (outputFormat === "markdown") {
+      console.log(generateReport(state));
+      return;
+    }
+    
+    // Terminal output
+    console.log(chalk.bold("\nPinata Feedback Report\n"));
+    console.log(`Total scans: ${state.totalScans}`);
+    console.log(`Patterns tracked: ${Object.keys(state.patterns).length}`);
+    
+    if (state.totalScans === 0) {
+      console.log(chalk.gray("\nNo feedback data yet. Run scans with --execute to collect data.\n"));
+      return;
+    }
+    
+    const patterns = Object.values(state.patterns)
+      .filter((p) => p.confirmedCount + p.unconfirmedCount >= 1)
+      .sort((a, b) => b.precision - a.precision);
+    
+    if (patterns.length > 0) {
+      console.log(chalk.bold("\nPattern Performance:"));
+      for (const p of patterns.slice(0, 15)) {
+        const total = p.confirmedCount + p.unconfirmedCount;
+        const precisionPct = (p.precision * 100).toFixed(0);
+        const color = p.precision >= 0.7 ? chalk.green : p.precision >= 0.4 ? chalk.yellow : chalk.red;
+        console.log(`  ${color(`${precisionPct}%`)} ${p.patternId} (${p.confirmedCount}/${total} confirmed)`);
+      }
+    }
+    
+    console.log();
+  });
+
 // Auth command group
 // Config command for AI provider keys
 const config = program.command("config").description("Manage AI provider configuration");
