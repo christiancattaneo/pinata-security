@@ -10,6 +10,7 @@ import { relative } from "path";
 import chalk from "chalk";
 
 import { RISK_DOMAINS } from "../categories/schema/index.js";
+import { getProjectTypeDescription } from "../core/detection/project-type.js";
 
 import type { RiskDomain } from "../categories/schema/index.js";
 import type {
@@ -85,6 +86,8 @@ export function formatScanTerminal(result: ScanResult, basePath: string): string
 
   // Analysis target
   lines.push(chalk.gray(`Analyzing: ${result.targetDirectory}`));
+  const projectTypeLabel = getProjectTypeDescription(result.projectType.type);
+  lines.push(chalk.gray(`Project: ${projectTypeLabel} (${result.projectType.confidence} confidence)`));
   lines.push(chalk.gray(`Files: ${result.fileStats.totalFiles} | Languages: ${formatLanguages(result)}`));
   lines.push("");
 
@@ -251,6 +254,14 @@ export function formatScanJson(result: ScanResult): string {
   // Convert Maps to plain objects for JSON serialization
   const serializable = {
     targetDirectory: result.targetDirectory,
+    projectType: {
+      type: result.projectType.type,
+      confidence: result.projectType.confidence,
+      evidence: result.projectType.evidence,
+      frameworks: result.projectType.frameworks,
+      languages: result.projectType.languages,
+      ...(result.projectType.secondaryTypes && { secondaryTypes: result.projectType.secondaryTypes }),
+    },
     startedAt: result.startedAt.toISOString(),
     completedAt: result.completedAt.toISOString(),
     durationMs: result.durationMs,

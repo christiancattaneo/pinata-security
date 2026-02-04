@@ -16,6 +16,7 @@ import type {
   Confidence,
   DetectionResult,
 } from "../../categories/schema/index.js";
+import type { ProjectTypeResult } from "../detection/project-type.js";
 
 /**
  * Options for scanning a codebase
@@ -177,6 +178,8 @@ export interface PinataScore {
 export interface ScanResult {
   /** Target directory that was scanned */
   targetDirectory: string;
+  /** Detected project type */
+  projectType: ProjectTypeResult;
   /** When the scan started */
   startedAt: Date;
   /** When the scan completed */

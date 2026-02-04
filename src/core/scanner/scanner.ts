@@ -30,7 +30,8 @@ import {
 import { PinataError, AnalysisError } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
 import { ok, err, tryCatchAsync } from "../../lib/result.js";
-import { PatternMatcher, detectLanguage } from "../detection/index.js";
+import { PatternMatcher, detectLanguage, detectProjectType, getCategoryWeight } from "../detection/index.js";
+import type { ProjectTypeResult, ProjectType } from "../detection/project-type.js";
 
 import {
   SEVERITY_WEIGHTS,
@@ -152,6 +153,10 @@ export class Scanner {
       return err(new AnalysisError(`Directory not found: ${targetDirectory}`));
     }
 
+    // Detect project type for context-aware scoring
+    const projectType = await detectProjectType(targetDirectory);
+    this.log.info(`Detected project type: ${projectType.type} (${projectType.confidence} confidence)`);
+
     // Get categories to scan
     const categoriesResult = this.getCategoriesToScan(opts);
     if (!categoriesResult.success) {
@@ -226,7 +231,17 @@ export class Scanner {
     fileStats.sourceFiles = fileStats.totalFiles - testFiles.size;
 
     // Convert detections to gaps
-    const gaps = this.detectionsToGaps(allDetections, categories, testFiles, opts);
+    const allGaps = this.detectionsToGaps(allDetections, categories, testFiles, opts);
+    
+    // Filter gaps based on project type relevance
+    const gaps = allGaps.filter((gap) => {
+      const weight = getCategoryWeight(gap.categoryId, projectType.type);
+      return weight > 0; // Skip gaps that aren't relevant for this project type
+    });
+    
+    if (allGaps.length !== gaps.length) {
+      this.log.info(`Filtered ${allGaps.length - gaps.length} gaps as irrelevant for ${projectType.type} project type`);
+    }
 
     // Update file stats
     const filesWithGaps = new Set(gaps.map((g) => g.filePath));
@@ -239,8 +254,8 @@ export class Scanner {
     // Calculate coverage metrics
     const coverage = this.calculateCoverage(categories, gapsByCategory);
 
-    // Calculate Pinata Score
-    const score = this.calculateScore(gaps, coverage, categories);
+    // Calculate Pinata Score (with project type context)
+    const score = this.calculateScore(gaps, coverage, categories, projectType.type);
 
     // Build summary
     const summary = this.buildSummary(gaps, score, coverage, fileStats, categories);
@@ -252,6 +267,7 @@ export class Scanner {
 
     return ok({
       targetDirectory,
+      projectType,
       startedAt,
       completedAt,
       durationMs,
@@ -282,11 +298,17 @@ export class Scanner {
 
   /**
    * Calculate Pinata Score from gaps and coverage
+   * 
+   * @param gaps - Detected gaps
+   * @param coverage - Coverage metrics
+   * @param categories - Categories that were scanned
+   * @param projectType - Detected project type for context-aware weighting
    */
   calculateScore(
     gaps: Gap[],
     coverage: CoverageMetrics,
-    categories: Category[]
+    categories: Category[],
+    projectType: ProjectType = "unknown"
   ): PinataScore {
     // Base score starts at 100
     let baseScore = 100;
@@ -299,15 +321,23 @@ export class Scanner {
       domainScores.set(domain, 100);
     }
 
-    // Apply penalties for gaps
+    // Apply penalties for gaps (with project-type weighting)
     for (const gap of gaps) {
       const severityWeight = SEVERITY_WEIGHTS[gap.severity];
       const confidenceWeight = CONFIDENCE_WEIGHTS[gap.confidence];
       const priorityWeight = PRIORITY_WEIGHTS[gap.priority];
+      
+      // Apply project-type context weight (1.0 = normal, 0.5 = less relevant, 1.5 = more relevant, 0 = skip)
+      const projectTypeWeight = getCategoryWeight(gap.categoryId, projectType);
 
-      // Calculate penalty: base × severity × confidence × priority factor
+      // Calculate penalty: base × severity × confidence × priority × project-type factor
       const basePenalty = 2; // Base penalty per gap
-      const penalty = basePenalty * severityWeight * confidenceWeight * Math.sqrt(priorityWeight);
+      const penalty = basePenalty * severityWeight * confidenceWeight * Math.sqrt(priorityWeight) * projectTypeWeight;
+
+      // Skip gaps that aren't relevant for this project type
+      if (projectTypeWeight === 0) {
+        continue;
+      }
 
       baseScore -= penalty;
 
@@ -317,8 +347,9 @@ export class Scanner {
 
       // Track significant penalties
       if (penalty >= 5) {
+        const weightNote = projectTypeWeight !== 1.0 ? ` [${projectType} weight: ${projectTypeWeight}x]` : "";
         penalties.push({
-          reason: `${gap.severity} ${gap.domain} gap: ${gap.categoryName}`,
+          reason: `${gap.severity} ${gap.domain} gap: ${gap.categoryName}${weightNote}`,
           points: Math.round(penalty),
           categoryId: gap.categoryId,
         });

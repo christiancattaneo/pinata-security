@@ -31,3 +31,14 @@ export {
   COMMON_AST_PATTERNS,
   type AstMatch,
 } from "./ast-parser.js";
+
+export {
+  detectProjectType,
+  shouldSkipCategory,
+  getCategoryWeight,
+  getProjectTypeDescription,
+  SCORING_ADJUSTMENTS,
+  type ProjectType,
+  type ProjectTypeResult,
+  type ScoringAdjustment,
+} from "./project-type.js";
