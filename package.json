@@ -1,6 +1,6 @@
 {
   "name": "pinata-security-cli",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "AI-powered test coverage analysis and generation tool. Find security blind spots before attackers do.",
   "type": "module",
   "main": "dist/index.js",
