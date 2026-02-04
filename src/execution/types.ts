@@ -130,7 +130,11 @@ export const TESTABLE_VULNERABILITIES = [
   "command-injection",
   "path-traversal",
   "ssrf",
+  "xxe",
   "deserialization",
+  "missing-authentication",
+  "idor",
+  "open-redirect",
 ] as const;
 
 export type TestableVulnerability = typeof TESTABLE_VULNERABILITIES[number];

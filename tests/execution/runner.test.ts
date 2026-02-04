@@ -80,8 +80,10 @@ describe("Execution Runner", () => {
       expect(TESTABLE_VULNERABILITIES).toContain("deserialization");
     });
 
-    it("has exactly 6 testable types", () => {
-      expect(TESTABLE_VULNERABILITIES.length).toBe(6);
+    it("has at least 10 testable types", () => {
+      // Expanded exploit library includes: sql-injection, xss, command-injection,
+      // path-traversal, ssrf, xxe, deserialization, missing-authentication, idor, open-redirect
+      expect(TESTABLE_VULNERABILITIES.length).toBeGreaterThanOrEqual(10);
     });
   });
 
