@@ -587,7 +587,7 @@
         <a href="#install" class="btn btn-primary">Scan Your Codebase</a>
         <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-secondary">View on GitHub</a>
       </div>
-      <p class="hero-note">One command: <code>npx pinata-security-cli analyze .</code></p>
+      <p class="hero-note">One command: <code>npx pinata-security-cli analyze . --verify</code></p>
 
       <div class="terminal">
         <div class="terminal-header">
@@ -597,9 +597,14 @@
           <span class="terminal-title">my-vibe-coded-app</span>
         </div>
         <div class="terminal-body">
-          <div><span class="prompt">$</span> <span class="cmd">pinata analyze . --verify</span></div>
+          <div><span class="prompt">$</span> <span class="cmd">npx pinata-security-cli analyze . --verify</span></div>
+          <div class="dim">Detected project type: Web server (high confidence)</div>
           <div class="dim">Scanning 312 files...</div>
-          <div class="dim">AI verification: 247 matches → 12 confirmed vulnerabilities</div>
+          <div>&nbsp;</div>
+          <div class="dim">Enter your Anthropic or OpenAI API key: <span class="green">sk-ant-***</span></div>
+          <div class="dim">API key saved to ~/.pinata/config.json</div>
+          <div>&nbsp;</div>
+          <div class="dim">AI verification: 247 matches → 12 confirmed</div>
           <div>&nbsp;</div>
           <div><span class="red">Pinata Score: 58/100 (D)</span></div>
           <div>&nbsp;</div>
@@ -608,11 +613,7 @@
           <div><span class="red">  CRITICAL</span> command-injection in utils/exec.ts:12</div>
           <div><span class="yellow">  HIGH</span> hallucinated-import: 'lodash-secure' doesn't exist</div>
           <div><span class="yellow">  HIGH</span> missing-auth in routes/admin.ts:8</div>
-          <div><span class="yellow">  HIGH</span> hardcoded-secret in config.ts:3</div>
-          <div class="dim">  ... 7 more</div>
-          <div>&nbsp;</div>
-          <div><span class="prompt">$</span> <span class="cmd">pinata generate --gaps</span></div>
-          <div class="green">Generated 12 exploit tests in ./tests/security/</div>
+          <div class="dim">  ... 8 more</div>
         </div>
       </div>
     </div>
@@ -671,7 +672,7 @@
 
   <section class="architecture">
     <div class="container">
-      <h2>5-Layer Convergence Architecture</h2>
+      <h2>6-Layer Convergence Architecture</h2>
       <p class="lead">Multiple detection methods that reinforce each other. When Layer 1 flags something, Layers 2-5 verify it. False positives drop to near zero.</p>
       
       <div class="layers">
@@ -687,6 +688,15 @@
         <div class="layer">
           <div class="layer-num">2</div>
           <div class="layer-content">
+            <h3>Project Type Detection</h3>
+            <p>Auto-detects CLI, web server, library, serverless, etc. Adjusts rules - blocking I/O is fine in CLI, not in Express.</p>
+          </div>
+          <span class="layer-badge fast">Instant</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">3</div>
+          <div class="layer-content">
             <h3>Heuristic Pre-filtering</h3>
             <p>Fast rules that eliminate obvious false positives. Comments, test files, dead code.</p>
           </div>
@@ -694,7 +704,7 @@
         </div>
         
         <div class="layer">
-          <div class="layer-num">3</div>
+          <div class="layer-num">4</div>
           <div class="layer-content">
             <h3>AI Semantic Verification</h3>
             <p>Claude analyzes each match in context. Is this actually exploitable? What's the attack vector?</p>
@@ -703,7 +713,7 @@
         </div>
         
         <div class="layer">
-          <div class="layer-num">4</div>
+          <div class="layer-num">5</div>
           <div class="layer-content">
             <h3>Exploit Test Generation</h3>
             <p>Generates actual exploit tests for each vulnerability. SQL injection payloads, XSS scripts, command injections.</p>
@@ -712,7 +722,7 @@
         </div>
         
         <div class="layer">
-          <div class="layer-num">5</div>
+          <div class="layer-num">6</div>
           <div class="layer-content">
             <h3>Dynamic Execution</h3>
             <p>Runs exploit tests in a Docker sandbox. If the exploit succeeds, the vulnerability is confirmed.</p>
@@ -758,6 +768,13 @@
         </div>
         <div class="compare-row">
           <div class="compare-cell">Dynamic exploit execution</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Project type detection</div>
           <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
           <div class="compare-cell"><span class="cross">-</span></div>
           <div class="compare-cell"><span class="cross">-</span></div>
@@ -814,7 +831,8 @@
       <div class="install-code">
         <span class="prompt">$</span> npx --yes pinata-security-cli@latest analyze .
       </div>
-      <div>
+      <p class="lead" style="margin-top: 24px; font-size: 14px;">Add <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px;">--verify</code> for AI verification. Prompts for API key on first run.</p>
+      <div style="margin-top: 24px;">
         <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-primary">View Documentation</a>
       </div>
     </div>

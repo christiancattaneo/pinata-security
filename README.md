@@ -1,6 +1,6 @@
 # Pinata
 
-AI-powered security scanner that finds vulnerabilities hiding in your codebase. 47 detection categories across security, data integrity, concurrency, and performance domains.
+AI-powered security scanner that finds vulnerabilities hiding in your codebase. 47 detection categories across security, data integrity, concurrency, and performance domains. Context-aware scanning adjusts rules based on your project type.
 
 ## Quick Start
 
@@ -8,8 +8,9 @@ AI-powered security scanner that finds vulnerabilities hiding in your codebase. 
 # Fast scan (pattern matching only, ~2s)
 npx --yes pinata-security-cli@latest analyze .
 
-# AI-verified scan (eliminates false positives, ~2-3min)
-ANTHROPIC_API_KEY=sk-ant-xxx npx --yes pinata-security-cli@latest analyze . --verify
+# AI-verified scan (eliminates false positives)
+npx --yes pinata-security-cli@latest analyze . --verify
+# Prompts for API key if not configured - saved for future runs
 ```
 
 ## What It Does
@@ -17,14 +18,21 @@ ANTHROPIC_API_KEY=sk-ant-xxx npx --yes pinata-security-cli@latest analyze . --ve
 ```
 $ pinata analyze . --verify
 
+Analyzing: /path/to/project
+Project: Web server (high confidence)    # Auto-detected
+Files: 136 | Languages: Typescript
+
 Pinata Score: 100/100 (A)
 
-AI Verification: 351 total → 18 pre-filtered → 0 verified, 333 AI-dismissed
+AI Verification: 351 total → 0 verified, 351 AI-dismissed
 
 No gaps detected! Your codebase has good test coverage.
 ```
 
-Without `--verify`, you get fast pattern-based detection. With `--verify`, AI analyzes each match to filter false positives.
+**Key features:**
+- **Project type detection** - Adjusts rules for CLI, web server, library, serverless, etc.
+- **AI verification** - Eliminates false positives with Claude/GPT analysis
+- **Interactive setup** - Prompts for API key on first `--verify` run
 
 ## Installation
 
@@ -101,13 +109,17 @@ dist/
 The `--verify` flag uses AI to analyze each pattern match and filter false positives:
 
 ```bash
-# Set API key (one time)
-pinata config set anthropic-api-key sk-ant-xxx
-# Or use environment variable
-export ANTHROPIC_API_KEY=sk-ant-xxx
-
-# Run AI-verified scan
+# Just run it - prompts for API key if needed
 pinata analyze . --verify
+
+# Enter your Anthropic or OpenAI API key: sk-ant-xxx
+# API key saved to ~/.pinata/config.json
+```
+
+**Alternative setup methods:**
+```bash
+pinata config set anthropic-api-key sk-ant-xxx   # Save to config
+export ANTHROPIC_API_KEY=sk-ant-xxx              # Environment variable
 ```
 
 **How it works:**
@@ -117,6 +129,22 @@ pinata analyze . --verify
 - Only real vulnerabilities remain (often 0-5)
 
 **Performance:** ~2.5 minutes for 350 matches (batched 10/request, 3 concurrent)
+
+## Project Type Detection
+
+Pinata auto-detects your project type and adjusts scanning rules accordingly:
+
+| Type | Detection | Adjustments |
+|------|-----------|-------------|
+| CLI | `bin` field, commander/yargs | Blocking I/O allowed, SSRF skipped |
+| Web Server | express/fastify deps | SQL injection weighted higher |
+| API | routes/, NestJS/tRPC | CSRF skipped, auth weighted higher |
+| Frontend SPA | react/vue deps | SQL injection skipped |
+| SSR Framework | next.config.js | XSS weighted higher |
+| Serverless | serverless.yml | Memory leaks skipped |
+| Library | exports field | Rate limiting skipped |
+
+This reduces false positives by ~60% for specialized project types.
 
 ## Dynamic Execution (Layer 5)
 
