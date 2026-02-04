@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pinata - Security Scanner for AI-Generated Code</title>
+  <meta name="description" content="AI wrote your code. Who's checking it? Pinata finds the vulnerabilities that Claude, Cursor, and Copilot leave behind.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --text: #fafafa;
+      --text-muted: #888888;
+      --accent: #00d4aa;
+      --accent-dim: #00a080;
+      --pink: #ff6b9d;
+      --yellow: #ffd93d;
+      --purple: #a855f7;
+      --blue: #3b82f6;
+      --critical: #ff4444;
+      --high: #ffaa00;
+      --medium: #4488ff;
+      --border: #222222;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header */
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      margin-left: 32px;
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    nav a:hover {
+      color: var(--text);
+    }
+
+    /* Hero */
+    .hero {
+      padding: 120px 0 80px;
+      text-align: center;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(255,68,68,0.2), rgba(255,170,0,0.2));
+      border: 1px solid rgba(255,68,68,0.4);
+      padding: 8px 20px;
+      border-radius: 50px;
+      font-size: 14px;
+      color: var(--critical);
+      margin-bottom: 32px;
+      font-weight: 500;
+    }
+
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero .subtitle {
+      font-size: 22px;
+      color: var(--text-muted);
+      max-width: 700px;
+      margin: 0 auto 40px;
+      line-height: 1.5;
+    }
+
+    .cta-group {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      color: white;
+      box-shadow: 0 4px 20px rgba(255,107,157,0.4);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(255,107,157,0.5);
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--pink);
+    }
+
+    .hero-note {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .hero-note code {
+      background: var(--bg-secondary);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+    }
+
+    /* Terminal */
+    .terminal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 850px;
+      margin: 60px auto 0;
+      overflow: hidden;
+      text-align: left;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    .terminal-header {
+      background: var(--bg-tertiary);
+      padding: 14px 18px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.red { background: #ff5f56; }
+    .terminal-dot.yellow { background: #ffbd2e; }
+    .terminal-dot.green { background: #27c93f; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    .terminal-body {
+      padding: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.9;
+    }
+
+    .prompt { color: var(--accent); }
+    .cmd { color: var(--text); }
+    .dim { color: var(--text-muted); }
+    .green { color: var(--accent); }
+    .red { color: var(--critical); }
+    .yellow { color: var(--high); }
+
+    /* Problem Section */
+    .problem {
+      padding: 100px 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
+    }
+
+    .problem h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .problem .lead {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 700px;
+      margin: 0 auto 60px;
+    }
+
+    .threat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .threat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: all 0.3s;
+    }
+
+    .threat-card:hover {
+      border-color: var(--critical);
+      transform: translateY(-4px);
+    }
+
+    .threat-card .severity {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .threat-card .severity.critical {
+      background: rgba(255,68,68,0.2);
+      color: var(--critical);
+    }
+
+    .threat-card .severity.high {
+      background: rgba(255,170,0,0.2);
+      color: var(--high);
+    }
+
+    .threat-card h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .threat-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .threat-card .source {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Architecture Section */
+    .architecture {
+      padding: 100px 0;
+    }
+
+    .architecture h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .architecture .lead {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 700px;
+      margin: 0 auto 60px;
+    }
+
+    .layers {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .layer {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s;
+    }
+
+    .layer:hover {
+      border-color: var(--accent);
+    }
+
+    .layer-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .layer-content h3 {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .layer-content p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .layer-badge {
+      margin-left: auto;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .layer-badge.fast {
+      background: rgba(0,212,170,0.2);
+      color: var(--accent);
+    }
+
+    .layer-badge.ai {
+      background: rgba(168,85,247,0.2);
+      color: var(--purple);
+    }
+
+    .layer-badge.docker {
+      background: rgba(59,130,246,0.2);
+      color: var(--blue);
+    }
+
+    /* Comparison Section */
+    .comparison {
+      padding: 100px 0;
+      background: var(--bg-secondary);
+    }
+
+    .comparison h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .compare-table {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compare-row:last-child {
+      border-bottom: none;
+    }
+
+    .compare-row.header {
+      background: var(--bg-tertiary);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .compare-cell {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .compare-cell:first-child {
+      justify-content: flex-start;
+      color: var(--text-muted);
+    }
+
+    .compare-row.header .compare-cell:first-child {
+      color: var(--text);
+    }
+
+    .check {
+      color: var(--accent);
+      font-size: 18px;
+    }
+
+    .cross {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .pinata-col {
+      background: rgba(255,107,157,0.1);
+    }
+
+    /* GitHub Action */
+    .github-action {
+      padding: 100px 0;
+    }
+
+    .github-action h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .github-action .lead {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto 40px;
+    }
+
+    .code-block {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 700px;
+      margin: 0 auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    .code-block .key { color: var(--pink); }
+    .code-block .string { color: var(--accent); }
+    .code-block .comment { color: var(--text-muted); }
+
+    /* Install */
+    .install {
+      padding: 100px 0;
+      text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
+    }
+
+    .install h2 {
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+
+    .install .lead {
+      color: var(--text-muted);
+      font-size: 18px;
+      margin-bottom: 40px;
+    }
+
+    .install-code {
+      display: inline-block;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      margin-bottom: 24px;
+    }
+
+    /* Footer */
+    footer {
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    footer .logo {
+      display: block;
+      margin-bottom: 20px;
+    }
+
+    footer p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 36px; }
+      .hero .subtitle { font-size: 18px; }
+      .compare-row { grid-template-columns: 1.5fr repeat(4, 1fr); }
+      .compare-cell { padding: 12px 8px; font-size: 12px; }
+      .layer { flex-direction: column; text-align: center; }
+      .layer-badge { margin-left: 0; margin-top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <a href="/" class="logo">pinata</a>
+      <nav>
+        <a href="/docs.html">Docs</a>
+        <a href="/categories.html">Categories</a>
+        <a href="/how-it-works.html">How It Works</a>
+        <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">For Cursor, Claude, Copilot Users</div>
+      <h1>AI wrote your code.<br><span class="gradient">Who's checking it?</span></h1>
+      <p class="subtitle">Claude hallucinates packages that don't exist. Cursor skips input validation. Copilot suggests vulnerable patterns. Pinata finds what they leave behind.</p>
+      
+      <div class="cta-group">
+        <a href="#install" class="btn btn-primary">Scan Your Codebase</a>
+        <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-secondary">View on GitHub</a>
+      </div>
+      <p class="hero-note">One command: <code>npx pinata-security-cli analyze .</code></p>
+
+      <div class="terminal">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">my-vibe-coded-app</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">pinata analyze . --verify</span></div>
+          <div class="dim">Scanning 312 files...</div>
+          <div class="dim">AI verification: 247 matches → 12 confirmed vulnerabilities</div>
+          <div>&nbsp;</div>
+          <div><span class="red">Pinata Score: 58/100 (D)</span></div>
+          <div>&nbsp;</div>
+          <div class="dim">Confirmed vulnerabilities:</div>
+          <div><span class="red">  CRITICAL</span> sql-injection in api/users.ts:47</div>
+          <div><span class="red">  CRITICAL</span> command-injection in utils/exec.ts:12</div>
+          <div><span class="yellow">  HIGH</span> hallucinated-import: 'lodash-secure' doesn't exist</div>
+          <div><span class="yellow">  HIGH</span> missing-auth in routes/admin.ts:8</div>
+          <div><span class="yellow">  HIGH</span> hardcoded-secret in config.ts:3</div>
+          <div class="dim">  ... 7 more</div>
+          <div>&nbsp;</div>
+          <div><span class="prompt">$</span> <span class="cmd">pinata generate --gaps</span></div>
+          <div class="green">Generated 12 exploit tests in ./tests/security/</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="problem">
+    <div class="container">
+      <h2>The Vibe-Coding Problem</h2>
+      <p class="lead">AI coding assistants ship code fast. They also ship vulnerabilities. These are real patterns we've seen in production codebases.</p>
+      
+      <div class="threat-grid">
+        <div class="threat-card">
+          <span class="severity critical">Critical</span>
+          <h3>Hallucinated Packages</h3>
+          <p>AI suggests npm packages that don't exist. Attackers register them. Your app installs malware. 35% of Claude suggestions reference non-existent packages.</p>
+          <div class="source">Source: Socket.dev research, 2025</div>
+        </div>
+        
+        <div class="threat-card">
+          <span class="severity critical">Critical</span>
+          <h3>Prompt Injection via Code</h3>
+          <p>Malicious instructions hidden in code comments, variable names, or Unicode. When AI reads and executes, it follows the hidden commands.</p>
+          <div class="source">Source: OWASP LLM Top 10</div>
+        </div>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Skipped Validation</h3>
+          <p>AI prioritizes "working code" over secure code. Input validation, auth checks, and error handling are often missing or incomplete.</p>
+          <div class="source">Source: Snyk AI code analysis</div>
+        </div>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Outdated Patterns</h3>
+          <p>Training data cutoffs mean AI suggests deprecated APIs and known-vulnerable patterns. MD5 for passwords. eval() for parsing. HTTP for APIs.</p>
+          <div class="source">Source: GitHub Security Lab</div>
+        </div>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Test Cheating</h3>
+          <p>AI writes tests that pass by testing the implementation, not the behavior. Mocks that return hardcoded values. Assertions that never fail.</p>
+          <div class="source">Source: Cursor user reports</div>
+        </div>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Exposed Secrets</h3>
+          <p>AI copies example code with placeholder API keys that look real. Or generates .env files without .gitignore. Your keys end up on GitHub.</p>
+          <div class="source">Source: TruffleHog scans</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="architecture">
+    <div class="container">
+      <h2>5-Layer Convergence Architecture</h2>
+      <p class="lead">Multiple detection methods that reinforce each other. When Layer 1 flags something, Layers 2-5 verify it. False positives drop to near zero.</p>
+      
+      <div class="layers">
+        <div class="layer">
+          <div class="layer-num">1</div>
+          <div class="layer-content">
+            <h3>Static Pattern Matching</h3>
+            <p>47 detection categories with regex and AST patterns. Casts a wide net across your codebase.</p>
+          </div>
+          <span class="layer-badge fast">2s for 1k files</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">2</div>
+          <div class="layer-content">
+            <h3>Heuristic Pre-filtering</h3>
+            <p>Fast rules that eliminate obvious false positives. Comments, test files, dead code.</p>
+          </div>
+          <span class="layer-badge fast">Instant</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">3</div>
+          <div class="layer-content">
+            <h3>AI Semantic Verification</h3>
+            <p>Claude analyzes each match in context. Is this actually exploitable? What's the attack vector?</p>
+          </div>
+          <span class="layer-badge ai">--verify flag</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">4</div>
+          <div class="layer-content">
+            <h3>Exploit Test Generation</h3>
+            <p>Generates actual exploit tests for each vulnerability. SQL injection payloads, XSS scripts, command injections.</p>
+          </div>
+          <span class="layer-badge ai">pinata generate</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">5</div>
+          <div class="layer-content">
+            <h3>Dynamic Execution</h3>
+            <p>Runs exploit tests in a Docker sandbox. If the exploit succeeds, the vulnerability is confirmed.</p>
+          </div>
+          <span class="layer-badge docker">--execute flag</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="comparison">
+    <div class="container">
+      <h2>Pinata vs Traditional Scanners</h2>
+      
+      <div class="compare-table">
+        <div class="compare-row header">
+          <div class="compare-cell">Feature</div>
+          <div class="compare-cell pinata-col">Pinata</div>
+          <div class="compare-cell">Snyk</div>
+          <div class="compare-cell">Semgrep</div>
+          <div class="compare-cell">CodeQL</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">AI-generated code patterns</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Hallucinated package detection</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">AI false-positive filtering</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Dynamic exploit execution</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Zero config, runs instantly</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Open source</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Free</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="github-action">
+    <div class="container">
+      <h2>CI/CD in 30 Seconds</h2>
+      <p class="lead">Add to your GitHub workflow. Block PRs with vulnerabilities. Upload SARIF to GitHub Security.</p>
+      
+      <div class="code-block">
+        <span class="key">- uses:</span> <span class="string">christiancattaneo/pinata-security@v1</span><br>
+        <span class="key">  with:</span><br>
+        <span class="key">    confidence:</span> <span class="string">high</span><br>
+        <span class="key">    sarif-output:</span> <span class="string">pinata.sarif</span><br>
+        <span class="comment">  # Optional: AI verification</span><br>
+        <span class="comment">  # env:</span><br>
+        <span class="comment">  #   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</span><br>
+        <span class="comment">  # with:</span><br>
+        <span class="comment">  #   verify: true</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="install" id="install">
+    <div class="container">
+      <h2>Start Scanning</h2>
+      <p class="lead">One command. Zero config. Find out what your AI left behind.</p>
+      <div class="install-code">
+        <span class="prompt">$</span> npx --yes pinata-security-cli@latest analyze .
+      </div>
+      <div>
+        <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-primary">View Documentation</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <a href="/" class="logo">pinata</a>
+      <p>Open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a></p>
+    </div>
+  </footer>
+</body>
+</html>
