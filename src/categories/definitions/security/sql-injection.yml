@@ -110,6 +110,35 @@ detectionPatterns:
     confidence: high
     description: Detects Sequelize literal with interpolation
 
+  # Generic template literal SQL patterns
+  - id: ts-template-sql-select
+    type: regex
+    language: typescript
+    pattern: "`SELECT.*\\$\\{.*\\}`"
+    confidence: high
+    description: Detects SELECT query with template literal interpolation
+
+  - id: ts-template-sql-insert
+    type: regex
+    language: typescript
+    pattern: "`INSERT.*\\$\\{.*\\}`"
+    confidence: high
+    description: Detects INSERT query with template literal interpolation
+
+  - id: ts-template-sql-update
+    type: regex
+    language: typescript
+    pattern: "`UPDATE.*\\$\\{.*\\}`"
+    confidence: high
+    description: Detects UPDATE query with template literal interpolation
+
+  - id: ts-template-sql-delete
+    type: regex
+    language: typescript
+    pattern: "`DELETE.*\\$\\{.*\\}`"
+    confidence: high
+    description: Detects DELETE query with template literal interpolation
+
   # Go patterns
   - id: go-fmt-sprintf-query
     type: regex
