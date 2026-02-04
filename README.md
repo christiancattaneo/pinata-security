@@ -90,7 +90,8 @@ dist/
 --dry-run             # Preview generated tests without running
 --confidence <level>  # high (default), medium, low
 --output <format>     # terminal, json, sarif, junit, markdown
---domain <domain>     # security, data, concurrency, etc.
+--output-file <path>  # Write results to file (for SARIF upload)
+--domains <domains>   # security, data, concurrency, etc.
 --severity <level>    # critical, high, medium, low
 --exclude <dirs>      # Comma-separated directories to skip
 ```
@@ -149,21 +150,50 @@ pinata analyze . --execute --dry-run
 
 ## CI/CD Integration
 
-**GitHub Actions**
+**GitHub Action (recommended)**
+
 ```yaml
 name: Security Scan
 on: [push, pull_request]
 
 jobs:
-  pinata:
+  security:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
-      - name: Run Pinata
-        run: npx --yes pinata-security-cli@latest analyze . --output sarif > results.sarif
-      - uses: github/codeql-action/upload-sarif@v3
+      - uses: christiancattaneo/pinata-security@v1
         with:
-          sarif_file: results.sarif
+          confidence: high
+          sarif-output: pinata.sarif
+      # Optional: AI verification
+      # with:
+      #   verify: true
+      # env:
+      #   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+**Action inputs:**
+- `path` - Directory to scan (default: `.`)
+- `confidence` - high, medium, low (default: `high`)
+- `domains` - Comma-separated domains to scan
+- `verify` - Enable AI verification (default: `false`)
+- `fail-on-gaps` - Fail if gaps found (default: `true`)
+- `sarif-output` - Path for SARIF file (auto-uploads to GitHub Security)
+
+**Action outputs:**
+- `score` - Pinata score (0-100)
+- `gaps` - Number of gaps found
+- `sarif-file` - Path to SARIF file
+
+**Manual workflow (any CI)**
+```yaml
+- run: npx --yes pinata-security-cli@latest analyze . --output sarif --output-file results.sarif
+- uses: github/codeql-action/upload-sarif@v3
+  with:
+    sarif_file: results.sarif
 ```
 
 **GitLab CI**

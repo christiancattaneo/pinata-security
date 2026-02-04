@@ -11,7 +11,7 @@
  * - auth     - Manage API key authentication
  */
 
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 
@@ -105,6 +105,7 @@ program
   .command("analyze [path]")
   .description("Analyze codebase for test coverage gaps")
   .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif, html, junit-xml", "terminal")
+  .option("--output-file <path>", "Write output to file (useful for SARIF upload)")
   .option("-d, --domains <domains>", "Filter to specific domains (comma-separated)")
   .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "low")
   .option("-c, --confidence <level>", "Minimum confidence: high, medium, low", "high")
@@ -401,7 +402,16 @@ program
 
       // Format and output results
       const output = formatScanResult(scanResult.data, outputFormat, targetDirectory);
-      console.log(output);
+      
+      // Write to file if specified
+      const outputFile = options["outputFile"] as string | undefined;
+      if (outputFile) {
+        const outputPath = resolve(outputFile);
+        writeFileSync(outputPath, output, "utf-8");
+        logger.info(`Results written to: ${outputPath}`);
+      } else {
+        console.log(output);
+      }
 
       // Handle warnings
       if (isVerbose && scanResult.data.warnings.length > 0) {
