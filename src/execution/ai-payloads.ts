@@ -117,75 +117,72 @@ Generate 3-5 targeted payloads that would exploit THIS SPECIFIC code.
 Consider the exact variable names, function calls, and data flow shown above.`;
 }
 
+/** Lookup table: keyword → framework name */
+const FRAMEWORK_PATTERNS: Array<[string[], string]> = [
+  [["express", "app.get", "app.post"], "express"],
+  [["fastify"], "fastify"],
+  [["django", "from django"], "django"],
+  [["flask", "from flask"], "flask"],
+  [["gin."], "gin"],
+  [["fiber."], "fiber"],
+];
+
+/** Lookup table: keyword → database name */
+const DATABASE_PATTERNS: Array<[string[], string]> = [
+  [["postgres", "pg."], "postgres"],
+  [["mysql"], "mysql"],
+  [["mongodb", "mongoose", "$where"], "mongodb"],
+  [["sqlite", "sqlite3"], "sqlite"],
+];
+
+/** Lookup table: keyword → ORM name */
+const ORM_PATTERNS: Array<[string[], string]> = [
+  [["prisma"], "prisma"],
+  [["sequelize"], "sequelize"],
+  [["typeorm", "TypeORM"], "typeorm"],
+  [["sqlalchemy", "SQLAlchemy"], "sqlalchemy"],
+];
+
+/** Keywords indicating input escaping/sanitization */
+const ESCAPING_KEYWORDS = ["escape", "sanitize", "DOMPurify", "htmlspecialchars"];
+
+/** Keywords indicating WAF presence */
+const WAF_KEYWORDS = ["waf", "WAF", "cloudflare", "akamai"];
+
+/** Language extension lookup */
+const LANGUAGE_EXTENSIONS: Record<string, string> = {
+  ".ts": "typescript", ".tsx": "typescript",
+  ".js": "javascript", ".jsx": "javascript",
+  ".py": "python", ".go": "go", ".java": "java",
+  ".rb": "ruby", ".php": "php",
+};
+
+/**
+ * Find first matching pattern group in code
+ */
+function matchFirst(code: string, patterns: Array<[string[], string]>): string | undefined {
+  for (const [keywords, name] of patterns) {
+    if (keywords.some((k) => code.includes(k))) {
+      return name;
+    }
+  }
+  return undefined;
+}
+
 /**
  * Extract technology stack hints from code
  */
 export function extractTechStack(code: string, filePath: string): TechStackHints {
-  const hints: TechStackHints = {
-    language: detectLanguage(filePath),
-  };
-  
-  // Framework detection
-  if (code.includes("express") || code.includes("app.get") || code.includes("app.post")) {
-    hints.framework = "express";
-  } else if (code.includes("fastify")) {
-    hints.framework = "fastify";
-  } else if (code.includes("django") || code.includes("from django")) {
-    hints.framework = "django";
-  } else if (code.includes("flask") || code.includes("from flask")) {
-    hints.framework = "flask";
-  } else if (code.includes("gin.") || code.includes("fiber.")) {
-    hints.framework = code.includes("gin.") ? "gin" : "fiber";
-  }
-  
-  // Database detection
-  if (code.includes("postgres") || code.includes("pg.") || code.includes("$1")) {
-    hints.database = "postgres";
-  } else if (code.includes("mysql") || code.includes("?") && code.includes("query")) {
-    hints.database = "mysql";
-  } else if (code.includes("mongodb") || code.includes("mongoose") || code.includes("$where")) {
-    hints.database = "mongodb";
-  } else if (code.includes("sqlite") || code.includes("sqlite3")) {
-    hints.database = "sqlite";
-  }
-  
-  // ORM detection
-  if (code.includes("prisma")) {
-    hints.orm = "prisma";
-  } else if (code.includes("sequelize")) {
-    hints.orm = "sequelize";
-  } else if (code.includes("typeorm") || code.includes("TypeORM")) {
-    hints.orm = "typeorm";
-  } else if (code.includes("sqlalchemy") || code.includes("SQLAlchemy")) {
-    hints.orm = "sqlalchemy";
-  }
-  
-  // Defense detection
-  hints.hasEscaping = code.includes("escape") ||
-                      code.includes("sanitize") ||
-                      code.includes("DOMPurify") ||
-                      code.includes("htmlspecialchars");
-  
-  hints.hasWaf = code.includes("waf") ||
-                 code.includes("WAF") ||
-                 code.includes("cloudflare") ||
-                 code.includes("akamai");
-  
-  return hints;
-}
+  const ext = "." + (filePath.split(".").pop() ?? "");
 
-/**
- * Detect language from file extension
- */
-function detectLanguage(filePath: string): string {
-  if (filePath.endsWith(".ts") || filePath.endsWith(".tsx")) return "typescript";
-  if (filePath.endsWith(".js") || filePath.endsWith(".jsx")) return "javascript";
-  if (filePath.endsWith(".py")) return "python";
-  if (filePath.endsWith(".go")) return "go";
-  if (filePath.endsWith(".java")) return "java";
-  if (filePath.endsWith(".rb")) return "ruby";
-  if (filePath.endsWith(".php")) return "php";
-  return "unknown";
+  return {
+    language: LANGUAGE_EXTENSIONS[ext] ?? "unknown",
+    framework: matchFirst(code, FRAMEWORK_PATTERNS),
+    database: matchFirst(code, DATABASE_PATTERNS),
+    orm: matchFirst(code, ORM_PATTERNS),
+    hasEscaping: ESCAPING_KEYWORDS.some((k) => code.includes(k)),
+    hasWaf: WAF_KEYWORDS.some((k) => code.includes(k)),
+  };
 }
 
 /**
