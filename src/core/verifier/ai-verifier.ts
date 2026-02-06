@@ -9,7 +9,7 @@
  * 352 gaps → ~50 after filtering → 5 batches × 3 parallel = ~20 seconds
  */
 
-import { Gap } from "../scanner/types.js";
+import type { Gap } from "../scanner/types.js";
 
 export interface VerificationResult {
   isVulnerable: boolean;

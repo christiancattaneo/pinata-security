@@ -175,14 +175,22 @@ function matchFirst(code: string, patterns: Array<[string[], string]>): string |
 export function extractTechStack(code: string, filePath: string): TechStackHints {
   const ext = "." + (filePath.split(".").pop() ?? "");
 
-  return {
+  const hints: TechStackHints = {
     language: LANGUAGE_EXTENSIONS[ext] ?? "unknown",
-    framework: matchFirst(code, FRAMEWORK_PATTERNS),
-    database: matchFirst(code, DATABASE_PATTERNS),
-    orm: matchFirst(code, ORM_PATTERNS),
     hasEscaping: ESCAPING_KEYWORDS.some((k) => code.includes(k)),
     hasWaf: WAF_KEYWORDS.some((k) => code.includes(k)),
   };
+
+  const framework = matchFirst(code, FRAMEWORK_PATTERNS);
+  if (framework) { hints.framework = framework; }
+  
+  const database = matchFirst(code, DATABASE_PATTERNS);
+  if (database) { hints.database = database; }
+  
+  const orm = matchFirst(code, ORM_PATTERNS);
+  if (orm) { hints.orm = orm; }
+
+  return hints;
 }
 
 /**

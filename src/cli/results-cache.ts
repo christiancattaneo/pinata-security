@@ -4,6 +4,7 @@
  * Stores scan results in .pinata/cache.json for use by the generate command.
  */
 
+import { existsSync } from "fs";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { resolve, dirname } from "path";
 
