@@ -3,26 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pinata - Smash Your Code's Blind Spots</title>
-  <meta name="description" content="AI-powered test coverage analysis. Find security vulnerabilities hiding in your codebase. Break it before attackers do.">
+  <title>Pinata - Security Scanner for AI-Generated Code</title>
+  <meta name="description" content="AI wrote your code. Who's checking it? Pinata finds the vulnerabilities that Claude, Cursor, and Copilot leave behind.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0a0a;
-      --bg-secondary: #111111;
-      --text: #fafafa;
-      --text-muted: #888888;
-      --accent: #00d4aa;
-      --accent-dim: #00a080;
-      --pink: #ff6b9d;
-      --yellow: #ffd93d;
-      --purple: #a855f7;
-      --blue: #3b82f6;
-      --critical: #ff4444;
-      --high: #ffaa00;
-      --medium: #4488ff;
-      --border: #222222;
+      --bg: #ffffff;
+      --bg-secondary: #f8f9fa;
+      --bg-tertiary: #f0f1f3;
+      --text: #1a1a1a;
+      --text-muted: #6b7280;
+      --accent: #059669;
+      --accent-dim: #047857;
+      --pink: #e11d48;
+      --yellow: #d97706;
+      --purple: #7c3aed;
+      --blue: #2563eb;
+      --critical: #dc2626;
+      --high: #d97706;
+      --medium: #2563eb;
+      --border: #e5e7eb;
     }
 
     * {
@@ -39,87 +40,17 @@
       overflow-x: hidden;
     }
 
-    /* Confetti Background */
-    .confetti-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 0;
-      overflow: hidden;
-    }
-
-    .confetti {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      opacity: 0.6;
-      animation: fall linear infinite;
-    }
-
-    .confetti:nth-child(odd) { border-radius: 50%; }
-    .confetti:nth-child(even) { border-radius: 2px; transform: rotate(45deg); }
-
-    @keyframes fall {
-      0% { transform: translateY(-100px) rotate(0deg); opacity: 0.8; }
-      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-    }
-
-    /* Pinata Swing Animation */
-    .pinata-container {
-      position: fixed;
-      top: -20px;
-      right: 10%;
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    .pinata-string {
-      width: 2px;
-      height: 80px;
-      background: linear-gradient(to bottom, transparent, #666);
-      margin: 0 auto;
-    }
-
-    .pinata {
-      font-size: 80px;
-      animation: swing 2s ease-in-out infinite;
-      transform-origin: top center;
-      filter: drop-shadow(0 10px 30px rgba(0,0,0,0.5));
-    }
-
-    @keyframes swing {
-      0%, 100% { transform: rotate(-15deg); }
-      50% { transform: rotate(15deg); }
-    }
-
-    /* Hit effect */
-    .pinata::after {
-      content: '';
-      position: absolute;
-      animation: sparkle 2s ease-in-out infinite;
-    }
-
-    @keyframes sparkle {
-      0%, 45%, 55%, 100% { opacity: 0; }
-      50% { opacity: 1; }
-    }
-
     .container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 24px;
-      position: relative;
-      z-index: 2;
     }
 
     /* Header */
     header {
       padding: 24px 0;
       border-bottom: 1px solid var(--border);
-      background: rgba(10, 10, 10, 0.9);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
@@ -135,7 +66,7 @@
     .logo {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
+      background: linear-gradient(135deg, var(--pink), var(--purple), var(--accent));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -156,66 +87,53 @@
 
     /* Hero */
     .hero {
-      padding: 140px 0 100px;
+      padding: 120px 0 80px;
       text-align: center;
-      position: relative;
     }
 
     .hero-badge {
       display: inline-block;
-      background: linear-gradient(135deg, rgba(255,107,157,0.2), rgba(255,217,61,0.2));
-      border: 1px solid rgba(255,107,157,0.3);
+      background: linear-gradient(135deg, rgba(220,38,38,0.08), rgba(217,119,6,0.08));
+      border: 1px solid rgba(220,38,38,0.3);
       padding: 8px 20px;
       border-radius: 50px;
       font-size: 14px;
-      color: var(--pink);
+      color: var(--critical);
       margin-bottom: 32px;
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,157,0.4); }
-      50% { box-shadow: 0 0 20px 5px rgba(255,107,157,0.2); }
-    }
-
-    .hero h1 {
-      font-size: 64px;
-      font-weight: 800;
-      line-height: 1.1;
-      margin-bottom: 24px;
-      background: linear-gradient(135deg, var(--text) 0%, var(--pink) 50%, var(--yellow) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .hero h1 .highlight {
-      background: linear-gradient(135deg, var(--pink), var(--yellow));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .hero .tagline {
-      font-size: 24px;
-      color: var(--text);
-      max-width: 700px;
-      margin: 0 auto 16px;
       font-weight: 500;
     }
 
-    .hero p {
-      font-size: 18px;
-      color: var(--text-muted);
-      max-width: 600px;
-      margin: 0 auto 40px;
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-bottom: 24px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .cta-buttons {
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero .subtitle {
+      font-size: 22px;
+      color: var(--text-muted);
+      max-width: 700px;
+      margin: 0 auto 40px;
+      line-height: 1.5;
+    }
+
+    .cta-group {
       display: flex;
       gap: 16px;
       justify-content: center;
       flex-wrap: wrap;
+      margin-bottom: 24px;
     }
 
     .btn {
@@ -226,44 +144,59 @@
       font-weight: 600;
       text-decoration: none;
       transition: all 0.3s;
+      border: none;
+      cursor: pointer;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--pink), var(--purple));
+      background: linear-gradient(135deg, var(--accent), var(--blue));
       color: white;
-      box-shadow: 0 4px 20px rgba(255,107,157,0.4);
+      box-shadow: 0 4px 20px rgba(5,150,105,0.25);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 30px rgba(255,107,157,0.5);
+      box-shadow: 0 6px 30px rgba(5,150,105,0.35);
     }
 
     .btn-secondary {
-      background: transparent;
+      background: var(--bg);
       color: var(--text);
       border: 1px solid var(--border);
     }
 
     .btn-secondary:hover {
-      border-color: var(--pink);
-      color: var(--pink);
+      border-color: var(--accent);
     }
 
-    /* Terminal demo */
-    .terminal {
+    .hero-note {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .hero-note code {
       background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent);
+    }
+
+    /* Terminal */
+    .terminal {
+      background: #1e1e2e;
+      border: 1px solid #313244;
       border-radius: 16px;
-      max-width: 800px;
+      max-width: 850px;
       margin: 60px auto 0;
       overflow: hidden;
       text-align: left;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.12);
+      color: #cdd6f4;
     }
 
     .terminal-header {
-      background: #1a1a1a;
+      background: #181825;
       padding: 14px 18px;
       display: flex;
       gap: 8px;
@@ -283,149 +216,304 @@
     .terminal-title {
       flex: 1;
       text-align: center;
-      color: var(--text-muted);
+      color: #6c7086;
       font-size: 13px;
     }
 
     .terminal-body {
       padding: 24px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
-      line-height: 1.8;
+      font-size: 13px;
+      line-height: 1.9;
     }
 
-    .terminal-line {
-      margin-bottom: 4px;
-    }
+    .prompt { color: #a6e3a1; }
+    .cmd { color: #cdd6f4; }
+    .dim { color: #6c7086; }
+    .green { color: #a6e3a1; }
+    .red { color: #f38ba8; }
+    .yellow { color: #f9e2af; }
 
-    .prompt { color: var(--accent); }
-    .cmd { color: var(--text); }
-    .output { color: var(--text-muted); }
-    .severity-critical { color: var(--critical); }
-    .severity-high { color: var(--high); }
-    .severity-medium { color: var(--medium); }
-
-    /* Stats */
-    .stats {
-      display: flex;
-      justify-content: center;
-      gap: 60px;
-      margin-top: 80px;
-      flex-wrap: wrap;
-    }
-
-    .stat {
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 48px;
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--accent), var(--blue));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .stat-label {
-      color: var(--text-muted);
-      font-size: 14px;
-      margin-top: 8px;
-    }
-
-    /* Features */
-    .features {
+    /* Problem Section */
+    .problem {
       padding: 100px 0;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
     }
 
-    .features h2 {
-      text-align: center;
+    .problem h2 {
       font-size: 40px;
-      margin-bottom: 60px;
-      font-weight: 700;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 24px;
-    }
-
-    .feature-card {
-      background: linear-gradient(135deg, rgba(255,107,157,0.05), rgba(168,85,247,0.05));
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 32px;
-      transition: all 0.3s;
-    }
-
-    .feature-card:hover {
-      border-color: var(--pink);
-      transform: translateY(-4px);
-    }
-
-    .feature-icon {
-      font-size: 32px;
-      margin-bottom: 16px;
-    }
-
-    .feature-card h3 {
-      font-size: 20px;
-      margin-bottom: 12px;
-      color: var(--text);
-    }
-
-    .feature-card p {
-      color: var(--text-muted);
-      font-size: 15px;
-    }
-
-    /* Categories */
-    .categories {
-      padding: 100px 0;
-      background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);
-    }
-
-    .categories h2 {
       text-align: center;
-      font-size: 40px;
       margin-bottom: 20px;
     }
 
-    .categories .subtitle {
+    .problem .lead {
       text-align: center;
       color: var(--text-muted);
-      margin-bottom: 50px;
+      font-size: 18px;
+      max-width: 700px;
+      margin: 0 auto 60px;
     }
 
-    .category-list {
+    .threat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .threat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      transition: all 0.3s;
+    }
+
+    .threat-card:hover {
+      border-color: var(--critical);
+      transform: translateY(-4px);
+    }
+
+    .threat-card .severity {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .threat-card .severity.critical {
+      background: rgba(220,38,38,0.1);
+      color: var(--critical);
+      border: 1px solid rgba(220,38,38,0.2);
+    }
+
+    .threat-card .severity.high {
+      background: rgba(217,119,6,0.1);
+      color: var(--high);
+      border: 1px solid rgba(217,119,6,0.2);
+    }
+
+    .threat-card h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .threat-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .threat-card .source {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* Architecture Section */
+    .architecture {
+      padding: 100px 0;
+    }
+
+    .architecture h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .architecture .lead {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 700px;
+      margin: 0 auto 60px;
+    }
+
+    .layers {
       display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: center;
-      max-width: 900px;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 800px;
       margin: 0 auto;
     }
 
-    .category-tag {
-      background: rgba(255,107,157,0.1);
-      border: 1px solid rgba(255,107,157,0.2);
-      padding: 10px 20px;
-      border-radius: 25px;
-      font-size: 14px;
-      color: var(--text);
-      transition: all 0.2s;
+    .layer {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s;
     }
 
-    .category-tag:hover {
-      background: rgba(255,107,157,0.2);
-      border-color: var(--pink);
+    .layer:hover {
+      border-color: var(--accent);
     }
+
+    .layer-num {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--pink), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .layer-content h3 {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+
+    .layer-content p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .layer-badge {
+      margin-left: auto;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .layer-badge.fast {
+      background: rgba(5,150,105,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(5,150,105,0.3);
+    }
+
+    .layer-badge.ai {
+      background: rgba(124,58,237,0.1);
+      color: var(--purple);
+      border: 1px solid rgba(124,58,237,0.3);
+    }
+
+    .layer-badge.docker {
+      background: rgba(37,99,235,0.1);
+      color: var(--blue);
+      border: 1px solid rgba(37,99,235,0.3);
+    }
+
+    /* Comparison Section */
+    .comparison {
+      padding: 100px 0;
+      background: var(--bg-secondary);
+    }
+
+    .comparison h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .compare-table {
+      max-width: 900px;
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compare-row:last-child {
+      border-bottom: none;
+    }
+
+    .compare-row.header {
+      background: var(--bg-tertiary);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .compare-cell {
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .compare-cell:first-child {
+      justify-content: flex-start;
+      color: var(--text-muted);
+    }
+
+    .compare-row.header .compare-cell:first-child {
+      color: var(--text);
+    }
+
+    .check {
+      color: var(--accent);
+      font-size: 18px;
+    }
+
+    .cross {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .pinata-col {
+      background: rgba(5,150,105,0.06);
+    }
+
+    /* GitHub Action */
+    .github-action {
+      padding: 100px 0;
+    }
+
+    .github-action h2 {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .github-action .lead {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto 40px;
+    }
+
+    .code-block {
+      background: #1e1e2e;
+      border: 1px solid #313244;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 700px;
+      margin: 0 auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      overflow-x: auto;
+      color: #cdd6f4;
+    }
+
+    .code-block .key { color: #f38ba8; }
+    .code-block .string { color: #a6e3a1; }
+    .code-block .comment { color: #6c7086; }
 
     /* Install */
     .install {
       padding: 100px 0;
       text-align: center;
+      background: linear-gradient(180deg, var(--bg) 0%, var(--bg-secondary) 100%);
     }
 
     .install h2 {
@@ -433,23 +521,23 @@
       margin-bottom: 20px;
     }
 
-    .install p {
+    .install .lead {
       color: var(--text-muted);
-      margin-bottom: 32px;
       font-size: 18px;
+      margin-bottom: 40px;
     }
 
     .install-code {
       display: inline-block;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      background: #1e1e2e;
+      border: 1px solid #313244;
+      color: #cdd6f4;
       padding: 20px 40px;
       border-radius: 12px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 18px;
+      font-size: 16px;
+      margin-bottom: 24px;
     }
-
-    .install-code .prompt { color: var(--accent); }
 
     /* Footer */
     footer {
@@ -475,26 +563,16 @@
 
     /* Responsive */
     @media (max-width: 768px) {
-      .hero h1 { font-size: 40px; }
-      .hero .tagline { font-size: 18px; }
-      .hero p { font-size: 16px; }
-      .terminal-body { font-size: 12px; padding: 16px; }
-      .pinata-container { display: none; }
-      .stats { gap: 30px; }
-      .stat-number { font-size: 36px; }
+      .hero h1 { font-size: 36px; }
+      .hero .subtitle { font-size: 18px; }
+      .compare-row { grid-template-columns: 1.5fr repeat(4, 1fr); }
+      .compare-cell { padding: 12px 8px; font-size: 12px; }
+      .layer { flex-direction: column; text-align: center; }
+      .layer-badge { margin-left: 0; margin-top: 12px; }
     }
   </style>
 </head>
 <body>
-  <!-- Confetti Background -->
-  <div class="confetti-container" id="confetti"></div>
-
-  <!-- Swinging Pinata -->
-  <div class="pinata-container">
-    <div class="pinata-string"></div>
-    <div class="pinata">🪅</div>
-  </div>
-
   <header>
     <div class="container">
       <a href="/" class="logo">pinata</a>
@@ -509,123 +587,339 @@
 
   <section class="hero">
     <div class="container">
-      <div class="hero-badge">Open Source Security Scanner</div>
-      <h1>Crack Open Your Code.<br>Find What's Hiding Inside.</h1>
-      <p class="tagline">The security testing tool that hits your codebase hard.</p>
-      <p>AI-powered vulnerability detection across 45+ categories. Generate tests. Ship secure.</p>
-      <div class="cta-buttons">
-        <a href="#install" class="btn btn-primary">Start Breaking Things</a>
+      <div class="hero-badge">For Cursor, Claude, Copilot Users</div>
+      <h1>AI wrote your code.<br><span class="gradient">Who's checking it?</span></h1>
+      <p class="subtitle">Claude hallucinates packages that don't exist. Cursor skips input validation. Copilot suggests vulnerable patterns. Pinata finds what they leave behind.</p>
+      
+      <div class="cta-group">
+        <a href="#install" class="btn btn-primary">Scan Your Codebase</a>
         <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-secondary">View on GitHub</a>
       </div>
+      <p class="hero-note">One command: <code>npx pinata-security-cli analyze . --verify</code></p>
 
       <div class="terminal">
         <div class="terminal-header">
           <div class="terminal-dot red"></div>
           <div class="terminal-dot yellow"></div>
           <div class="terminal-dot green"></div>
-          <span class="terminal-title">Terminal</span>
+          <span class="terminal-title">my-vibe-coded-app</span>
         </div>
         <div class="terminal-body">
-          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">npx --yes pinata-security-cli@latest analyze .</span></div>
-          <div class="terminal-line output">Scanning 247 files across 10 risk domains...</div>
-          <div class="terminal-line output">&nbsp;</div>
-          <div class="terminal-line output">Pinata Score: <strong style="color: var(--high);">C (62/100)</strong></div>
-          <div class="terminal-line output">&nbsp;</div>
-          <div class="terminal-line output">Security Gaps Found:</div>
-          <div class="terminal-line"><span class="severity-critical">  2 critical</span> - sql-injection, command-injection</div>
-          <div class="terminal-line"><span class="severity-high">  5 high</span> - xss, path-traversal, ssrf, hardcoded-secrets</div>
-          <div class="terminal-line"><span class="severity-medium">  8 medium</span> - missing-auth, weak-crypto, csrf</div>
-          <div class="terminal-line output">&nbsp;</div>
-          <div class="terminal-line"><span class="prompt">$</span> <span class="cmd">pinata generate --gaps</span></div>
-          <div class="terminal-line output">Generated 15 security tests in ./tests/security/</div>
-        </div>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-number">45+</div>
-          <div class="stat-label">Detection Categories</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">10</div>
-          <div class="stat-label">Risk Domains</div>
-        </div>
-        <div class="stat">
-          <div class="stat-number">3</div>
-          <div class="stat-label">Languages Supported</div>
+          <div><span class="prompt">$</span> <span class="cmd">npx pinata-security-cli analyze . --verify</span></div>
+          <div class="dim">Detected project type: Web server (high confidence)</div>
+          <div class="dim">Scanning 312 files...</div>
+          <div>&nbsp;</div>
+          <div class="dim">Enter your Anthropic or OpenAI API key: <span class="green">sk-ant-***</span></div>
+          <div class="dim">API key saved to ~/.pinata/config.json</div>
+          <div>&nbsp;</div>
+          <div class="dim">AI verification: 247 matches → 12 confirmed</div>
+          <div>&nbsp;</div>
+          <div><span class="red">Pinata Score: 58/100 (D)</span></div>
+          <div>&nbsp;</div>
+          <div class="dim">Confirmed vulnerabilities:</div>
+          <div><span class="red">  CRITICAL</span> sql-injection in api/users.ts:47</div>
+          <div><span class="red">  CRITICAL</span> command-injection in utils/exec.ts:12</div>
+          <div><span class="yellow">  HIGH</span> hallucinated-import: 'lodash-secure' doesn't exist</div>
+          <div><span class="yellow">  HIGH</span> missing-auth in routes/admin.ts:8</div>
+          <div class="dim">  ... 8 more</div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="features" id="features">
+  <section class="problem">
     <div class="container">
-      <h2>Break it before they do</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h3>Pattern Detection</h3>
-          <p>45+ detection patterns across security, data, concurrency, and performance domains.</p>
+      <h2>The Vibe-Coding Problem</h2>
+      <p class="lead">AI coding assistants ship code fast. They also ship vulnerabilities. These are real patterns we've seen in production codebases.</p>
+      
+      <div class="threat-grid">
+        <div class="threat-card">
+          <span class="severity critical">Critical</span>
+          <h3>Hallucinated Packages</h3>
+          <p>AI suggests npm packages that don't exist. Attackers register them. Your app installs malware. 35% of Claude suggestions reference non-existent packages.</p>
+          <div class="source">Source: Socket.dev research, 2025</div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>AI Explanations</h3>
-          <p>Natural language explanations of vulnerabilities. Understand the risk and remediation.</p>
+        
+        <div class="threat-card">
+          <span class="severity critical">Critical</span>
+          <h3>Prompt Injection via Code</h3>
+          <p>Malicious instructions hidden in code comments, variable names, or Unicode. When AI reads and executes, it follows the hidden commands.</p>
+          <div class="source">Source: OWASP LLM Top 10</div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">🧪</div>
-          <h3>Test Generation</h3>
-          <p>Auto-generate security tests for gaps. Smart variable filling with LLMs.</p>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Skipped Validation</h3>
+          <p>AI prioritizes "working code" over secure code. Input validation, auth checks, and error handling are often missing or incomplete.</p>
+          <div class="source">Source: Snyk AI code analysis</div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3>Pinata Score</h3>
-          <p>Single metric for security health. Track improvements over time.</p>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Outdated Patterns</h3>
+          <p>Training data cutoffs mean AI suggests deprecated APIs and known-vulnerable patterns. MD5 for passwords. eval() for parsing. HTTP for APIs.</p>
+          <div class="source">Source: GitHub Security Lab</div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔌</div>
-          <h3>CI/CD Ready</h3>
-          <p>Output in JSON, SARIF, JUnit XML. Integrate with any pipeline.</p>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Test Cheating</h3>
+          <p>AI writes tests that pass by testing the implementation, not the behavior. Mocks that return hardcoded values. Assertions that never fail.</p>
+          <div class="source">Source: Cursor user reports</div>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">💡</div>
-          <h3>Pattern Suggestions</h3>
-          <p>AI suggests new patterns from your vulnerable code samples.</p>
+        
+        <div class="threat-card">
+          <span class="severity high">High</span>
+          <h3>Exposed Secrets</h3>
+          <p>AI copies example code with placeholder API keys that look real. Or generates .env files without .gitignore. Your keys end up on GitHub.</p>
+          <div class="source">Source: TruffleHog scans</div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="categories" id="categories">
+  <section class="architecture">
     <div class="container">
-      <h2>What We Hunt</h2>
-      <p class="subtitle">Comprehensive coverage across security risk domains</p>
-      <div class="category-list">
-        <span class="category-tag">SQL Injection</span>
-        <span class="category-tag">Cross-Site Scripting</span>
-        <span class="category-tag">Command Injection</span>
-        <span class="category-tag">Path Traversal</span>
-        <span class="category-tag">SSRF</span>
-        <span class="category-tag">XXE</span>
-        <span class="category-tag">CSRF</span>
-        <span class="category-tag">Insecure Deserialization</span>
-        <span class="category-tag">Hardcoded Secrets</span>
-        <span class="category-tag">LDAP Injection</span>
-        <span class="category-tag">Race Conditions</span>
-        <span class="category-tag">Memory Leaks</span>
-        <span class="category-tag">Deadlocks</span>
-        <span class="category-tag">Blocking I/O</span>
-        <span class="category-tag">Data Truncation</span>
+      <h2>6-Layer Convergence Architecture</h2>
+      <p class="lead">Multiple detection methods that reinforce each other. When Layer 1 flags something, Layers 2-5 verify it. False positives drop to near zero.</p>
+      
+      <div class="layers">
+        <div class="layer">
+          <div class="layer-num">1</div>
+          <div class="layer-content">
+            <h3>Static Pattern Matching</h3>
+            <p>47 detection categories with regex and AST patterns. Casts a wide net across your codebase.</p>
+          </div>
+          <span class="layer-badge fast">2s for 1k files</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">2</div>
+          <div class="layer-content">
+            <h3>Project Type Detection</h3>
+            <p>Auto-detects CLI, web server, library, serverless, etc. Adjusts rules - blocking I/O is fine in CLI, not in Express.</p>
+          </div>
+          <span class="layer-badge fast">Instant</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">3</div>
+          <div class="layer-content">
+            <h3>Heuristic Pre-filtering</h3>
+            <p>Fast rules that eliminate obvious false positives. Comments, test files, dead code.</p>
+          </div>
+          <span class="layer-badge fast">Instant</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">4</div>
+          <div class="layer-content">
+            <h3>AI Semantic Verification</h3>
+            <p>Claude analyzes each match in context. Is this actually exploitable? What's the attack vector?</p>
+          </div>
+          <span class="layer-badge ai">--verify flag</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">5</div>
+          <div class="layer-content">
+            <h3>Adversarial Test Generation</h3>
+            <p>AI writes complete, runnable test files that target your specific vulnerable code. Not templates. Real tests that fail until you fix the vulnerability.</p>
+          </div>
+          <span class="layer-badge ai">pinata generate</span>
+        </div>
+        
+        <div class="layer">
+          <div class="layer-num">6</div>
+          <div class="layer-content">
+            <h3>Dynamic Execution</h3>
+            <p>Runs exploit tests in a Docker sandbox. If the exploit succeeds, the vulnerability is confirmed.</p>
+          </div>
+          <span class="layer-badge docker">--execute flag</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="comparison">
+    <div class="container">
+      <h2>Pinata vs Traditional Scanners</h2>
+      
+      <div class="compare-table">
+        <div class="compare-row header">
+          <div class="compare-cell">Feature</div>
+          <div class="compare-cell pinata-col">Pinata</div>
+          <div class="compare-cell">Snyk</div>
+          <div class="compare-cell">Semgrep</div>
+          <div class="compare-cell">CodeQL</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">AI-generated code patterns</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Hallucinated package detection</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">AI false-positive filtering</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Generates runnable security tests</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Mutation-tested (100% kill rate)</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Dynamic exploit execution</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Project type detection</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Zero config, runs instantly</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Open source</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Free</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="check">&#10003;</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="architecture" style="background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);">
+    <div class="container">
+      <h2>Adversarial Test Generation</h2>
+      <p class="lead">Other scanners give you a report. Pinata gives you a test file that blocks your CI until the vulnerability is fixed.</p>
+
+      <div class="terminal" style="max-width: 800px; margin: 40px auto 0;">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">test generation</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">pinata generate --gaps --write</span></div>
+          <div>&nbsp;</div>
+          <div class="dim">Extracting context for 3 findings...</div>
+          <div class="dim">Generating tests with AI...</div>
+          <div>&nbsp;</div>
+          <div><span class="green">  +</span> tests/security/sqli-users.test.ts</div>
+          <div class="dim">    SQL injection test for getUserById at api/users.ts:47</div>
+          <div><span class="green">  +</span> tests/security/xss-comments.test.ts</div>
+          <div class="dim">    XSS test for renderComment at views/comments.tsx:23</div>
+          <div><span class="green">  +</span> tests/security/cmd-exec.test.ts</div>
+          <div class="dim">    Command injection test for runBuild at utils/exec.ts:12</div>
+          <div>&nbsp;</div>
+          <div class="green">Wrote 3 test files</div>
+          <div class="dim">Tests fail against current code (vulnerabilities confirmed).</div>
+          <div class="dim">Fix the code, tests will pass. Add to CI to prevent regressions.</div>
+        </div>
+      </div>
+
+      <div class="layers" style="margin-top: 48px;">
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">1</div>
+          <div class="layer-content">
+            <h3>Context extraction</h3>
+            <p>Reads the full function, its imports, your test framework, database type, and existing test style. Not a 5-line snippet. The whole picture.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">2</div>
+          <div class="layer-content">
+            <h3>AI generates complete test files</h3>
+            <p>Not templates with placeholders. Real imports, real function calls, real payloads targeting your specific code. Matches your project's test style.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">3</div>
+          <div class="layer-content">
+            <h3>Validation: must fail</h3>
+            <p>Generated tests are run against your current code. If the test passes, it's useless and gets regenerated. A security test that doesn't catch the vulnerability is a lie.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">4</div>
+          <div class="layer-content">
+            <h3>Mutation testing verification</h3>
+            <p>Stryker mutates your code and checks if the test catches it. 100% mutation kill rate on Pinata's own test suite. The only honest metric for test quality.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="github-action">
+    <div class="container">
+      <h2>CI/CD in 30 Seconds</h2>
+      <p class="lead">Add to your GitHub workflow. Block PRs with vulnerabilities. Upload SARIF to GitHub Security.</p>
+      
+      <div class="code-block">
+        <span class="key">- uses:</span> <span class="string">christiancattaneo/pinata-security@v1</span><br>
+        <span class="key">  with:</span><br>
+        <span class="key">    confidence:</span> <span class="string">high</span><br>
+        <span class="key">    sarif-output:</span> <span class="string">pinata.sarif</span><br>
+        <span class="comment">  # Optional: AI verification</span><br>
+        <span class="comment">  # env:</span><br>
+        <span class="comment">  #   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}</span><br>
+        <span class="comment">  # with:</span><br>
+        <span class="comment">  #   verify: true</span>
       </div>
     </div>
   </section>
 
   <section class="install" id="install">
     <div class="container">
-      <h2>Ready to swing?</h2>
-      <p>One command. Zero config. Instant results.</p>
+      <h2>Start Scanning</h2>
+      <p class="lead">One command. Zero config. Find out what your AI left behind.</p>
       <div class="install-code">
         <span class="prompt">$</span> npx --yes pinata-security-cli@latest analyze .
+      </div>
+      <p class="lead" style="margin-top: 24px; font-size: 14px;">Add <code style="background: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px;">--verify</code> for AI verification. Prompts for API key on first run.</p>
+      <div style="margin-top: 24px;">
+        <a href="https://github.com/christiancattaneo/pinata-security" class="btn btn-primary">View Documentation</a>
       </div>
     </div>
   </section>
@@ -633,26 +927,8 @@
   <footer>
     <div class="container">
       <a href="/" class="logo">pinata</a>
-      <p>Open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">View on GitHub</a></p>
+      <p>Open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a></p>
     </div>
   </footer>
-
-  <script>
-    // Generate confetti
-    const container = document.getElementById('confetti');
-    const colors = ['#ff6b9d', '#ffd93d', '#00d4aa', '#a855f7', '#3b82f6'];
-    
-    for (let i = 0; i < 50; i++) {
-      const confetti = document.createElement('div');
-      confetti.className = 'confetti';
-      confetti.style.left = Math.random() * 100 + '%';
-      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.animationDuration = (Math.random() * 10 + 10) + 's';
-      confetti.style.animationDelay = (Math.random() * 10) + 's';
-      confetti.style.width = (Math.random() * 8 + 4) + 'px';
-      confetti.style.height = confetti.style.width;
-      container.appendChild(confetti);
-    }
-  </script>
 </body>
 </html>
