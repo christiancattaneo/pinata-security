@@ -715,8 +715,8 @@
         <div class="layer">
           <div class="layer-num">5</div>
           <div class="layer-content">
-            <h3>Exploit Test Generation</h3>
-            <p>Generates actual exploit tests for each vulnerability. SQL injection payloads, XSS scripts, command injections.</p>
+            <h3>Adversarial Test Generation</h3>
+            <p>AI writes complete, runnable test files that target your specific vulnerable code. Not templates. Real tests that fail until you fix the vulnerability.</p>
           </div>
           <span class="layer-badge ai">pinata generate</span>
         </div>
@@ -767,6 +767,20 @@
           <div class="compare-cell"><span class="cross">-</span></div>
         </div>
         <div class="compare-row">
+          <div class="compare-cell">Generates runnable security tests</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-cell">Mutation-tested (100% kill rate)</div>
+          <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+          <div class="compare-cell"><span class="cross">-</span></div>
+        </div>
+        <div class="compare-row">
           <div class="compare-cell">Dynamic exploit execution</div>
           <div class="compare-cell pinata-col"><span class="check">&#10003;</span></div>
           <div class="compare-cell"><span class="cross">-</span></div>
@@ -800,6 +814,70 @@
           <div class="compare-cell"><span class="cross">-</span></div>
           <div class="compare-cell"><span class="check">&#10003;</span></div>
           <div class="compare-cell"><span class="check">&#10003;</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="architecture" style="background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);">
+    <div class="container">
+      <h2>Adversarial Test Generation</h2>
+      <p class="lead">Other scanners give you a report. Pinata gives you a test file that blocks your CI until the vulnerability is fixed.</p>
+
+      <div class="terminal" style="max-width: 800px; margin: 40px auto 0;">
+        <div class="terminal-header">
+          <div class="terminal-dot red"></div>
+          <div class="terminal-dot yellow"></div>
+          <div class="terminal-dot green"></div>
+          <span class="terminal-title">test generation</span>
+        </div>
+        <div class="terminal-body">
+          <div><span class="prompt">$</span> <span class="cmd">pinata generate --gaps --write</span></div>
+          <div>&nbsp;</div>
+          <div class="dim">Extracting context for 3 findings...</div>
+          <div class="dim">Generating tests with AI...</div>
+          <div>&nbsp;</div>
+          <div><span class="green">  +</span> tests/security/sqli-users.test.ts</div>
+          <div class="dim">    SQL injection test for getUserById at api/users.ts:47</div>
+          <div><span class="green">  +</span> tests/security/xss-comments.test.ts</div>
+          <div class="dim">    XSS test for renderComment at views/comments.tsx:23</div>
+          <div><span class="green">  +</span> tests/security/cmd-exec.test.ts</div>
+          <div class="dim">    Command injection test for runBuild at utils/exec.ts:12</div>
+          <div>&nbsp;</div>
+          <div class="green">Wrote 3 test files</div>
+          <div class="dim">Tests fail against current code (vulnerabilities confirmed).</div>
+          <div class="dim">Fix the code, tests will pass. Add to CI to prevent regressions.</div>
+        </div>
+      </div>
+
+      <div class="layers" style="margin-top: 48px;">
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">1</div>
+          <div class="layer-content">
+            <h3>Context extraction</h3>
+            <p>Reads the full function, its imports, your test framework, database type, and existing test style. Not a 5-line snippet. The whole picture.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">2</div>
+          <div class="layer-content">
+            <h3>AI generates complete test files</h3>
+            <p>Not templates with placeholders. Real imports, real function calls, real payloads targeting your specific code. Matches your project's test style.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">3</div>
+          <div class="layer-content">
+            <h3>Validation: must fail</h3>
+            <p>Generated tests are run against your current code. If the test passes, it's useless and gets regenerated. A security test that doesn't catch the vulnerability is a lie.</p>
+          </div>
+        </div>
+        <div class="layer">
+          <div class="layer-num" style="background: linear-gradient(135deg, var(--accent), var(--blue));">4</div>
+          <div class="layer-content">
+            <h3>Mutation testing verification</h3>
+            <p>Stryker mutates your code and checks if the test catches it. 100% mutation kill rate on Pinata's own test suite. The only honest metric for test quality.</p>
+          </div>
         </div>
       </div>
     </div>

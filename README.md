@@ -50,8 +50,9 @@ pinata analyze .
 ```bash
 pinata analyze .                    # Fast scan
 pinata analyze . --verify           # AI-verified scan
+pinata generate --gaps --write      # Generate adversarial tests for findings
+pinata generate --gaps --property   # Also generate property-based invariants
 pinata analyze . --execute          # Dynamic execution (requires Docker)
-pinata analyze . --execute --dry-run  # Preview tests without running
 pinata analyze . --confidence low   # Include all matches
 pinata analyze . --output json      # JSON output
 pinata analyze . --output sarif     # SARIF for GitHub
@@ -146,7 +147,43 @@ Pinata auto-detects your project type and adjusts scanning rules accordingly:
 
 This reduces false positives by ~60% for specialized project types.
 
-## Dynamic Execution (Layer 5)
+## Adversarial Test Generation
+
+The `generate` command creates complete, runnable security tests from vulnerability findings. Not templates. Real test files with real imports targeting your specific code.
+
+```bash
+# Generate tests for all findings (dry run)
+pinata generate --gaps
+
+# Write test files to disk
+pinata generate --gaps --write
+
+# Include property-based invariant tests (fast-check/hypothesis)
+pinata generate --gaps --write --property
+```
+
+**How it works:**
+1. Extracts the full function, imports, framework, and database type from each finding
+2. AI generates a complete test file targeting the specific vulnerable code path
+3. Generated test is validated: it must **fail** against current code (if it passes, it's useless)
+4. Mutation testing (Stryker) verifies the test actually catches bugs
+
+**Output:**
+```
+$ pinata generate --gaps --write
+
+  + tests/security/sqli-users.test.ts
+    SQL injection test for getUserById at api/users.ts:47
+  + tests/security/xss-comments.test.ts
+    XSS test for renderComment at views/comments.tsx:23
+
+Wrote 2 test files. Tests fail against current code.
+Fix the code, tests will pass. Add to CI to prevent regressions.
+```
+
+**Mutation testing:** Pinata's own test suite achieves **100% mutation kill rate** on covered code (350 tests, verified by Stryker). This is the only honest metric for test quality.
+
+## Dynamic Execution (Layer 6)
 
 The `--execute` flag runs generated exploit tests in a Docker sandbox to **prove** vulnerabilities exist:
 
