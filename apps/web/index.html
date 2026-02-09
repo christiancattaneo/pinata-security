@@ -64,7 +64,7 @@
     .confetti:nth-child(even) { border-radius: 2px; transform: rotate(45deg); }
 
     @keyframes fall {
-      0% { transform: translateY(-100px) rotate(0deg); opacity: 0.4; }
+      0% { transform: translateY(-100px) rotate(0deg); opacity: 0.5; }
       100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
     }
 
@@ -999,14 +999,14 @@
     const container = document.getElementById('confetti');
     const colors = ['#ff5486', '#f5a623', '#00c49a', '#8b5cf6', '#3b82f6'];
 
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 100; i++) {
       const confetti = document.createElement('div');
       confetti.className = 'confetti';
       confetti.style.left = Math.random() * 100 + '%';
       confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      confetti.style.animationDuration = (Math.random() * 12 + 12) + 's';
-      confetti.style.animationDelay = (Math.random() * 12) + 's';
-      confetti.style.width = (Math.random() * 6 + 3) + 'px';
+      confetti.style.animationDuration = (Math.random() * 5 + 4) + 's';
+      confetti.style.animationDelay = (Math.random() * 8) + 's';
+      confetti.style.width = (Math.random() * 8 + 4) + 'px';
       confetti.style.height = confetti.style.width;
       container.appendChild(confetti);
     }
