@@ -1,6 +1,12 @@
 /**
- * Generate command - Generate tests for identified gaps
+ * Generate command - AI-powered adversarial test generation
+ *
+ * Generates runnable security test files from vulnerability findings.
+ * Uses AI to create complete tests that fail against vulnerable code.
  */
+
+import { writeFile, mkdir } from "fs/promises";
+import { dirname, relative } from "path";
 
 import chalk from "chalk";
 import ora from "ora";
@@ -9,34 +15,24 @@ import type { Command } from "commander";
 import type { RiskDomain } from "../../categories/schema/index.js";
 
 import { RISK_DOMAINS } from "../../categories/schema/index.js";
-import { createCategoryStore } from "../../categories/store/index.js";
 import { logger } from "../../lib/index.js";
-import { createRenderer } from "../../templates/index.js";
 import { formatError } from "../formatters.js";
-import {
-  formatGeneratedTerminal,
-  formatGeneratedJson,
-  formatWriteSummary,
-  suggestTestPath,
-  extractVariablesFromGap,
-  extractVariablesWithAI,
-  writeGeneratedTests,
-  type GeneratedTest,
-} from "../generate-formatters.js";
 import { loadScanResults } from "../results-cache.js";
-import { getDefinitionsPath } from "../shared.js";
+import { extractTestContexts } from "../../testgen/context.js";
+import { generateTest, generatePropertyTest } from "../../testgen/generator.js";
+import type { GeneratedTest } from "../../testgen/generator.js";
+import type { Gap } from "../../core/scanner/types.js";
 
 export function registerGenerateCommand(program: Command): void {
   program
     .command("generate")
-    .description("Generate tests for identified gaps")
-    .option("--gaps", "Generate tests for all identified gaps")
+    .description("Generate adversarial security tests for detected vulnerabilities")
+    .option("--gaps", "Generate tests for all detected gaps")
     .option("-c, --category <id>", "Generate tests for specific category")
     .option("-d, --domain <domain>", "Generate tests for all categories in domain")
     .option("-s, --severity <level>", "Minimum severity: critical, high, medium, low", "medium")
-    .option("--output-dir <dir>", "Directory for generated test files")
-    .option("--write", "Write files to disk (default is dry-run)")
-    .option("--ai", "Use AI for smarter template variable filling")
+    .option("--write", "Write test files to disk")
+    .option("--property", "Also generate property-based tests (fast-check/hypothesis)")
     .option("--ai-provider <provider>", "AI provider: anthropic, openai", "anthropic")
     .option("-o, --output <format>", "Output format: terminal, json", "terminal")
     .option("-v, --verbose", "Verbose output")
@@ -44,8 +40,8 @@ export function registerGenerateCommand(program: Command): void {
     .action(async (options: Record<string, unknown>) => {
       const isQuiet = Boolean(options["quiet"]);
       const isVerbose = Boolean(options["verbose"]);
-      const dryRun = !options["write"];
-      const useAI = Boolean(options["ai"]);
+      const shouldWrite = Boolean(options["write"]);
+      const withProperty = Boolean(options["property"]);
       const aiProvider = String(options["aiProvider"] ?? "anthropic") as "anthropic" | "openai";
       const outputFormat = String(options["output"] ?? "terminal");
 
@@ -67,120 +63,157 @@ export function registerGenerateCommand(program: Command): void {
       }
 
       if (domainFilter && !RISK_DOMAINS.includes(domainFilter as RiskDomain)) {
-        console.error(formatError(new Error(`Invalid domain: ${domainFilter}. Valid domains: ${RISK_DOMAINS.join(", ")}`)));
+        console.error(formatError(new Error(`Invalid domain: ${domainFilter}. Valid: ${RISK_DOMAINS.join(", ")}`)));
         process.exit(1);
       }
 
       const validSeverities = ["critical", "high", "medium", "low"];
       const minSeverity = String(options["severity"] ?? "medium");
       if (!validSeverities.includes(minSeverity)) {
-        console.error(formatError(new Error(`Invalid severity: ${minSeverity}. Use: critical, high, medium, low`)));
+        console.error(formatError(new Error(`Invalid severity: ${minSeverity}`)));
         process.exit(1);
       }
       const severityOrder: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
 
       const showSpinner = outputFormat === "terminal" && !isQuiet;
-      const spinner = showSpinner ? ora("Loading cached scan results...").start() : null;
+      const spinner = showSpinner ? ora("Loading scan results...").start() : null;
 
       try {
+        // Load cached results
         const projectRoot = process.cwd();
         const cacheResult = await loadScanResults(projectRoot);
 
         if (!cacheResult.success) {
           spinner?.fail("No cached results");
           console.error(formatError(cacheResult.error));
-          console.error(chalk.yellow("\nRun `pinata analyze` first to scan for gaps."));
+          console.error(chalk.yellow("\nRun `pinata analyze` first."));
           process.exit(1);
         }
 
-        const cached = cacheResult.data;
-        let gaps = cached.gaps;
+        let gaps: Gap[] = cacheResult.data.gaps;
 
-        if (spinner) { spinner.text = `Loaded ${gaps.length} gaps from cache. Filtering...`; }
-
+        // Filter
         if (categoryId) { gaps = gaps.filter((g) => g.categoryId === categoryId); }
         if (domainFilter) { gaps = gaps.filter((g) => g.domain === domainFilter); }
         gaps = gaps.filter((g) => (severityOrder[g.severity] ?? 0) >= (severityOrder[minSeverity] ?? 0));
 
+        // Deduplicate by category+file (one test per vulnerable file per category)
+        const seen = new Set<string>();
+        gaps = gaps.filter((g) => {
+          const key = `${g.categoryId}:${g.filePath}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
         if (gaps.length === 0) {
-          spinner?.succeed("No gaps match the filters");
-          console.log(chalk.yellow("\nNo gaps found matching the specified filters."));
+          spinner?.succeed("No gaps match filters");
+          console.log(chalk.yellow("\nNo gaps to generate tests for."));
           process.exit(0);
         }
 
-        if (spinner) { spinner.text = `Found ${gaps.length} gaps. Loading categories...`; }
+        if (spinner) { spinner.text = `Extracting context for ${gaps.length} findings...`; }
 
-        const store = createCategoryStore();
-        const definitionsPath = getDefinitionsPath();
-        const loadResult = await store.loadFromDirectory(definitionsPath);
+        // Extract context
+        const contexts = await extractTestContexts(gaps, projectRoot);
 
-        if (!loadResult.success) {
-          spinner?.fail("Failed to load categories");
-          console.error(formatError(loadResult.error));
+        if (contexts.length === 0) {
+          spinner?.fail("Failed to extract context from any finding");
           process.exit(1);
         }
 
-        if (spinner) { spinner.text = `Generating tests for ${gaps.length} gaps...`; }
+        if (spinner) { spinner.text = `Generating tests for ${contexts.length} findings with AI...`; }
 
-        const renderer = createRenderer({ strict: false, allowUnresolved: true });
-        const generatedTests: GeneratedTest[] = [];
-        const errors: string[] = [];
-
-        const gapsByCategory = new Map<string, typeof gaps>();
-        for (const gap of gaps) {
-          const existing = gapsByCategory.get(gap.categoryId) ?? [];
-          existing.push(gap);
-          gapsByCategory.set(gap.categoryId, existing);
+        // Setup AI caller
+        const { hasApiKey, getApiKey } = await import("../config.js");
+        if (!hasApiKey(aiProvider)) {
+          spinner?.fail("No API key configured");
+          console.error(chalk.yellow(`\nAI test generation requires an API key.`));
+          console.error(chalk.gray(`  pinata config set ${aiProvider === "anthropic" ? "anthropic-api-key" : "openai-api-key"} YOUR_KEY`));
+          process.exit(1);
         }
 
-        for (const [catId, categoryGaps] of gapsByCategory) {
-          const categoryResult = store.get(catId);
-          if (!categoryResult.success) { errors.push(`Category not found: ${catId}`); continue; }
-          const category = categoryResult.data;
+        const apiKey = getApiKey(aiProvider) ?? "";
+        const callAI = buildAICaller(aiProvider, apiKey);
 
-          for (const gap of categoryGaps) {
-            const gapExt = gap.filePath.split(".").pop() ?? "";
-            const langMap: Record<string, string> = { py: "python", ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript", go: "go", java: "java", rs: "rust" };
-            const gapLang = langMap[gapExt];
+        // Generate tests
+        const generated: GeneratedTest[] = [];
+        const errors: string[] = [];
 
-            let template = category.testTemplates.find((t) => t.language === gapLang);
-            if (!template) { template = category.testTemplates[0]; }
-            if (!template) { errors.push(`No templates available for ${catId}`); continue; }
+        for (let i = 0; i < contexts.length; i++) {
+          const ctx = contexts[i]!;
+          if (spinner) { spinner.text = `Generating test ${i + 1}/${contexts.length}: ${ctx.gap.categoryId} in ${relative(projectRoot, ctx.gap.filePath)}`; }
 
-            let variables: Record<string, unknown>;
-            if (useAI) {
-              variables = await extractVariablesWithAI(gap, template.variables, { provider: aiProvider });
-            } else {
-              variables = extractVariablesFromGap(gap);
+          try {
+            const test = await generateTest(ctx, callAI);
+            generated.push(test);
+
+            if (withProperty) {
+              try {
+                const propTest = await generatePropertyTest(ctx, callAI);
+                generated.push(propTest);
+              } catch (err) {
+                errors.push(`Property test failed for ${ctx.gap.categoryId}: ${err instanceof Error ? err.message : String(err)}`);
+              }
             }
-
-            const renderResult = renderer.renderTemplate(template, variables);
-            if (!renderResult.success) { errors.push(`Failed to render ${catId}: ${renderResult.error.message}`); continue; }
-
-            const suggestedPath = suggestTestPath(gap.filePath, template, cached.targetDirectory);
-            generatedTests.push({ gap, category, template, result: renderResult.data, suggestedPath });
+          } catch (err) {
+            errors.push(`Failed ${ctx.gap.categoryId}: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
 
         spinner?.stop();
 
+        if (generated.length === 0) {
+          console.log(chalk.red("Failed to generate any tests."));
+          for (const error of errors) { console.error(chalk.gray(`  ${error}`)); }
+          process.exit(1);
+        }
+
+        // Output
         if (outputFormat === "json") {
-          console.log(formatGeneratedJson(generatedTests));
+          console.log(JSON.stringify({
+            generated: generated.map((t) => ({
+              filePath: relative(projectRoot, t.filePath),
+              categoryId: t.categoryId,
+              description: t.description,
+              isPropertyBased: t.isPropertyBased,
+              lines: t.content.split("\n").length,
+            })),
+            errors,
+          }, null, 2));
         } else {
-          console.log(formatGeneratedTerminal(generatedTests, cached.targetDirectory));
+          console.log();
+          console.log(chalk.bold(`Generated ${generated.length} test file${generated.length === 1 ? "" : "s"}`));
+          console.log();
+          for (const test of generated) {
+            const relPath = relative(projectRoot, test.filePath);
+            const badge = test.isPropertyBased ? chalk.magenta(" [property]") : "";
+            console.log(`  ${chalk.green("+")} ${relPath}${badge}`);
+            console.log(chalk.gray(`    ${test.description}`));
+          }
+          console.log();
         }
 
-        if (isVerbose && errors.length > 0) {
+        // Write to disk
+        if (shouldWrite) {
+          let written = 0;
+          for (const test of generated) {
+            try {
+              await mkdir(dirname(test.filePath), { recursive: true });
+              await writeFile(test.filePath, test.content, "utf-8");
+              written++;
+            } catch (err) {
+              errors.push(`Write failed: ${relative(projectRoot, test.filePath)}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+          console.log(chalk.green(`Wrote ${written} test file${written === 1 ? "" : "s"}`));
+        } else {
+          console.log(chalk.gray("Dry run. Use --write to save test files to disk."));
+        }
+
+        if (errors.length > 0 && isVerbose) {
           console.error(chalk.yellow("\nWarnings:"));
-          for (const error of errors) { console.error(chalk.gray(`  - ${error}`)); }
-        }
-
-        if (!dryRun) {
-          const outputDirOption = options["outputDir"] as string | undefined;
-          const writeResult = await writeGeneratedTests(generatedTests, cached.targetDirectory, outputDirOption);
-          if (!writeResult.success) { console.error(formatError(writeResult.error)); process.exit(1); }
-          console.log(formatWriteSummary(writeResult.data, cached.targetDirectory));
-          if (writeResult.data.failed.length > 0) { process.exit(1); }
+          for (const error of errors) { console.error(chalk.gray(`  ${error}`)); }
         }
 
         process.exit(0);
@@ -190,4 +223,62 @@ export function registerGenerateCommand(program: Command): void {
         process.exit(1);
       }
     });
+}
+
+// =============================================================================
+// AI Caller factory
+// =============================================================================
+
+function buildAICaller(provider: "anthropic" | "openai", apiKey: string): (prompt: string, systemPrompt: string) => Promise<string> {
+  return async (prompt: string, systemPrompt: string): Promise<string> => {
+    if (provider === "anthropic") {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        throw new Error(`Anthropic API error: ${response.status} - ${body}`);
+      }
+
+      const data = await response.json() as { content: Array<{ text: string }> };
+      return data.content[0]?.text ?? "";
+    }
+
+    // OpenAI
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        max_tokens: 4096,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${body}`);
+    }
+
+    const data = await response.json() as { choices: Array<{ message: { content: string } }> };
+    return data.choices[0]?.message?.content ?? "";
+  };
 }
