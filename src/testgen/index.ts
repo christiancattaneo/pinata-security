@@ -25,5 +25,7 @@ export {
 export {
   validateTest,
   cleanupTest,
+  measureMutationScore,
   type ValidationResult,
+  type MutationResult,
 } from "./validator.js";

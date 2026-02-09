@@ -4,11 +4,12 @@
  * Validates generated tests are:
  * 1. Syntactically valid (compiles/parses)
  * 2. Actually useful (fails against vulnerable code)
+ * 3. High mutation kill rate (Stryker integration)
  */
 
 import { execFile } from "child_process";
-import { writeFile, unlink, mkdir } from "fs/promises";
-import { dirname, extname } from "path";
+import { readFile, writeFile, unlink, mkdir } from "fs/promises";
+import { dirname, extname, relative } from "path";
 
 import type { GeneratedTest } from "./generator.js";
 
@@ -181,5 +182,91 @@ export async function cleanupTest(filePath: string): Promise<void> {
     await unlink(filePath);
   } catch {
     // Ignore cleanup errors
+  }
+}
+
+// =============================================================================
+// MUTATION TESTING (Stryker)
+// =============================================================================
+
+export interface MutationResult {
+  /** Mutation score (0-100). Higher = test catches more bugs */
+  score: number;
+  /** Total mutants created */
+  totalMutants: number;
+  /** Mutants killed by the test (detected) */
+  killed: number;
+  /** Mutants that survived (test didn't catch) */
+  survived: number;
+  /** Mutants that timed out */
+  timedOut: number;
+  /** Raw Stryker output */
+  output: string;
+}
+
+/**
+ * Run Stryker mutation testing against a specific source file
+ * using a specific test file. Measures how many mutations the
+ * test catches (kill rate = test quality).
+ *
+ * @param sourceFile - The vulnerable source file to mutate
+ * @param testFile - The generated test file
+ * @param projectRoot - Project root directory
+ */
+export async function measureMutationScore(
+  sourceFile: string,
+  testFile: string,
+  projectRoot: string
+): Promise<MutationResult> {
+  const relSource = relative(projectRoot, sourceFile);
+  const relTest = relative(projectRoot, testFile);
+
+  // Run Stryker scoped to just this source file and test
+  const result = await runCommand("npx", [
+    "stryker", "run",
+    "--mutate", relSource,
+    "--testRunner", "vitest",
+    "--reporters", "json",
+    "--jsonReporter.fileName", ".pinata/mutation-report.json",
+    "--concurrency", "1",
+    "--timeoutMS", "15000",
+  ], projectRoot, 120000);
+
+  const output = (result.stdout + "\n" + result.stderr).trim();
+
+  // Parse the JSON report
+  try {
+    const reportPath = `${projectRoot}/.pinata/mutation-report.json`;
+    const report = JSON.parse(await readFile(reportPath, "utf-8")) as {
+      files?: Record<string, {
+        mutants?: Array<{ status: string }>;
+      }>;
+    };
+
+    let killed = 0;
+    let survived = 0;
+    let timedOut = 0;
+    let total = 0;
+
+    if (report.files) {
+      for (const file of Object.values(report.files)) {
+        for (const mutant of file.mutants ?? []) {
+          total++;
+          if (mutant.status === "Killed") killed++;
+          else if (mutant.status === "Survived") survived++;
+          else if (mutant.status === "Timeout") timedOut++;
+        }
+      }
+    }
+
+    const score = total > 0 ? Math.round((killed / total) * 100) : 0;
+
+    return { score, totalMutants: total, killed, survived, timedOut, output };
+  } catch {
+    // If report parsing fails, extract score from stdout
+    const scoreMatch = output.match(/Mutation score:\s*(\d+(?:\.\d+)?)/i);
+    const score = scoreMatch ? Math.round(parseFloat(scoreMatch[1]!)) : 0;
+
+    return { score, totalMutants: 0, killed: 0, survived: 0, timedOut: 0, output };
   }
 }
