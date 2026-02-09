@@ -102,3 +102,4 @@ docs/.vitepress/cache/
 .history/
 .vercel
 .env*.local
+mutation-report.json
