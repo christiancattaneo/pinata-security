@@ -10,19 +10,19 @@
   <style>
     :root {
       --bg: #ffffff;
-      --bg-secondary: #f8f9fa;
-      --bg-tertiary: #f0f1f3;
-      --text: #1a1a1a;
+      --bg-secondary: #fafafa;
+      --bg-tertiary: #f3f4f6;
+      --text: #111111;
       --text-muted: #6b7280;
-      --accent: #059669;
-      --accent-dim: #047857;
-      --pink: #e11d48;
-      --yellow: #d97706;
-      --purple: #7c3aed;
-      --blue: #2563eb;
-      --critical: #dc2626;
-      --high: #d97706;
-      --medium: #2563eb;
+      --accent: #00c49a;
+      --accent-dim: #00a080;
+      --pink: #ff5486;
+      --yellow: #f5a623;
+      --purple: #8b5cf6;
+      --blue: #3b82f6;
+      --critical: #ef4444;
+      --high: #f59e0b;
+      --medium: #3b82f6;
       --border: #e5e7eb;
     }
 
@@ -40,10 +40,68 @@
       overflow-x: hidden;
     }
 
+    /* Confetti Background */
+    .confetti-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .confetti {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      opacity: 0.35;
+      animation: fall linear infinite;
+    }
+
+    .confetti:nth-child(odd) { border-radius: 50%; }
+    .confetti:nth-child(even) { border-radius: 2px; transform: rotate(45deg); }
+
+    @keyframes fall {
+      0% { transform: translateY(-100px) rotate(0deg); opacity: 0.4; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* Pinata Swing Animation */
+    .pinata-container {
+      position: fixed;
+      top: -20px;
+      right: 10%;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .pinata-string {
+      width: 2px;
+      height: 80px;
+      background: linear-gradient(to bottom, transparent, #ccc);
+      margin: 0 auto;
+    }
+
+    .pinata-emoji {
+      font-size: 80px;
+      animation: swing 2s ease-in-out infinite;
+      transform-origin: top center;
+      filter: drop-shadow(0 10px 30px rgba(0,0,0,0.15));
+    }
+
+    @keyframes swing {
+      0%, 100% { transform: rotate(-15deg); }
+      50% { transform: rotate(15deg); }
+    }
+
     .container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 0 24px;
+      position: relative;
+      z-index: 2;
     }
 
     /* Header */
@@ -66,7 +124,7 @@
     .logo {
       font-size: 28px;
       font-weight: 800;
-      background: linear-gradient(135deg, var(--pink), var(--purple), var(--accent));
+      background: linear-gradient(135deg, var(--pink), var(--yellow), var(--accent));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -93,8 +151,8 @@
 
     .hero-badge {
       display: inline-block;
-      background: linear-gradient(135deg, rgba(220,38,38,0.08), rgba(217,119,6,0.08));
-      border: 1px solid rgba(220,38,38,0.3);
+      background: linear-gradient(135deg, rgba(255,84,134,0.1), rgba(245,166,35,0.1));
+      border: 1px solid rgba(255,84,134,0.3);
       padding: 8px 20px;
       border-radius: 50px;
       font-size: 14px;
@@ -149,14 +207,14 @@
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent), var(--blue));
+      background: linear-gradient(135deg, var(--pink), var(--purple));
       color: white;
-      box-shadow: 0 4px 20px rgba(5,150,105,0.25);
+      box-shadow: 0 4px 20px rgba(255,84,134,0.3);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 30px rgba(5,150,105,0.35);
+      box-shadow: 0 6px 30px rgba(255,84,134,0.4);
     }
 
     .btn-secondary {
@@ -166,7 +224,7 @@
     }
 
     .btn-secondary:hover {
-      border-color: var(--accent);
+      border-color: var(--pink);
     }
 
     .hero-note {
@@ -284,15 +342,13 @@
     }
 
     .threat-card .severity.critical {
-      background: rgba(220,38,38,0.1);
+      background: rgba(239,68,68,0.1);
       color: var(--critical);
-      border: 1px solid rgba(220,38,38,0.2);
     }
 
     .threat-card .severity.high {
-      background: rgba(217,119,6,0.1);
+      background: rgba(245,158,11,0.1);
       color: var(--high);
-      border: 1px solid rgba(217,119,6,0.2);
     }
 
     .threat-card h3 {
@@ -388,21 +444,18 @@
     }
 
     .layer-badge.fast {
-      background: rgba(5,150,105,0.1);
-      color: var(--accent);
-      border: 1px solid rgba(5,150,105,0.3);
+      background: rgba(0,196,154,0.1);
+      color: var(--accent-dim);
     }
 
     .layer-badge.ai {
-      background: rgba(124,58,237,0.1);
+      background: rgba(139,92,246,0.1);
       color: var(--purple);
-      border: 1px solid rgba(124,58,237,0.3);
     }
 
     .layer-badge.docker {
-      background: rgba(37,99,235,0.1);
+      background: rgba(59,130,246,0.1);
       color: var(--blue);
-      border: 1px solid rgba(37,99,235,0.3);
     }
 
     /* Comparison Section */
@@ -469,7 +522,7 @@
     }
 
     .pinata-col {
-      background: rgba(5,150,105,0.06);
+      background: rgba(255,84,134,0.06);
     }
 
     /* GitHub Action */
@@ -569,10 +622,20 @@
       .compare-cell { padding: 12px 8px; font-size: 12px; }
       .layer { flex-direction: column; text-align: center; }
       .layer-badge { margin-left: 0; margin-top: 12px; }
+      .pinata-container { display: none; }
     }
   </style>
 </head>
 <body>
+  <!-- Confetti Background -->
+  <div class="confetti-container" id="confetti"></div>
+
+  <!-- Swinging Pinata -->
+  <div class="pinata-container">
+    <div class="pinata-string"></div>
+    <div class="pinata-emoji">🪅</div>
+  </div>
+
   <header>
     <div class="container">
       <a href="/" class="logo">pinata</a>
@@ -930,5 +993,23 @@
       <p>Open source under MIT. <a href="https://github.com/christiancattaneo/pinata-security">GitHub</a></p>
     </div>
   </footer>
+
+  <script>
+    // Generate confetti
+    const container = document.getElementById('confetti');
+    const colors = ['#ff5486', '#f5a623', '#00c49a', '#8b5cf6', '#3b82f6'];
+
+    for (let i = 0; i < 40; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.left = Math.random() * 100 + '%';
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      confetti.style.animationDuration = (Math.random() * 12 + 12) + 's';
+      confetti.style.animationDelay = (Math.random() * 12) + 's';
+      confetti.style.width = (Math.random() * 6 + 3) + 'px';
+      confetti.style.height = confetti.style.width;
+      container.appendChild(confetti);
+    }
+  </script>
 </body>
 </html>
