@@ -9,17 +9,17 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0a0a;
-      --bg-secondary: #111111;
-      --bg-tertiary: #1a1a1a;
-      --text: #fafafa;
-      --text-muted: #888888;
-      --accent: #00d4aa;
-      --pink: #ff6b9d;
-      --yellow: #ffd93d;
-      --purple: #a855f7;
+      --bg: #ffffff;
+      --bg-secondary: #fafafa;
+      --bg-tertiary: #f3f4f6;
+      --text: #111111;
+      --text-muted: #6b7280;
+      --accent: #00c49a;
+      --pink: #ff5486;
+      --yellow: #f5a623;
+      --purple: #8b5cf6;
       --blue: #3b82f6;
-      --border: #222222;
+      --border: #e5e7eb;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,7 +39,7 @@
     header {
       padding: 24px 0;
       border-bottom: 1px solid var(--border);
-      background: rgba(10, 10, 10, 0.95);
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       position: sticky;
       top: 0;
@@ -101,18 +101,19 @@
     }
 
     pre {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
+      background: #1e1e2e;
+      border: 1px solid #313244;
       border-radius: 12px;
       padding: 20px;
       overflow-x: auto;
       margin: 16px 0 24px;
+      color: #cdd6f4;
     }
 
-    pre code { background: none; padding: 0; }
+    pre code { background: none; padding: 0; color: #cdd6f4; }
 
-    .command-line { color: var(--accent); }
-    .comment { color: var(--text-muted); }
+    .command-line { color: #a6e3a1; }
+    .comment { color: #6c7086; }
     .output { color: #888; }
 
     .callout {
