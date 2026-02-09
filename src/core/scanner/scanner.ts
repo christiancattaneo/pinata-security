@@ -128,7 +128,7 @@ export class Scanner {
   }
 
   /**
-   * Scan a directory for test coverage gaps
+   * Scan a directory for security vulnerabilities
    *
    * @param targetDirectory Directory to scan
    * @param options Scan options
@@ -321,37 +321,51 @@ export class Scanner {
       domainScores.set(domain, 100);
     }
 
-    // Apply penalties for gaps (with project-type weighting)
+    // Apply penalties per category (with diminishing returns)
+    // Group gaps by category to apply capped, logarithmic penalties
+    const gapsByCategory = new Map<string, Gap[]>();
     for (const gap of gaps) {
-      const severityWeight = SEVERITY_WEIGHTS[gap.severity];
-      const confidenceWeight = CONFIDENCE_WEIGHTS[gap.confidence];
-      const priorityWeight = PRIORITY_WEIGHTS[gap.priority];
-      
-      // Apply project-type context weight (1.0 = normal, 0.5 = less relevant, 1.5 = more relevant, 0 = skip)
       const projectTypeWeight = getCategoryWeight(gap.categoryId, projectType);
+      if (projectTypeWeight === 0) continue; // Skip irrelevant categories
+      
+      const existing = gapsByCategory.get(gap.categoryId) ?? [];
+      existing.push(gap);
+      gapsByCategory.set(gap.categoryId, existing);
+    }
 
-      // Calculate penalty: base × severity × confidence × priority × project-type factor
-      const basePenalty = 2; // Base penalty per gap
-      const penalty = basePenalty * severityWeight * confidenceWeight * Math.sqrt(priorityWeight) * projectTypeWeight;
-
-      // Skip gaps that aren't relevant for this project type
-      if (projectTypeWeight === 0) {
-        continue;
-      }
+    for (const [categoryId, categoryGaps] of gapsByCategory) {
+      // Use the highest-severity gap as representative
+      const representative = categoryGaps[0]!;
+      const severityWeight = SEVERITY_WEIGHTS[representative.severity];
+      const projectTypeWeight = getCategoryWeight(categoryId, projectType);
+      
+      // Find highest confidence in this category's gaps
+      const maxConfidence = categoryGaps.reduce((max, g) => {
+        const w = CONFIDENCE_WEIGHTS[g.confidence];
+        return w > max ? w : max;
+      }, 0);
+      
+      // Penalty = severity × confidence × log(count + 1) × project weight
+      // Capped at 15 points per category to prevent any single category from dominating
+      const count = categoryGaps.length;
+      const countFactor = Math.log2(count + 1); // 1→1, 10→3.5, 100→6.7, 1000→10
+      const MAX_CATEGORY_PENALTY = 15;
+      const rawPenalty = severityWeight * maxConfidence * countFactor * projectTypeWeight;
+      const penalty = Math.min(rawPenalty, MAX_CATEGORY_PENALTY);
 
       baseScore -= penalty;
 
       // Apply to domain score
-      const currentDomainScore = domainScores.get(gap.domain) ?? 100;
-      domainScores.set(gap.domain, Math.max(0, currentDomainScore - penalty * 2));
+      const currentDomainScore = domainScores.get(representative.domain) ?? 100;
+      domainScores.set(representative.domain, Math.max(0, currentDomainScore - penalty * 1.5));
 
-      // Track significant penalties
-      if (penalty >= 5) {
-        const weightNote = projectTypeWeight !== 1.0 ? ` [${projectType} weight: ${projectTypeWeight}x]` : "";
+      // Track penalties
+      if (penalty >= 3) {
+        const weightNote = projectTypeWeight !== 1.0 ? ` [${projectType}: ${projectTypeWeight}x]` : "";
         penalties.push({
-          reason: `${gap.severity} ${gap.domain} gap: ${gap.categoryName}${weightNote}`,
+          reason: `${representative.severity} ${representative.domain}: ${representative.categoryName} (${count} findings)${weightNote}`,
           points: Math.round(penalty),
-          categoryId: gap.categoryId,
+          categoryId,
         });
       }
     }

@@ -246,11 +246,15 @@ export const SEVERITY_WEIGHTS: Record<Severity, number> = {
 
 /**
  * Weight multipliers for confidence levels
+ * 
+ * High = strong signal, full weight
+ * Medium = possible issue, heavily discounted
+ * Low = informational, minimal weight
  */
 export const CONFIDENCE_WEIGHTS: Record<Confidence, number> = {
   high: 1.0,
-  medium: 0.7,
-  low: 0.4,
+  medium: 0.3,
+  low: 0.1,
 };
 
 /**

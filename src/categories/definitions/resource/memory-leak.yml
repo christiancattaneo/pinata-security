@@ -25,19 +25,12 @@ references:
   - https://developer.chrome.com/docs/devtools/memory-problems/
 
 detectionPatterns:
-  - id: python-cache-no-limit
+  - id: python-global-list-append
     type: regex
     language: python
-    pattern: "\\{\\}|dict\\(\\)(?!.*maxsize|.*lru_cache|.*TTLCache)"
-    confidence: low
-    description: Detects unbounded dict cache (verify eviction)
-
-  - id: python-list-append-loop
-    type: regex
-    language: python
-    pattern: "while.*\\.append\\(|for.*\\.append\\("
-    confidence: low
-    description: Detects list growing in loop (verify bounds)
+    pattern: "^\\w+\\s*=\\s*\\[\\].*\\.append\\("
+    confidence: medium
+    description: Detects module-level list accumulation without bounds
 
   - id: python-global-accumulator
     type: regex
@@ -60,12 +53,12 @@ detectionPatterns:
     confidence: medium
     description: Detects potential circular references
 
-  - id: ts-cache-no-limit
+  - id: ts-module-level-map
     type: regex
     language: typescript
-    pattern: "new\\s+Map\\(\\)|new\\s+Set\\(\\)|\\{\\}\\s*as\\s+Record"
-    confidence: low
-    description: Detects unbounded cache structures
+    pattern: "^(?:export\\s+)?const\\s+\\w+\\s*=\\s*new\\s+Map\\(\\)"
+    confidence: medium
+    description: Detects module-level Map without eviction (potential memory leak in long-running servers)
 
   - id: ts-event-listener-no-remove
     type: regex

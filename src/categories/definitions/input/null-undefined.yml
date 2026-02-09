@@ -20,54 +20,12 @@ references:
   - https://cwe.mitre.org/data/definitions/457.html
 
 detectionPatterns:
-  - id: python-no-none-check
-    type: regex
-    language: python
-    pattern: "\\w+\\.\\w+(?!.*if.*is\\s+not\\s+None)"
-    confidence: low
-    description: Detects attribute access without None check
-
-  - id: python-dict-access-no-get
-    type: regex
-    language: python
-    pattern: "\\w+\\[[\"']\\w+[\"']\\](?!.*\\.get\\()"
-    confidence: medium
-    description: Detects dict access that may raise KeyError
-
-  - id: python-optional-no-default
-    type: regex
-    language: python
-    pattern: "Optional\\[.*\\](?!.*=\\s*None)"
-    confidence: medium
-    description: Detects Optional type without default value
-
-  - id: ts-no-null-check
-    type: regex
-    language: typescript
-    pattern: "\\w+\\.\\w+(?!.*\\?\\.|.*&&|.*\\|\\|)"
-    confidence: low
-    description: Detects property access without null check
-
-  - id: ts-undefined-equality
-    type: regex
-    language: typescript
-    pattern: "===\\s*undefined(?!.*null)|!==\\s*undefined(?!.*null)"
-    confidence: medium
-    description: Detects undefined check without null check
-
   - id: ts-non-null-assertion
     type: regex
     language: typescript
     pattern: "\\w+!\\.|\\w+!\\["
     confidence: high
-    description: Detects non-null assertion operator
-
-  - id: ts-optional-chaining-missing
-    type: regex
-    language: typescript
-    pattern: "\\w+\\.\\w+\\.\\w+(?!\\?\\.)"
-    confidence: low
-    description: Detects deep access without optional chaining
+    description: Detects non-null assertion operator (unsafe type narrowing bypass)
 
 testTemplates:
   - id: pytest-null-undefined

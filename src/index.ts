@@ -1,5 +1,5 @@
 /**
- * Pinata - AI-powered test coverage analysis and generation
+ * Pinata - AI-powered security vulnerability detection
  *
  * @packageDocumentation
  */

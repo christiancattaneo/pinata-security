@@ -3,7 +3,7 @@
  * Pinata CLI entry point
  *
  * Commands:
- * - analyze  - Scan codebase for test coverage gaps
+ * - analyze  - Scan codebase for security vulnerabilities
  * - generate - Generate tests for identified gaps
  * - explain  - AI explanations for gaps
  * - suggest-patterns - AI pattern suggestions
@@ -61,7 +61,7 @@ const program = new Command();
 
 program
   .name("pinata")
-  .description("AI-powered test coverage analysis and generation")
+  .description("AI-powered security vulnerability detection")
   .version(VERSION);
 
 // =============================================================================

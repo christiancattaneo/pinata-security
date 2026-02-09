@@ -311,6 +311,64 @@ export const SCORING_ADJUSTMENTS: ScoringAdjustment[] = [
     lowerWeight: ["cli", "script"],
     higherWeight: ["web-server", "api", "serverless"],
   },
+  // Connection failure handling less relevant for CLI
+  {
+    categoryId: "connection-failure",
+    lowerWeight: ["cli", "script", "library"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Memory bloat less relevant for short-lived processes
+  {
+    categoryId: "memory-bloat",
+    skip: ["cli", "script", "serverless"],
+    higherWeight: ["web-server", "desktop"],
+  },
+  // Data race less relevant for single-threaded CLI
+  {
+    categoryId: "data-race",
+    lowerWeight: ["cli", "script"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Network partition not relevant for CLI
+  {
+    categoryId: "network-partition",
+    skip: ["cli", "script", "library", "frontend-spa"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Packet loss not relevant for CLI
+  {
+    categoryId: "packet-loss",
+    skip: ["cli", "script", "library", "frontend-spa"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Thundering herd not relevant for CLI
+  {
+    categoryId: "thundering-herd",
+    skip: ["cli", "script", "library", "frontend-spa"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Network timeout less relevant for CLI
+  {
+    categoryId: "network-timeout",
+    lowerWeight: ["cli", "script"],
+    higherWeight: ["web-server", "api"],
+  },
+  // High latency not relevant for CLI
+  {
+    categoryId: "high-latency",
+    skip: ["cli", "script", "library"],
+    higherWeight: ["web-server", "api"],
+  },
+  // Encoding mismatch less relevant for CLI
+  {
+    categoryId: "encoding-mismatch",
+    lowerWeight: ["cli", "script"],
+  },
+  // Precision loss less relevant for CLI
+  {
+    categoryId: "precision-loss",
+    lowerWeight: ["cli", "script"],
+  },
 ];
 
 // =============================================================================

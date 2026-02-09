@@ -21,54 +21,19 @@ references:
   - https://en.wikipedia.org/wiki/Boundary_testing
 
 detectionPatterns:
-  - id: python-range-access
+  - id: python-unchecked-index-user-input
     type: regex
     language: python
-    pattern: "\\[\\w+\\]|\\[\\w+\\s*-\\s*1\\]|\\[\\w+\\s*\\+\\s*1\\]"
-    confidence: low
-    description: Detects array index access (verify boundary checks)
+    pattern: "\\w+\\[\\s*(request\\.|params\\.|args\\.|input)"
+    confidence: medium
+    description: Detects array indexing with user-controlled input without bounds check
 
-  - id: python-comparison-boundary
-    type: regex
-    language: python
-    pattern: "if\\s+\\w+\\s*[<>]=?\\s*\\d+|if\\s+\\d+\\s*[<>]=?\\s*\\w+"
-    confidence: low
-    description: Detects numeric comparisons (verify off-by-one)
-
-  - id: python-slice-operation
-    type: regex
-    language: python
-    pattern: "\\[:\\d+\\]|\\[\\d+:\\]|\\[-\\d+:\\]"
-    confidence: low
-    description: Detects slice operations (verify bounds)
-
-  - id: python-loop-range
-    type: regex
-    language: python
-    pattern: "for\\s+\\w+\\s+in\\s+range\\("
-    confidence: low
-    description: Detects range loops (verify inclusive/exclusive)
-
-  - id: ts-array-access
+  - id: ts-unchecked-index-user-input
     type: regex
     language: typescript
-    pattern: "\\[\\w+\\]|\\[\\.length\\s*-\\s*1\\]"
-    confidence: low
-    description: Detects array index access
-
-  - id: ts-comparison-boundary
-    type: regex
-    language: typescript
-    pattern: "if\\s*\\(.*[<>]=?\\s*\\d+|\\w+\\s*[<>]=?\\s*\\w+\\.length"
-    confidence: low
-    description: Detects numeric/length comparisons
-
-  - id: ts-substring
-    type: regex
-    language: typescript
-    pattern: "\\.substring\\s*\\(|\\.slice\\s*\\(|\\.substr\\s*\\("
-    confidence: low
-    description: Detects string slicing operations
+    pattern: "\\w+\\[\\s*(req\\.|params\\.|query\\.|body\\.|input)"
+    confidence: medium
+    description: Detects array indexing with user-controlled input without bounds check
 
 testTemplates:
   - id: pytest-boundary-testing

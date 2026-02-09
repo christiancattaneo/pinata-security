@@ -65,9 +65,9 @@ detectionPatterns:
   - id: ts-check-then-act
     type: regex
     language: typescript
-    pattern: "if\\s*\\(.*exists.*\\).*\\{.*create|if\\s*\\(!.*\\).*\\{"
+    pattern: "if\\s*\\(.*exists.*\\).*\\{.*(create|write|mkdir|insert)|if\\s*\\(!.*exists.*\\).*\\{.*(create|write|mkdir|insert)"
     confidence: medium
-    description: Detects check-then-act pattern
+    description: Detects check-then-act TOCTOU pattern (check existence then create)
 
   - id: ts-promise-race-unsafe
     type: regex

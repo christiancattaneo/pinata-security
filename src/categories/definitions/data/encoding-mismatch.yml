@@ -56,7 +56,7 @@ detectionPatterns:
     type: regex
     language: typescript
     pattern: "new TextDecoder\\(\\)|TextDecoder\\(\\)"
-    confidence: low
+    confidence: medium
     description: Detects TextDecoder without explicit encoding
 
   - id: ts-buffer-tostring-default
@@ -76,9 +76,9 @@ detectionPatterns:
   - id: ts-length-emoji
     type: regex
     language: typescript
-    pattern: "\\.length(?!\\s*[=!<>])"
-    confidence: low
-    description: Detects string length (verify emoji handling)
+    pattern: "\\.length\\s*[<>]=?\\s*\\d+.*\\.charAt|\\.length.*\\.charCodeAt|\\.split\\(.*\\)\\.length"
+    confidence: medium
+    description: Detects string length used with char operations (may be wrong for emoji)
     negativePattern: "\\[\\.\\.\\.\\w+\\]\\.length|Array\\.from\\("
 
 testTemplates:

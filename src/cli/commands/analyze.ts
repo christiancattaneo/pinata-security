@@ -1,5 +1,5 @@
 /**
- * Analyze command - Scan codebase for test coverage gaps
+ * Analyze command - Scan codebase for security vulnerabilities
  */
 
 import { existsSync, writeFileSync } from "fs";
@@ -23,7 +23,7 @@ import { getDefinitionsPath } from "../shared.js";
 export function registerAnalyzeCommand(program: Command): void {
   program
     .command("analyze [path]")
-    .description("Analyze codebase for test coverage gaps")
+    .description("Scan codebase for security vulnerabilities")
     .option("-o, --output <format>", "Output format: terminal, json, markdown, sarif, html, junit-xml", "terminal")
     .option("--output-file <path>", "Write output to file (useful for SARIF upload)")
     .option("-d, --domains <domains>", "Filter to specific domains (comma-separated)")

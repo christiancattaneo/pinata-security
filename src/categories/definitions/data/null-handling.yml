@@ -41,12 +41,12 @@ detectionPatterns:
     confidence: high
     description: Detects arithmetic with potential None values
 
-  - id: python-json-null
+  - id: python-json-no-default
     type: regex
     language: python
-    pattern: "json\\.loads|json\\.load"
-    confidence: low
-    description: Detects JSON parsing (verify null handling)
+    pattern: "json\\.loads?\\(.*\\)\\[|json\\.loads?\\(.*\\)\\."
+    confidence: medium
+    description: Detects JSON parse result accessed without null check
     negativePattern: "or\\s+\\{\\}|or\\s+\\[\\]|\\.get\\("
 
   - id: ts-null-vs-undefined
@@ -56,27 +56,12 @@ detectionPatterns:
     confidence: medium
     description: Detects checking only null or undefined, not both
 
-  - id: ts-optional-chain-missing
+  - id: ts-json-parse-no-try
     type: regex
     language: typescript
-    pattern: "\\w+\\.\\w+\\.\\w+(?!\\.?)"
-    confidence: low
-    description: Detects deep property access without optional chaining
-    negativePattern: "\\?\\."
-
-  - id: ts-nullable-db-field
-    type: regex
-    language: typescript
-    pattern: "String\\s*\\|\\s*null|number\\s*\\|\\s*null"
-    confidence: low
-    description: Detects nullable types (verify null handling)
-
-  - id: ts-json-parse-null
-    type: regex
-    language: typescript
-    pattern: "JSON\\.parse\\s*\\("
-    confidence: low
-    description: Detects JSON parsing (verify null handling)
+    pattern: "JSON\\.parse\\s*\\((?!.*try|.*catch)"
+    confidence: medium
+    description: Detects JSON.parse without visible error handling
 
 testTemplates:
   - id: pytest-null-handling

@@ -28,19 +28,12 @@ detectionPatterns:
     confidence: medium
     description: Detects mutable global state
 
-  - id: python-read-modify-write
+  - id: python-thread-no-lock
     type: regex
     language: python
-    pattern: "\\w+\\s*\\+=|\\w+\\s*-=|\\w+\\s*=\\s*\\w+\\s*\\+\\s*1"
-    confidence: low
-    description: Detects increment/decrement (may need locking)
-
-  - id: python-no-lock
-    type: regex
-    language: python
-    pattern: "threading\\.Thread|multiprocessing\\.Process"
-    confidence: low
-    description: Detects threading (verify locking)
+    pattern: "threading\\.Thread.*(?!Lock\\(|RLock\\(|Semaphore\\()"
+    confidence: medium
+    description: Detects thread creation without visible locking in same scope
     negativePattern: "Lock\\(|RLock\\(|Semaphore\\("
 
   - id: python-check-then-act
@@ -50,12 +43,12 @@ detectionPatterns:
     confidence: medium
     description: Detects check-then-act pattern (TOCTOU)
 
-  - id: ts-shared-variable
+  - id: ts-var-declaration
     type: regex
     language: typescript
-    pattern: "let\\s+\\w+\\s*=|var\\s+\\w+\\s*="
-    confidence: low
-    description: Detects mutable shared state (verify thread safety)
+    pattern: "\\bvar\\s+\\w+\\s*="
+    confidence: medium
+    description: Detects var declarations (function-scoped, potential unintended sharing)
 
   - id: ts-async-race
     type: regex
@@ -68,7 +61,7 @@ detectionPatterns:
     type: regex
     language: typescript
     pattern: "\\w+\\s*=\\s*\\w+\\s*\\+\\s*1|\\w+\\+\\+"
-    confidence: low
+    confidence: medium
     description: Detects non-atomic increment
 
   - id: ts-database-upsert

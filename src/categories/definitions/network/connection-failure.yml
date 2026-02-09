@@ -71,7 +71,7 @@ detectionPatterns:
     type: regex
     language: typescript
     pattern: "catch\\s*\\([^)]*\\)\\s*\\{(?!.*ECONNREFUSED|.*code)"
-    confidence: low
+    confidence: medium
     description: Detects catch block not checking error codes
 
   - id: ts-socket-no-error-event

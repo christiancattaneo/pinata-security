@@ -35,8 +35,8 @@ detectionPatterns:
     type: regex
     language: python
     pattern: "\\+=\\s*1|counter\\s*\\+|increment\\("
-    confidence: low
-    description: Detects counter increments (verify idempotency)
+    confidence: medium
+    description: Detects counter increments (may need idempotency guards in retry contexts)
 
   - id: python-payment-no-idem
     type: regex
@@ -69,9 +69,9 @@ detectionPatterns:
   - id: ts-counter-update
     type: regex
     language: typescript
-    pattern: "\\+\\+|\\+=\\s*1|\\$inc"
-    confidence: low
-    description: Detects counter updates (verify idempotency)
+    pattern: "\\$inc|\\$push(?!.*idempotency|.*idempotent)"
+    confidence: medium
+    description: Detects MongoDB counter/array updates without idempotency
 
   - id: ts-webhook-no-dedup
     type: regex

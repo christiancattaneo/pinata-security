@@ -105,7 +105,7 @@ export function formatScanTerminal(result: ScanResult, basePath: string): string
     lines.push(formatGapsSummary(result.gaps, basePath));
     lines.push("");
   } else {
-    lines.push(chalk.green.bold("No gaps detected! Your codebase has good test coverage."));
+    lines.push(chalk.green.bold("No vulnerabilities detected."));
     lines.push("");
   }
 
@@ -358,7 +358,7 @@ export function formatScanMarkdown(result: ScanResult, basePath: string): string
     }
   } else {
     lines.push("## No Gaps Detected\n");
-    lines.push("Your codebase has good test coverage.\n");
+    lines.push("No vulnerabilities detected.\n");
   }
 
   // Summary stats
@@ -433,7 +433,7 @@ function buildSarifResults(result: ScanResult, basePath: string): object[] {
     ruleId: gap.categoryId,
     level: sarifLevel(gap.severity),
     message: {
-      text: `Missing test coverage for ${gap.categoryName}`,
+      text: `Potential vulnerability: ${gap.categoryName}`,
     },
     locations: [
       {
