@@ -166,7 +166,7 @@ export async function validateTest(
       compiles: true,
       failsCorrectly: runResult.failed,
       testOutput: runResult.output.slice(0, 2000), // Cap output size
-      error: runResult.failed ? undefined : "Test passed against vulnerable code (test is useless - should fail)",
+      ...(runResult.failed ? {} : { error: "Test passed against vulnerable code (test is useless - should fail)" }),
     };
   } finally {
     // Clean up if validation failed (keep if it passed)
